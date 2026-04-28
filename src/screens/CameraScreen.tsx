@@ -1,0 +1,304 @@
+import { useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  SafeAreaView,
+  Platform,
+} from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList, CapturedPhoto } from '../types';
+import { colors, fonts, spacing } from '../theme';
+
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Camera'>;
+};
+
+const MAX_PHOTOS = 5;
+
+export function CameraScreen({ navigation }: Props) {
+  const [permission, requestPermission] = useCameraPermissions();
+  const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
+  const [flash, setFlash] = useState<'on' | 'off'>('off');
+  const cameraRef = useRef<CameraView>(null);
+
+  // Écran d'autorisation
+  if (!permission) {
+    return <View style={styles.bg} />;
+  }
+
+  if (!permission.granted) {
+    return (
+      <SafeAreaView style={styles.permissionContainer}>
+        <Text style={styles.permissionTitle}>Accès à la caméra</Text>
+        <Text style={styles.permissionText}>
+          L'accès à la caméra est nécessaire pour scanner vos objets.
+        </Text>
+        <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+          <Text style={styles.permissionButtonText}>Autoriser l'accès</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backLink}>
+          <Text style={styles.backLinkText}>Retour</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  const takePhoto = async () => {
+    if (!cameraRef.current || photos.length >= MAX_PHOTOS) return;
+
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const result = await cameraRef.current.takePictureAsync({
+      base64: true,
+      quality: 0.3,
+    });
+
+    if (result?.uri && result?.base64) {
+      setPhotos((prev) => [
+        ...prev,
+        { uri: result.uri, base64: result.base64! },
+      ]);
+    }
+  };
+
+  const pickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+
+    const remaining = MAX_PHOTOS - photos.length;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      base64: true,
+      quality: 0.3,
+    });
+
+    if (!result.canceled) {
+      const newPhotos: CapturedPhoto[] = result.assets
+        .filter((a) => a.base64)
+        .map((a) => ({ uri: a.uri, base64: a.base64! }));
+      setPhotos((prev) => [...prev, ...newPhotos].slice(0, MAX_PHOTOS));
+    }
+  };
+
+  const canAddMore = photos.length < MAX_PHOTOS;
+
+  return (
+    <View style={styles.bg}>
+      {/* Viseur plein écran */}
+      <CameraView
+        ref={cameraRef}
+        style={StyleSheet.absoluteFill}
+        flash={flash}
+      />
+
+      {/* Barre supérieure */}
+      <SafeAreaView style={styles.topBar}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={26} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.counter}>
+          {photos.length}/{MAX_PHOTOS}
+        </Text>
+      </SafeAreaView>
+
+      {/* Zone inférieure */}
+      <View style={styles.bottomArea}>
+        {/* Bandeau de miniatures + bouton Analyser */}
+        {photos.length > 0 && (
+          <View style={styles.thumbnailSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.thumbnailStrip}
+            >
+              {photos.map((photo, index) => (
+                <Image
+                  key={index}
+                  source={{ uri: photo.uri }}
+                  style={styles.thumbnail}
+                />
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.analyserButton}
+              onPress={() => navigation.navigate('Review', { photos })}
+            >
+              <Text style={styles.analyserText}>Analyser →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Barre de contrôles */}
+        <View style={styles.controlsBar}>
+          <TouchableOpacity style={styles.iconButton} onPress={pickFromGallery}>
+            <Ionicons name="images-outline" size={28} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.shutter, !canAddMore && styles.shutterDisabled]}
+            onPress={takePhoto}
+            disabled={!canAddMore}
+            activeOpacity={0.8}
+          >
+            <View style={styles.shutterInner} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => setFlash((f) => (f === 'off' ? 'on' : 'off'))}
+          >
+            <Ionicons
+              name={flash === 'on' ? 'flash' : 'flash-off'}
+              size={28}
+              color={flash === 'on' ? colors.primary : '#fff'}
+            />
+          </TouchableOpacity>
+        </View>
+        {Platform.OS === 'ios' && <View style={{ height: 20 }} />}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  bg: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
+    paddingTop: 8,
+  },
+  counter: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 16,
+    color: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  iconButton: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomArea: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  thumbnailSection: {
+    paddingHorizontal: spacing.base,
+    paddingBottom: 8,
+  },
+  thumbnailStrip: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  thumbnail: {
+    width: 64,
+    height: 64,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  analyserButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 50,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  analyserText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 16,
+    color: colors.background,
+  },
+  controlsBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.section,
+    paddingVertical: 20,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  shutter: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 4,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shutterDisabled: {
+    opacity: 0.35,
+  },
+  shutterInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+  },
+  permissionContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.section,
+  },
+  permissionTitle: {
+    fontFamily: fonts.serif,
+    fontSize: 26,
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  permissionText: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  permissionButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 50,
+    marginBottom: 16,
+  },
+  permissionButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 16,
+    color: colors.background,
+  },
+  backLink: {
+    paddingVertical: 8,
+  },
+  backLinkText: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    color: colors.textSecondary,
+  },
+});

@@ -1,0 +1,52 @@
+export interface AnalysisResult {
+  name: string;
+  category: string;
+  era: string;
+  origin: string;
+  condition: 'Excellent' | 'Bon' | 'Correct' | 'À restaurer';
+  conditionNote: string;
+  story: string;
+  priceMin: number;
+  priceMax: number;
+  priceSuggested: number;
+  sellingTips: string[];
+}
+
+export interface CapturedPhoto {
+  uri: string;
+  base64: string;
+}
+
+// ─── Scanner stack ───────────────────────────────────────────────────────────
+
+export type RootStackParamList = {
+  Home: undefined;
+  Camera: undefined;
+  Review: { photos: CapturedPhoto[] };
+  Loading: { photos: CapturedPhoto[]; memory?: string };
+  Result: { analysis: AnalysisResult; photos: CapturedPhoto[]; memory?: string };
+  Sell: { analysis: AnalysisResult; photo: CapturedPhoto };
+};
+
+// ─── Marketplace stack ───────────────────────────────────────────────────────
+
+export type MarketStackParamList = {
+  Market: undefined;
+  Listing: { id: string };
+  Chat: { listing_id: string; receiver_id: string; listing_name: string };
+  Inbox: undefined;
+};
+
+// ─── Profile stack ───────────────────────────────────────────────────────────
+
+export type ProfileStackParamList = {
+  Profile: undefined;
+};
+
+// ─── Bottom tabs ─────────────────────────────────────────────────────────────
+
+export type TabParamList = {
+  Scanner: undefined;
+  Marché: undefined;
+  Profil: undefined;
+};

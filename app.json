@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Relique",
+    "slug": "relique",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1A0A0B"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.relique.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Relique utilise la caméra pour scanner et analyser vos objets.",
+        "NSPhotoLibraryUsageDescription": "Relique accède à vos photos pour analyser vos objets."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1A0A0B"
+      },
+      "package": "com.relique.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Relique utilise la caméra pour scanner et analyser vos objets."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Relique accède à vos photos pour analyser vos objets."
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}
