@@ -11,21 +11,28 @@ import {
   RefreshControl,
   Alert,
   Dimensions,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { colors, fonts, spacing } from '../theme';
-import { supabase, Listing } from '../services/supabase';
+import { supabase, Listing, Profile } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { ConditionBadge } from '../components/ConditionBadge';
-import { AnalysisResult } from '../types';
+import { AnalysisResult, ProfileStackParamList } from '../types';
+
+type Props = {
+  navigation: StackNavigationProp<ProfileStackParamList, 'Profile'>;
+};
 
 type Tab = 'listings' | 'favorites';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.section * 2 - 12) / 2;
 
-export function ProfileScreen() {
+export function ProfileScreen({ navigation }: Props) {
   const { user, signOut } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [tab, setTab] = useState<Tab>('listings');
   const [myListings, setMyListings] = useState<Listing[]>([]);
   const [favorites, setFavorites] = useState<Listing[]>([]);
@@ -56,12 +63,24 @@ export function ProfileScreen() {
     }
   }, [user]);
 
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (data) setProfile(data as Profile);
+  }, [user]);
+
   const loadAll = useCallback(async () => {
-    await Promise.all([loadMyListings(), loadFavorites()]);
+    await Promise.all([loadProfile(), loadMyListings(), loadFavorites()]);
     setLoading(false);
-  }, [loadMyListings, loadFavorites]);
+  }, [loadProfile, loadMyListings, loadFavorites]);
 
   useEffect(() => { loadAll(); }, []);
+
+  // Reload profile when coming back from EditProfile
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', loadProfile);
+    return unsubscribe;
+  }, [navigation, loadProfile]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -113,12 +132,24 @@ export function ProfileScreen() {
     ]);
   };
 
+  const handleInvite = async () => {
+    await Share.share({
+      message:
+        'Découvre Relique, l\'app pour donner une seconde vie à tes objets ! ' +
+        'Scanner, estimer et vendre en quelques minutes.',
+    });
+  };
+
   // ─── Rendu carte "Mes annonces" ──────────────────────────────────────────────
 
   const renderMyListing = ({ item }: { item: Listing }) => {
     const isSold = item.status === 'sold';
     return (
-      <View style={styles.myCard}>
+      <TouchableOpacity
+        style={styles.myCard}
+        activeOpacity={0.75}
+        onPress={() => navigation.navigate('Listing', { id: item.id })}
+      >
         <View style={styles.myCardLeft}>
           {item.images?.[0] ? (
             <Image source={{ uri: item.images[0] }} style={styles.myCardImg} />
@@ -141,22 +172,31 @@ export function ProfileScreen() {
         </View>
         <View style={styles.myCardActions}>
           {!isSold && (
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('EditListing', { id: item.id })}>
+              <Ionicons name="create-outline" size={22} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+          {!isSold && (
             <TouchableOpacity style={styles.actionBtn} onPress={() => markAsSold(item.id)}>
-              <Ionicons name="checkmark-circle-outline" size={22} color={colors.primary} />
+              <Ionicons name="checkmark-circle-outline" size={22} color="#4CAF50" />
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.actionBtn} onPress={() => deleteListing(item.id)}>
             <Ionicons name="trash-outline" size={22} color="#E57373" />
           </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   // ─── Rendu carte "Favoris" ───────────────────────────────────────────────────
 
   const renderFavorite = ({ item, index }: { item: Listing; index: number }) => (
-    <View style={[styles.favWrapper, index % 2 === 0 ? { marginRight: 6 } : { marginLeft: 6 }]}>
+    <TouchableOpacity
+      style={[styles.favWrapper, index % 2 === 0 ? { marginRight: 6 } : { marginLeft: 6 }]}
+      activeOpacity={0.75}
+      onPress={() => navigation.navigate('Listing', { id: item.id })}
+    >
       <View style={[styles.favCard, { width: CARD_WIDTH }]}>
         {item.images?.[0] ? (
           <Image source={{ uri: item.images[0] }} style={[styles.favImg, { height: CARD_WIDTH }]} />
@@ -171,7 +211,7 @@ export function ProfileScreen() {
           <ConditionBadge condition={item.condition as AnalysisResult['condition']} size="sm" />
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   if (loading) {
@@ -188,13 +228,34 @@ export function ProfileScreen() {
     <SafeAreaView style={styles.root}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Mon profil</Text>
+        <TouchableOpacity style={styles.avatarWrap} onPress={() => navigation.navigate('EditProfile')} activeOpacity={0.8}>
+          {profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Ionicons name="person" size={24} color={colors.textSecondary} />
+            </View>
+          )}
+          <View style={styles.avatarEditBadge}>
+            <Ionicons name="pencil" size={10} color="#fff" />
+          </View>
+        </TouchableOpacity>
+
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>
+            {profile?.username ?? user?.email?.split('@')[0] ?? 'Mon profil'}
+          </Text>
           <Text style={styles.headerEmail}>{user?.email}</Text>
         </View>
-        <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={22} color="#E57373" />
-        </TouchableOpacity>
+
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Settings')}>
+            <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
+            <Ionicons name="log-out-outline" size={22} color="#E57373" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Tabs internes */}
@@ -235,6 +296,18 @@ export function ProfileScreen() {
           />
         }
         ItemSeparatorComponent={tab === 'listings' ? () => <View style={styles.separator} /> : undefined}
+        ListFooterComponent={
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.footerBtn} onPress={handleInvite}>
+              <Ionicons name="person-add-outline" size={20} color={colors.primary} />
+              <Text style={styles.footerBtnText}>Inviter des amis</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.footerBtn} onPress={() => navigation.navigate('Legal')}>
+              <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
+              <Text style={[styles.footerBtnText, { color: colors.textSecondary }]}>Mentions légales & CGU</Text>
+            </TouchableOpacity>
+          </View>
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons
@@ -263,14 +336,46 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 14,
     paddingHorizontal: spacing.section,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.surface,
   },
-  headerTitle: { fontFamily: fonts.serif, fontSize: 24, color: colors.primary },
-  headerEmail: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  avatarWrap: { position: 'relative', flexShrink: 0 },
+  avatar: { width: 56, height: 56, borderRadius: 28, resizeMode: 'cover' },
+  avatarPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.chipBackground,
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.textPrimary },
+  headerEmail: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  headerActions: { flexDirection: 'row', gap: 8 },
+  headerBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   signOutBtn: {
     width: 44,
     height: 44,
@@ -328,6 +433,27 @@ const styles = StyleSheet.create({
   favInfo: { padding: 10, gap: 4 },
   favName: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textPrimary, lineHeight: 18 },
   favPrice: { fontFamily: fonts.serif, fontSize: 17, color: colors.primary },
+
+  // Footer
+  footer: {
+    paddingHorizontal: spacing.section,
+    paddingTop: 24,
+    paddingBottom: 32,
+    gap: 4,
+  },
+  footerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.surface,
+  },
+  footerBtnText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 15,
+    color: colors.primary,
+  },
 
   // Vide
   empty: { alignItems: 'center', gap: 12, paddingTop: 60, paddingHorizontal: spacing.section },

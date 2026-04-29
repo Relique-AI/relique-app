@@ -14,7 +14,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { colors, fonts, spacing } from '../theme';
 
-type Tab = 'login' | 'signup';
+type Tab = 'login' | 'signup' | 'forgot';
 
 export function AuthScreen() {
   const { signIn, signUp } = useAuth();
@@ -29,6 +29,18 @@ export function AuthScreen() {
   const handleSubmit = async () => {
     setError(null);
     setSuccess(null);
+
+    if (tab === 'forgot') {
+      if (!email.trim()) { setError('Veuillez saisir votre email.'); return; }
+      setLoading(true);
+      const { error: err } = await import('../services/supabase').then(m =>
+        m.supabase.auth.resetPasswordForEmail(email.trim())
+      );
+      setLoading(false);
+      if (err) setError(translateError(err.message));
+      else setSuccess('Un lien de réinitialisation a été envoyé à votre email.');
+      return;
+    }
 
     if (!email.trim() || !password) {
       setError('Veuillez remplir tous les champs.');
@@ -78,24 +90,30 @@ export function AuthScreen() {
           </View>
 
           {/* Tabs */}
-          <View style={styles.tabs}>
-            <TouchableOpacity
-              style={[styles.tabItem, tab === 'login' && styles.tabItemActive]}
-              onPress={() => { setTab('login'); setError(null); setSuccess(null); }}
-            >
-              <Text style={[styles.tabText, tab === 'login' && styles.tabTextActive]}>
-                Connexion
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tabItem, tab === 'signup' && styles.tabItemActive]}
-              onPress={() => { setTab('signup'); setError(null); setSuccess(null); }}
-            >
-              <Text style={[styles.tabText, tab === 'signup' && styles.tabTextActive]}>
-                Créer un compte
-              </Text>
-            </TouchableOpacity>
-          </View>
+          {tab !== 'forgot' && (
+            <View style={styles.tabs}>
+              <TouchableOpacity
+                style={[styles.tabItem, tab === 'login' && styles.tabItemActive]}
+                onPress={() => { setTab('login'); setError(null); setSuccess(null); }}
+              >
+                <Text style={[styles.tabText, tab === 'login' && styles.tabTextActive]}>Connexion</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tabItem, tab === 'signup' && styles.tabItemActive]}
+                onPress={() => { setTab('signup'); setError(null); setSuccess(null); }}
+              >
+                <Text style={[styles.tabText, tab === 'signup' && styles.tabTextActive]}>Créer un compte</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Titre mot de passe oublié */}
+          {tab === 'forgot' && (
+            <View style={{ marginBottom: 24 }}>
+              <Text style={styles.forgotTitle}>Mot de passe oublié</Text>
+              <Text style={styles.forgotSub}>Saisissez votre email pour recevoir un lien de réinitialisation.</Text>
+            </View>
+          )}
 
           {/* Formulaire */}
           <View style={styles.form}>
@@ -113,17 +131,24 @@ export function AuthScreen() {
               />
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Mot de passe</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••••"
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry
-              />
-            </View>
+            {tab !== 'forgot' && (
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Mot de passe</Text>
+                <TextInput
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.textSecondary}
+                  secureTextEntry
+                />
+                {tab === 'login' && (
+                  <TouchableOpacity onPress={() => { setTab('forgot'); setError(null); setSuccess(null); }}>
+                    <Text style={styles.forgotLink}>Mot de passe oublié ?</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
 
             {tab === 'signup' && (
               <View style={styles.fieldGroup}>
@@ -152,10 +177,16 @@ export function AuthScreen() {
                 <ActivityIndicator color={colors.background} />
               ) : (
                 <Text style={styles.ctaText}>
-                  {tab === 'login' ? 'Se connecter' : 'Créer mon compte'}
+                  {tab === 'login' ? 'Se connecter' : tab === 'signup' ? 'Créer mon compte' : 'Envoyer le lien'}
                 </Text>
               )}
             </TouchableOpacity>
+
+            {tab === 'forgot' && (
+              <TouchableOpacity onPress={() => { setTab('login'); setError(null); setSuccess(null); }} style={{ alignItems: 'center', marginTop: 8 }}>
+                <Text style={styles.forgotLink}>← Retour à la connexion</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -277,5 +308,23 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: 17,
     color: colors.background,
+  },
+  forgotTitle: {
+    fontFamily: fonts.serif,
+    fontSize: 26,
+    color: colors.primary,
+    marginBottom: 8,
+  },
+  forgotSub: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  forgotLink: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.primary,
+    marginTop: 4,
   },
 });

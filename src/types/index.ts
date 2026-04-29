@@ -37,16 +37,37 @@ export type MarketStackParamList = {
   Inbox: undefined;
 };
 
+// ─── Browse stack ─────────────────────────────────────────────────────────────
+
+export type BrowseStackParamList = {
+  Browse: undefined;
+  BrowseListings: { category: string };
+  Listing: { id: string };
+};
+
 // ─── Profile stack ───────────────────────────────────────────────────────────
 
 export type ProfileStackParamList = {
   Profile: undefined;
+  EditProfile: undefined;
+  EditListing: { id: string };
+  Listing: { id: string };
+  Settings: undefined;
+  Legal: undefined;
+};
+
+// ─── Wallet stack ─────────────────────────────────────────────────────────────
+
+export type WalletStackParamList = {
+  Wallet: undefined;
 };
 
 // ─── Bottom tabs ─────────────────────────────────────────────────────────────
 
 export type TabParamList = {
   Scanner: undefined;
+  Parcourir: undefined;
   Marché: undefined;
+  Portefeuille: undefined;
   Profil: undefined;
 };

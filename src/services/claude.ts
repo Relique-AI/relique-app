@@ -80,7 +80,6 @@ async function callAPI(
 
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
-  console.log('[Gemini raw]', JSON.stringify(text?.slice(0, 300)));
   if (!text) throw new Error(`Réponse vide: ${JSON.stringify(data).slice(0, 200)}`);
   return text;
 }

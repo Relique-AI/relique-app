@@ -15,7 +15,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-import { MarketStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Listing } from '../services/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,8 +23,8 @@ import { ConditionBadge } from '../components/ConditionBadge';
 import { AnalysisResult } from '../types';
 
 type Props = {
-  navigation: StackNavigationProp<MarketStackParamList, 'Listing'>;
-  route: RouteProp<MarketStackParamList, 'Listing'>;
+  navigation: StackNavigationProp<any, any>;
+  route: RouteProp<{ Listing: { id: string } }, 'Listing'>;
 };
 
 const { width } = Dimensions.get('window');
@@ -48,10 +47,14 @@ export function ListingScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(true);
   const [markingAsSold, setMarkingAsSold] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [sellerListings, setSellerListings] = useState<Listing[]>([]);
 
   const isOwner = listing?.seller_id === user?.id;
 
   useEffect(() => {
+    setLoading(true);
+    setPhotoIndex(0);
+    setSellerListings([]);
     loadListing();
     loadFavorite();
   }, [id]);
@@ -62,8 +65,23 @@ export function ListingScreen({ navigation, route }: Props) {
       .select('*, profiles(username, created_at)')
       .eq('id', id)
       .single();
-    if (data) setListing(data as Listing);
+    if (data) {
+      setListing(data as Listing);
+      loadSellerListings(data.seller_id);
+    }
     setLoading(false);
+  };
+
+  const loadSellerListings = async (sellerId: string) => {
+    const { data } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('seller_id', sellerId)
+      .eq('status', 'active')
+      .neq('id', id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (data) setSellerListings(data as Listing[]);
   };
 
   const loadFavorite = async () => {
@@ -112,6 +130,38 @@ export function ListingScreen({ navigation, route }: Props) {
         },
       ],
     );
+  };
+
+  const handleReport = () => {
+    Alert.alert(
+      'Signaler cette annonce',
+      'Pourquoi signalez-vous cette annonce ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Contenu inapproprié',
+          onPress: () => submitReport('inappropriate'),
+        },
+        {
+          text: 'Arnaque / Fraude',
+          onPress: () => submitReport('scam'),
+        },
+        {
+          text: 'Objet interdit',
+          onPress: () => submitReport('prohibited'),
+        },
+      ],
+    );
+  };
+
+  const submitReport = async (reason: string) => {
+    if (!user) return;
+    await supabase.from('reports').insert({
+      reporter_id: user.id,
+      listing_id: id,
+      reason,
+    });
+    Alert.alert('Signalement envoyé', 'Merci, notre équipe va examiner cette annonce.');
   };
 
   if (loading) {
@@ -166,7 +216,6 @@ export function ListingScreen({ navigation, route }: Props) {
             )}
           </ScrollView>
 
-          {/* Indicateurs */}
           {images.length > 1 && (
             <View style={styles.dots}>
               {images.map((_, i) => (
@@ -175,18 +224,24 @@ export function ListingScreen({ navigation, route }: Props) {
             </View>
           )}
 
-          {/* Bouton retour */}
           <SafeAreaView style={styles.photoOverlay}>
             <TouchableOpacity style={styles.overlayBtn} onPress={() => navigation.goBack()}>
               <Ionicons name="arrow-back" size={22} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.overlayBtn} onPress={toggleFavorite}>
-              <Ionicons
-                name={isFavorited ? 'heart' : 'heart-outline'}
-                size={22}
-                color={isFavorited ? '#E57373' : '#fff'}
-              />
-            </TouchableOpacity>
+            <View style={styles.overlayRight}>
+              {!isOwner && (
+                <TouchableOpacity style={styles.overlayBtn} onPress={handleReport}>
+                  <Ionicons name="flag-outline" size={20} color="#fff" />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.overlayBtn} onPress={toggleFavorite}>
+                <Ionicons
+                  name={isFavorited ? 'heart' : 'heart-outline'}
+                  size={22}
+                  color={isFavorited ? '#E57373' : '#fff'}
+                />
+              </TouchableOpacity>
+            </View>
           </SafeAreaView>
         </View>
 
@@ -253,6 +308,34 @@ export function ListingScreen({ navigation, route }: Props) {
             </View>
           </View>
 
+          {/* Autres annonces du vendeur */}
+          {sellerListings.length > 0 && (
+            <>
+              <View style={styles.divider} />
+              <Text style={styles.sectionLabel}>Autres annonces de {sellerName}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sellerListingsScroll}>
+                {sellerListings.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.sellerCard}
+                    activeOpacity={0.75}
+                    onPress={() => navigation.push('Listing', { id: item.id })}
+                  >
+                    {item.images?.[0] ? (
+                      <Image source={{ uri: item.images[0] }} style={styles.sellerCardImg} />
+                    ) : (
+                      <View style={[styles.sellerCardImg, styles.sellerCardImgPlaceholder]}>
+                        <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
+                      </View>
+                    )}
+                    <Text style={styles.sellerCardName} numberOfLines={2}>{item.name}</Text>
+                    <Text style={styles.sellerCardPrice}>{item.price_final} €</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </>
+          )}
+
         </View>
       </ScrollView>
 
@@ -314,9 +397,11 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingHorizontal: spacing.base,
     paddingTop: Platform.OS === 'android' ? 40 : 0,
   },
+  overlayRight: { flexDirection: 'row', gap: 8 },
   overlayBtn: {
     width: 40,
     height: 40,
@@ -376,6 +461,33 @@ const styles = StyleSheet.create({
   },
   sellerName: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary },
   sellerDate: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+
+  // Autres annonces du vendeur
+  sellerListingsScroll: { marginHorizontal: -spacing.section, paddingHorizontal: spacing.section },
+  sellerCard: {
+    width: 140,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginRight: 10,
+  },
+  sellerCardImg: { width: 140, height: 140, resizeMode: 'cover' },
+  sellerCardImgPlaceholder: { backgroundColor: colors.chipBackground, alignItems: 'center', justifyContent: 'center' },
+  sellerCardName: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.textPrimary,
+    padding: 8,
+    paddingBottom: 2,
+    lineHeight: 18,
+  },
+  sellerCardPrice: {
+    fontFamily: fonts.serif,
+    fontSize: 15,
+    color: colors.primary,
+    paddingHorizontal: 8,
+    paddingBottom: 10,
+  },
 
   bottomBar: {
     position: 'absolute',

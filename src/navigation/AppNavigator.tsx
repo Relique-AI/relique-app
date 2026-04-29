@@ -4,7 +4,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { colors, fonts } from '../theme';
-import { RootStackParamList, MarketStackParamList, ProfileStackParamList, TabParamList } from '../types';
+import {
+  RootStackParamList,
+  MarketStackParamList,
+  BrowseStackParamList,
+  ProfileStackParamList,
+  WalletStackParamList,
+  TabParamList,
+} from '../types';
 
 import { AuthScreen } from '../screens/AuthScreen';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -18,7 +25,13 @@ import { ListingScreen } from '../screens/ListingScreen';
 import { ChatScreen } from '../screens/ChatScreen';
 import { InboxScreen } from '../screens/InboxScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-
+import { BrowseScreen } from '../screens/BrowseScreen';
+import { BrowseListingsScreen } from '../screens/BrowseListingsScreen';
+import { WalletScreen } from '../screens/WalletScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
+import { LegalScreen } from '../screens/LegalScreen';
+import { EditProfileScreen } from '../screens/EditProfileScreen';
+import { EditListingScreen } from '../screens/EditListingScreen';
 
 // ─── Stacks ──────────────────────────────────────────────────────────────────
 
@@ -66,6 +79,25 @@ function ScannerNavigator() {
   );
 }
 
+const BrowseStack = createStackNavigator<BrowseStackParamList>();
+function BrowseNavigator() {
+  return (
+    <BrowseStack.Navigator screenOptions={{ headerShown: false }}>
+      <BrowseStack.Screen name="Browse" component={BrowseScreen} />
+      <BrowseStack.Screen
+        name="BrowseListings"
+        component={BrowseListingsScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <BrowseStack.Screen
+        name="Listing"
+        component={ListingScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+    </BrowseStack.Navigator>
+  );
+}
+
 const MarketStack = createStackNavigator<MarketStackParamList>();
 function MarketNavigator() {
   return (
@@ -90,11 +122,45 @@ function MarketNavigator() {
   );
 }
 
+const WalletStack = createStackNavigator<WalletStackParamList>();
+function WalletNavigator() {
+  return (
+    <WalletStack.Navigator screenOptions={{ headerShown: false }}>
+      <WalletStack.Screen name="Wallet" component={WalletScreen} />
+    </WalletStack.Navigator>
+  );
+}
+
 const ProfileStack = createStackNavigator<ProfileStackParamList>();
 function ProfileNavigator() {
   return (
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="Profile" component={ProfileScreen} />
+      <ProfileStack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <ProfileStack.Screen
+        name="EditListing"
+        component={EditListingScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <ProfileStack.Screen
+        name="Listing"
+        component={ListingScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <ProfileStack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <ProfileStack.Screen
+        name="Legal"
+        component={LegalScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
     </ProfileStack.Navigator>
   );
 }
@@ -123,7 +189,9 @@ function MainTabs() {
         tabBarIcon: ({ focused, color, size }) => {
           const icons: Record<string, { active: string; inactive: string }> = {
             Scanner: { active: 'camera', inactive: 'camera-outline' },
+            Parcourir: { active: 'grid', inactive: 'grid-outline' },
             Marché: { active: 'storefront', inactive: 'storefront-outline' },
+            Portefeuille: { active: 'wallet', inactive: 'wallet-outline' },
             Profil: { active: 'person', inactive: 'person-outline' },
           };
           const icon = icons[route.name];
@@ -138,7 +206,9 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Scanner" component={ScannerNavigator} />
+      <Tab.Screen name="Parcourir" component={BrowseNavigator} />
       <Tab.Screen name="Marché" component={MarketNavigator} />
+      <Tab.Screen name="Portefeuille" component={WalletNavigator} />
       <Tab.Screen name="Profil" component={ProfileNavigator} />
     </Tab.Navigator>
   );
