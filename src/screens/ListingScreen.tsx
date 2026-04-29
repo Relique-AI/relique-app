@@ -11,6 +11,7 @@ import {
   Dimensions,
   Alert,
   Platform,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -20,6 +21,7 @@ import { supabase, Listing } from '../services/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { ConditionBadge } from '../components/ConditionBadge';
+import { ReviewModal } from '../components/ReviewModal';
 import { AnalysisResult } from '../types';
 
 type Props = {
@@ -48,6 +50,9 @@ export function ListingScreen({ navigation, route }: Props) {
   const [markingAsSold, setMarkingAsSold] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [sellerListings, setSellerListings] = useState<Listing[]>([]);
+  const [sellerRating, setSellerRating] = useState<{ avg: number; count: number } | null>(null);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   const isOwner = listing?.seller_id === user?.id;
 
@@ -68,8 +73,30 @@ export function ListingScreen({ navigation, route }: Props) {
     if (data) {
       setListing(data as Listing);
       loadSellerListings(data.seller_id);
+      loadSellerRating(data.seller_id);
     }
     setLoading(false);
+  };
+
+  const loadSellerRating = async (sellerId: string) => {
+    const { data } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('seller_id', sellerId);
+    if (data && data.length > 0) {
+      const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
+      setSellerRating({ avg: Math.round(avg * 10) / 10, count: data.length });
+    }
+    if (user) {
+      const { data: existing } = await supabase
+        .from('reviews')
+        .select('id')
+        .eq('seller_id', sellerId)
+        .eq('reviewer_id', user.id)
+        .eq('listing_id', id)
+        .maybeSingle();
+      setAlreadyReviewed(!!existing);
+    }
   };
 
   const loadSellerListings = async (sellerId: string) => {
@@ -154,6 +181,17 @@ export function ListingScreen({ navigation, route }: Props) {
     );
   };
 
+  const handleShare = async () => {
+    if (!listing) return;
+    await Share.share({
+      title: listing.name,
+      message:
+        `${listing.name} — ${listing.price_final} €\n` +
+        `${listing.category} · ${listing.era}\n\n` +
+        `Découvre cette annonce sur Relique !`,
+    });
+  };
+
   const submitReport = async (reason: string) => {
     if (!user) return;
     await supabase.from('reports').insert({
@@ -229,6 +267,9 @@ export function ListingScreen({ navigation, route }: Props) {
               <Ionicons name="arrow-back" size={22} color="#fff" />
             </TouchableOpacity>
             <View style={styles.overlayRight}>
+              <TouchableOpacity style={styles.overlayBtn} onPress={handleShare}>
+                <Ionicons name="share-outline" size={20} color="#fff" />
+              </TouchableOpacity>
               {!isOwner && (
                 <TouchableOpacity style={styles.overlayBtn} onPress={handleReport}>
                   <Ionicons name="flag-outline" size={20} color="#fff" />
@@ -305,7 +346,25 @@ export function ListingScreen({ navigation, route }: Props) {
             <View style={{ flex: 1 }}>
               <Text style={styles.sellerName}>{sellerName}</Text>
               <Text style={styles.sellerDate}>Publié le {publishedAt}</Text>
+              {sellerRating && (
+                <View style={styles.ratingRow}>
+                  {[1,2,3,4,5].map((s) => (
+                    <Ionicons
+                      key={s}
+                      name={s <= Math.round(sellerRating.avg) ? 'star' : 'star-outline'}
+                      size={13}
+                      color={colors.primary}
+                    />
+                  ))}
+                  <Text style={styles.ratingText}>{sellerRating.avg} ({sellerRating.count} avis)</Text>
+                </View>
+              )}
             </View>
+            {!isOwner && listing.status === 'sold' && !alreadyReviewed && (
+              <TouchableOpacity style={styles.reviewBtn} onPress={() => setShowReviewModal(true)}>
+                <Text style={styles.reviewBtnText}>Laisser un avis</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Autres annonces du vendeur */}
@@ -338,6 +397,21 @@ export function ListingScreen({ navigation, route }: Props) {
 
         </View>
       </ScrollView>
+
+      {listing && (
+        <ReviewModal
+          visible={showReviewModal}
+          sellerId={listing.seller_id}
+          sellerName={sellerName}
+          listingId={listing.id}
+          onClose={() => setShowReviewModal(false)}
+          onSubmitted={() => {
+            setShowReviewModal(false);
+            setAlreadyReviewed(true);
+            loadSellerRating(listing.seller_id);
+          }}
+        />
+      )}
 
       {/* Barre d'actions */}
       <SafeAreaView style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
@@ -461,6 +535,17 @@ const styles = StyleSheet.create({
   },
   sellerName: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary },
   sellerDate: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4 },
+  ratingText: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginLeft: 2 },
+  reviewBtn: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  reviewBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.primary },
 
   // Autres annonces du vendeur
   sellerListingsScroll: { marginHorizontal: -spacing.section, paddingHorizontal: spacing.section },

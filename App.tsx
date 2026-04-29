@@ -8,9 +8,21 @@ import { NavigationContainer } from '@react-navigation/native';
 import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { usePushNotifications } from './src/hooks/usePushNotifications';
 import { colors } from './src/theme';
+
+function AppWithNotifications() {
+  usePushNotifications();
+  return (
+    <>
+      <StatusBar style="light" />
+      <AppNavigator />
+    </>
+  );
+}
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -26,12 +38,13 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <NavigationContainer>
-          <StatusBar style="light" />
-          <AppNavigator />
-        </NavigationContainer>
-      </AuthProvider>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <NavigationContainer>
+            <AppWithNotifications />
+          </NavigationContainer>
+        </AuthProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

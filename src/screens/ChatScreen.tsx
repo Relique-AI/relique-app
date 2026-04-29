@@ -95,12 +95,30 @@ export function ChatScreen({ navigation, route }: Props) {
     if (!text || !user || sending) return;
     setInput('');
     setSending(true);
+
     await supabase.from('messages').insert({
       listing_id,
       sender_id: user.id,
       receiver_id,
       content: text,
     });
+
+    // Notification push au destinataire (fire and forget)
+    const { data: senderProfile } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', user.id)
+      .single();
+
+    supabase.functions.invoke('send-push', {
+      body: {
+        receiver_id,
+        sender_name: senderProfile?.username ?? 'Quelqu\'un',
+        listing_name,
+        message_preview: text.length > 60 ? text.slice(0, 60) + '…' : text,
+      },
+    }).catch(() => {});
+
     setSending(false);
   };
 

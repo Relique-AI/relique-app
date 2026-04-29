@@ -53,7 +53,16 @@
         }
       ],
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#C9A84C",
+          "androidMode": "default",
+          "androidCollapsedTitle": "Relique"
+        }
+      ]
     ],
     "extra": {
       "eas": {
