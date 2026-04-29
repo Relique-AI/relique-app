@@ -215,6 +215,7 @@ export function MarketScreen({ navigation }: Props) {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.categoryScroll}
           contentContainerStyle={styles.categoryStrip}
         >
           {['Tous', ...categories].map((cat) => (
@@ -329,10 +330,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textPrimary,
   },
+  categoryScroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   categoryStrip: {
     paddingHorizontal: spacing.section,
-    paddingBottom: 8,
+    paddingVertical: 8,
     gap: 8,
+    alignItems: 'center',
   },
   catChip: {
     paddingVertical: 6,
