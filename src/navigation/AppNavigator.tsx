@@ -2,6 +2,7 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { colors, fonts } from '../theme';
 import {
@@ -169,6 +170,7 @@ function ProfileNavigator() {
 
 const Tab = createBottomTabNavigator<TabParamList>();
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -177,8 +179,8 @@ function MainTabs() {
           backgroundColor: colors.surface,
           borderTopColor: 'rgba(201,168,76,0.15)',
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom + 8,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
