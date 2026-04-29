@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Relique",
+    "name": "Pépite",
     "slug": "relique",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,20 +13,21 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1A0A0B"
+      "backgroundColor": "#0F0E0B"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.relique.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Relique utilise la caméra pour scanner et analyser vos objets.",
-        "NSPhotoLibraryUsageDescription": "Relique accède à vos photos pour analyser vos objets."
+        "NSCameraUsageDescription": "Pépite utilise la caméra pour scanner et analyser vos objets.",
+        "NSPhotoLibraryUsageDescription": "Pépite accède à vos photos pour analyser vos objets.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1A0A0B"
+        "backgroundColor": "#0F0E0B"
       },
       "package": "com.relique.app",
       "permissions": [
@@ -43,13 +44,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Relique utilise la caméra pour scanner et analyser vos objets."
+          "cameraPermission": "Pépite utilise la caméra pour scanner et analyser vos objets."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Relique accède à vos photos pour analyser vos objets."
+          "photosPermission": "Pépite accède à vos photos pour analyser vos objets."
         }
       ],
       "expo-secure-store",
@@ -60,7 +61,7 @@
           "icon": "./assets/icon.png",
           "color": "#C9A84C",
           "androidMode": "default",
-          "androidCollapsedTitle": "Relique"
+          "androidCollapsedTitle": "Pépite"
         }
       ]
     ],

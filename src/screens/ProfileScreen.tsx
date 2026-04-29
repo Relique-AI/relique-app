@@ -135,8 +135,8 @@ export function ProfileScreen({ navigation }: Props) {
   const handleInvite = async () => {
     await Share.share({
       message:
-        'Découvre Relique, l\'app pour donner une seconde vie à tes objets ! ' +
-        'Scanner, estimer et vendre en quelques minutes.',
+        'Découvre Pépite, l\'app qui révèle la valeur de tes objets ! ' +
+        'Scanne, estime et vends en quelques minutes.',
     });
   };
 

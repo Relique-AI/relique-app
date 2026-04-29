@@ -85,8 +85,11 @@ export function AuthScreen() {
         >
           {/* Logo */}
           <View style={styles.header}>
-            <Text style={styles.brand}>Relique</Text>
-            <Text style={styles.subtitle}>Donnez une seconde vie à vos objets</Text>
+            <View style={styles.logoRow}>
+              <Text style={styles.logoGem}>✦</Text>
+              <Text style={styles.brand}>Pépite</Text>
+            </View>
+            <Text style={styles.subtitle}>Vends ce que tu possèdes,{'\n'}en quelques minutes.</Text>
           </View>
 
           {/* Tabs */}
@@ -217,18 +220,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  logoGem: {
+    fontSize: 28,
+    color: colors.primary,
+  },
   brand: {
     fontFamily: fonts.serif,
-    fontSize: 42,
+    fontSize: 46,
     color: colors.primary,
-    letterSpacing: 3,
-    marginBottom: 8,
+    letterSpacing: 2,
   },
   subtitle: {
-    fontFamily: fonts.body,
-    fontSize: 14,
+    fontFamily: fonts.serifRegular,
+    fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 24,
   },
   tabs: {
     flexDirection: 'row',

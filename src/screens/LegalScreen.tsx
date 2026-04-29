@@ -40,39 +40,39 @@ export function LegalScreen({ navigation }: Props) {
         <Text style={styles.updated}>Dernière mise à jour : avril 2026</Text>
 
         <Section title="1. Présentation de l'application">
-          Relique est une application mobile de mise en relation entre vendeurs et acheteurs d'objets anciens, de brocante et de collection. Elle est éditée par Relique SAS.
+          Pépite est une application mobile qui permet à chacun de scanner, estimer et vendre ses objets en quelques minutes grâce à l'intelligence artificielle. Elle est éditée par Pépite SAS.
         </Section>
 
         <Section title="2. Conditions d'utilisation">
-          En utilisant Relique, vous acceptez les présentes conditions. L'application est réservée aux personnes majeures. Tout contenu frauduleux, illégal ou offensant est interdit et peut entraîner la suppression du compte.
+          En utilisant Pépite, vous acceptez les présentes conditions. L'application est réservée aux personnes majeures. Tout contenu frauduleux, illégal ou offensant est interdit et peut entraîner la suppression du compte.
         </Section>
 
         <Section title="3. Inscription et compte">
-          L'accès aux fonctionnalités de l'application nécessite la création d'un compte avec une adresse email valide. Vous êtes responsable de la confidentialité de vos identifiants. Relique se réserve le droit de suspendre tout compte en cas d'abus.
+          L'accès aux fonctionnalités de l'application nécessite la création d'un compte avec une adresse email valide. Vous êtes responsable de la confidentialité de vos identifiants. Pépite se réserve le droit de suspendre tout compte en cas d'abus.
         </Section>
 
         <Section title="4. Annonces et transactions">
-          Les vendeurs sont seuls responsables du contenu de leurs annonces et de l'exactitude des informations (description, état, prix). Relique est un intermédiaire et n'est pas partie aux transactions entre utilisateurs. Une commission de 3 % sera prélevée sur chaque transaction lors de l'activation des paiements intégrés.
+          Les vendeurs sont seuls responsables du contenu de leurs annonces et de l'exactitude des informations (description, état, prix). Pépite est un intermédiaire et n'est pas partie aux transactions entre utilisateurs. Une commission de 3 % sera prélevée sur chaque transaction lors de l'activation des paiements intégrés.
         </Section>
 
         <Section title="5. Signalement et modération">
-          Tout utilisateur peut signaler une annonce suspecte ou inappropriée. L'équipe Relique se réserve le droit de retirer toute annonce ne respectant pas les présentes conditions.
+          Tout utilisateur peut signaler une annonce suspecte ou inappropriée. L'équipe Pépite se réserve le droit de retirer toute annonce ne respectant pas les présentes conditions.
         </Section>
 
         <Section title="6. Données personnelles">
-          Vos données sont stockées de manière sécurisée via Supabase. Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression de vos données personnelles. Pour exercer ces droits, contactez-nous à : contact@relique-app.fr
+          Vos données sont stockées de manière sécurisée via Supabase. Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression de vos données personnelles. Pour exercer ces droits, contactez-nous à : contact@pepite-app.fr
         </Section>
 
         <Section title="7. Propriété intellectuelle">
-          L'ensemble des éléments de l'application (logo, design, textes, code) est la propriété exclusive de Relique SAS. Toute reproduction sans autorisation est interdite.
+          L'ensemble des éléments de l'application (logo, design, textes, code) est la propriété exclusive de Pépite SAS. Toute reproduction sans autorisation est interdite.
         </Section>
 
         <Section title="8. Limitation de responsabilité">
-          Relique ne saurait être tenu responsable des dommages directs ou indirects résultant de l'utilisation de l'application, d'une indisponibilité du service, ou d'une transaction entre utilisateurs.
+          Pépite ne saurait être tenu responsable des dommages directs ou indirects résultant de l'utilisation de l'application, d'une indisponibilité du service, ou d'une transaction entre utilisateurs.
         </Section>
 
         <Section title="9. Contact">
-          Pour toute question relative aux présentes mentions légales, vous pouvez nous contacter à : contact@relique-app.fr
+          Pour toute question relative aux présentes mentions légales, vous pouvez nous contacter à : contact@pepite-app.fr
         </Section>
 
       </ScrollView>

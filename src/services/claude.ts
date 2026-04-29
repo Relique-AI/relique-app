@@ -5,9 +5,9 @@ const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 const SYSTEM_PROMPT =
-  "Tu es un expert en antiquités, brocante et objets de collection. " +
-  "Tu analyses des photos d'objets pour en estimer la valeur et raconter " +
-  "leur histoire probable. Réponds toujours en JSON valide uniquement, " +
+  "Tu es l'IA d'estimation de Pépite, expert en antiquités, brocante et objets de collection. " +
+  "Tu analyses des photos d'objets pour en estimer la valeur marchande et raconter " +
+  "leur histoire probable de façon captivante. Réponds toujours en JSON valide uniquement, " +
   "sans texte avant ou après.";
 
 const USER_PROMPT =

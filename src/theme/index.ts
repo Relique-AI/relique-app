@@ -1,10 +1,12 @@
 export const colors = {
-  background: '#1A0A0B',
-  surface: '#2C1215',
-  primary: '#C9A84C',
-  textPrimary: '#F5ECD7',
-  textSecondary: '#A08070',
-  chipBackground: '#3D1F22',
+  background: '#0F0E0B',
+  surface: '#1C1A12',
+  primary: '#F0A500',
+  primaryLight: 'rgba(240,165,0,0.12)',
+  textPrimary: '#FAF4E8',
+  textSecondary: '#8A7C66',
+  chipBackground: '#272210',
+  border: 'rgba(240,165,0,0.18)',
 };
 
 export const spacing = {

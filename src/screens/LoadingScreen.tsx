@@ -19,10 +19,10 @@ const { width } = Dimensions.get('window');
 const TIMEOUT_MS = 30_000;
 const RATE_LIMIT_WAIT = 60;
 const MESSAGES = [
-  'Relique analyse votre objet...',
-  "Identification de l'époque...",
-  'Recherche de la valeur marchande...',
-  "Reconstruction de l'histoire...",
+  'Pépite analyse votre objet...',
+  "Identification de l'époque et de l'origine...",
+  'Estimation de la valeur marchande...',
+  "Rédaction de l'histoire de l'objet...",
 ];
 
 type Props = {
@@ -179,7 +179,7 @@ export function LoadingScreen({ navigation, route }: Props) {
           </Animated.View>
         </View>
 
-        <Text style={styles.brand}>Relique</Text>
+        <Text style={styles.brand}>✦ Pépite</Text>
 
         {/* Message rotatif ou countdown rate limit */}
         <Animated.Text style={[styles.message, { opacity: retryCountdown !== null ? 1 : messageOpacity }]}>
@@ -198,10 +198,10 @@ export function LoadingScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(26,10,11,0.78)' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,14,11,0.82)' },
   errorContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.section },
   card: {
-    backgroundColor: 'rgba(44,18,21,0.92)',
+    backgroundColor: 'rgba(28,26,18,0.95)',
     borderRadius: 28,
     padding: 40,
     width: width - 64,

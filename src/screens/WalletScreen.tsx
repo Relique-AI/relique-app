@@ -63,7 +63,7 @@ export function WalletScreen() {
                 <Text style={styles.infoBulletText}>3</Text>
               </View>
               <Text style={styles.infoText}>
-                Relique prélève une commission de <Text style={styles.highlight}>3 %</Text> sur chaque transaction pour maintenir la plateforme.
+                Pépite prélève une commission de <Text style={styles.highlight}>3 %</Text> sur chaque transaction pour maintenir la plateforme.
               </Text>
             </View>
           </View>

@@ -122,7 +122,7 @@ export function SettingsScreen({ navigation }: Props) {
         </View>
 
         {/* Version */}
-        <Text style={styles.version}>Relique v1.0.0</Text>
+        <Text style={styles.version}>Pépite v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );

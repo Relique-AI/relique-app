@@ -188,7 +188,7 @@ export function ListingScreen({ navigation, route }: Props) {
       message:
         `${listing.name} — ${listing.price_final} €\n` +
         `${listing.category} · ${listing.era}\n\n` +
-        `Découvre cette annonce sur Relique !`,
+        `Découvre cette annonce sur Pépite !`,
     });
   };
 
