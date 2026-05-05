@@ -1,9 +1,11 @@
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../services/supabase';
 import { colors, fonts } from '../theme';
 import {
   RootStackParamList,
@@ -217,7 +219,28 @@ function GuestGateScreen() {
 const Tab = createBottomTabNavigator<TabParamList>();
 function MainTabs() {
   const insets = useSafeAreaInsets();
-  const { isGuest } = useAuth();
+  const { isGuest, user } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = useCallback(async () => {
+    if (!user) { setUnreadCount(0); return; }
+    const { count } = await supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('receiver_id', user.id)
+      .eq('read', false);
+    setUnreadCount(count ?? 0);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchUnreadCount();
+    const channel = supabase
+      .channel(`inbox-badge-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` }, fetchUnreadCount)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, fetchUnreadCount]);
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -257,7 +280,11 @@ function MainTabs() {
       <Tab.Screen name="Scanner" component={isGuest ? GuestGateScreen : ScannerNavigator} />
       <Tab.Screen name="Parcourir" component={BrowseNavigator} />
       <Tab.Screen name="Marché" component={MarketNavigator} />
-      <Tab.Screen name="Messages" component={isGuest ? GuestGateScreen : MessagesNavigator} />
+      <Tab.Screen
+        name="Messages"
+        component={isGuest ? GuestGateScreen : MessagesNavigator}
+        options={{ tabBarBadge: !isGuest && unreadCount > 0 ? unreadCount : undefined }}
+      />
       <Tab.Screen name="Profil" component={isGuest ? GuestGateScreen : ProfileNavigator} />
     </Tab.Navigator>
   );
@@ -278,7 +305,7 @@ export function AppNavigator() {
   }
 
   return (
-    <Root.Navigator screenOptions={{ headerShown: false, animation: 'none' } as any}>
+    <Root.Navigator screenOptions={{ headerShown: false, animationEnabled: false }}>
       {!user && !isGuest ? (
         <Root.Screen name="Auth" component={AuthScreen} />
       ) : user && !hasUsername ? (

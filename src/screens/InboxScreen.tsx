@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { MarketStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase } from '../services/supabase';
@@ -86,7 +87,7 @@ export function InboxScreen({ navigation }: Props) {
     setLoading(false);
   }, [user]);
 
-  useEffect(() => { loadConversations(); }, []);
+  useFocusEffect(useCallback(() => { loadConversations(); }, [loadConversations]));
 
   const handleRefresh = async () => {
     setRefreshing(true);

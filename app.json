@@ -36,7 +36,7 @@
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 15
+      "versionCode": 17
     },
     "androidStatusBar": {
       "barStyle": "light-content",
@@ -86,6 +86,6 @@
         "projectId": "b0484eb9-4573-4ad1-b7a8-6d7cc41ea927"
       }
     },
-    "owner": "HugoSld2"
+    "owner": "hugosld"
   }
 }

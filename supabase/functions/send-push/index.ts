@@ -16,7 +16,21 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { receiver_id, sender_name, listing_name, message_preview } = await req.json();
+    const {
+      receiver_id,
+      sender_name,
+      listing_name,
+      message_preview,
+      type = 'message',
+      listing_id,
+      sender_id,
+    } = await req.json();
+
+    if (!receiver_id) {
+      return new Response(JSON.stringify({ sent: false, reason: 'missing_receiver_id' }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     // Récupérer le push token du destinataire
     const { data: profile } = await supabase
@@ -25,7 +39,8 @@ Deno.serve(async (req) => {
       .eq('id', receiver_id)
       .single();
 
-    if (!profile?.push_token) {
+    const token = profile?.push_token;
+    if (!token?.startsWith('ExponentPushToken[')) {
       return new Response(JSON.stringify({ sent: false, reason: 'no_token' }), {
         headers: { 'Content-Type': 'application/json' },
       });
@@ -34,15 +49,16 @@ Deno.serve(async (req) => {
     // Envoyer via l'API Expo Push
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'gzip, deflate' },
       body: JSON.stringify({
-        to: profile.push_token,
+        to: token,
         title: sender_name ?? 'Nouveau message',
         body: listing_name
-          ? `Re: ${listing_name} — ${message_preview}`
+          ? `${listing_name} — ${message_preview}`
           : message_preview,
         sound: 'default',
-        data: { type: 'message' },
+        channelId: 'messages',
+        data: { type, listing_id, sender_id, listing_name },
       }),
     });
 

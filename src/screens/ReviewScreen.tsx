@@ -4,14 +4,13 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   ScrollView,
   Image,
   Dimensions,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -29,7 +28,6 @@ type Props = {
 export function ReviewScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const [photos, setPhotos] = useState<CapturedPhoto[]>(route.params.photos);
-  const [memory, setMemory] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
 
   const addPhotoFromCamera = async () => {
@@ -76,10 +74,7 @@ export function ReviewScreen({ navigation, route }: Props) {
   };
 
   const handleAnalyse = () => {
-    navigation.navigate('Loading', {
-      photos,
-      memory: memory.trim() || undefined,
-    });
+    navigation.navigate('Loading', { photos });
   };
 
   return (
@@ -139,23 +134,6 @@ export function ReviewScreen({ navigation, route }: Props) {
         <Text style={styles.photoHint}>
           Plus il y a de photos (angles, détails, signatures), plus l'estimation sera précise.
         </Text>
-
-        {/* Champ souvenir */}
-        <View style={styles.memorySection}>
-          <Text style={styles.memoryLabel}>
-            Un souvenir lié à cet objet ? (optionnel)
-          </Text>
-          <TextInput
-            style={styles.memoryInput}
-            placeholder="Ex: Appartenait à ma grand-mère, trouvé au grenier..."
-            placeholderTextColor={colors.textSecondary}
-            value={memory}
-            onChangeText={setMemory}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
-        </View>
 
         {/* Espace pour le bouton fixe */}
         <View style={{ height: 100 }} />

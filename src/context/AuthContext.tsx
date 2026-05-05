@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(!!profile?.is_admin);
       }
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, s) => {
       setSession(s);

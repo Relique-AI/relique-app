@@ -59,6 +59,7 @@ export function CameraScreen({ navigation }: Props) {
     const result = await cameraRef.current.takePictureAsync({
       base64: true,
       quality: 0.3,
+      ...(Platform.OS === 'ios' && { shutterSound: false }),
     });
 
     if (result?.uri && result?.base64) {
@@ -140,6 +141,17 @@ export function CameraScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Hint multi-photos */}
+        <View style={styles.hintBar}>
+          <Text style={styles.hintText}>
+            {photos.length === 0
+              ? 'Plusieurs angles = meilleure estimation'
+              : canAddMore
+                ? `Ajoutez d'autres angles · ${photos.length}/${MAX_PHOTOS}`
+                : 'Maximum atteint · Prêt à analyser'}
+          </Text>
+        </View>
 
         {/* Barre de contrôles */}
         <View style={styles.controlsBar}>
@@ -233,6 +245,18 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: 16,
     color: colors.background,
+  },
+  hintBar: {
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    paddingVertical: 8,
+    paddingHorizontal: spacing.section,
+    alignItems: 'center',
+  },
+  hintText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.82)',
+    textAlign: 'center',
   },
   controlsBar: {
     flexDirection: 'row',

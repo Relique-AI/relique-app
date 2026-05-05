@@ -60,7 +60,7 @@ export function LegalScreen({ navigation }: Props) {
         </Section>
 
         <Section title="6. Données personnelles">
-          Vos données sont stockées de manière sécurisée via Supabase. Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression de vos données personnelles. Pour exercer ces droits, contactez-nous à : contact@pepite-app.fr
+          Vos données sont stockées de manière sécurisée via Supabase. Conformément au RGPD, vous disposez d'un droit d'accès, de rectification et de suppression de vos données personnelles. Pour exercer ces droits, contactez-nous à : hello@pepite-app.com
         </Section>
 
         <Section title="7. Propriété intellectuelle">
@@ -72,7 +72,7 @@ export function LegalScreen({ navigation }: Props) {
         </Section>
 
         <Section title="9. Contact">
-          Pour toute question relative aux présentes mentions légales, vous pouvez nous contacter à : contact@pepite-app.fr
+          Pour toute question relative aux présentes mentions légales, vous pouvez nous contacter à : hello@pepite-app.com
         </Section>
 
       </ScrollView>

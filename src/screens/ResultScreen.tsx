@@ -9,7 +9,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -116,11 +116,11 @@ export function ResultScreen({ navigation, route }: Props) {
             <View style={{ height: 120 }} />
           </ScrollView>
         </Animated.View>
-        <SafeAreaView style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
           <TouchableOpacity style={[styles.primaryButton, { flex: 1 }]} onPress={handleRestart} activeOpacity={0.85}>
             <Text style={styles.primaryText}>Réessayer</Text>
           </TouchableOpacity>
-        </SafeAreaView>
+        </View>
       </View>
     );
   }
@@ -248,12 +248,12 @@ export function ResultScreen({ navigation, route }: Props) {
           )}
 
           {/* Espace pour la barre fixe */}
-          <View style={{ height: 120 }} />
+          <View style={{ height: 120 + insets.bottom }} />
         </ScrollView>
       </Animated.View>
 
       {/* Barre d'actions fixe */}
-      <SafeAreaView style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
         <TouchableOpacity
           style={styles.secondaryButton}
           onPress={handleRestart}
@@ -268,7 +268,7 @@ export function ResultScreen({ navigation, route }: Props) {
         >
           <Text style={styles.primaryText}>Mettre en vente</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }

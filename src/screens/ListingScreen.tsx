@@ -27,7 +27,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Listing } from '../services/supabase';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { ConditionBadge } from '../components/ConditionBadge';
 import { ReviewModal } from '../components/ReviewModal';
@@ -146,7 +146,7 @@ export function ListingScreen({ navigation, route }: Props) {
   const [zoomVisible, setZoomVisible] = useState(false);
   const [zoomIndex, setZoomIndex] = useState(0);
 
-  type Question = { id: string; question: string; answer: string | null; created_at: string; profiles: { username: string } | null };
+  type Question = { id: string; asker_id: string; question: string; answer: string | null; created_at: string; profiles: { username: string } | null };
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState('');
   const [submittingQ, setSubmittingQ] = useState(false);
@@ -215,7 +215,7 @@ export function ListingScreen({ navigation, route }: Props) {
   const loadQuestions = async () => {
     const { data } = await supabase
       .from('listing_questions')
-      .select('id, question, answer, created_at, profiles(username)')
+      .select('id, asker_id, question, answer, created_at, profiles(username)')
       .eq('listing_id', id)
       .order('created_at', { ascending: true });
     if (data) setQuestions(data as unknown as Question[]);
@@ -253,6 +253,20 @@ export function ListingScreen({ navigation, route }: Props) {
       .from('listing_questions')
       .update({ answer: answerText.trim(), answered_at: new Date().toISOString() })
       .eq('id', questionId);
+    // Notify the asker
+    const q = questions.find((x) => x.id === questionId);
+    if (q && listing) {
+      supabase.functions.invoke('send-push', {
+        body: {
+          receiver_id: q.asker_id,
+          sender_name: listing.profiles?.username ?? 'Vendeur',
+          listing_name: listing.name,
+          message_preview: answerText.trim(),
+          type: 'question_answer',
+          listing_id: listing.id,
+        },
+      }).catch(() => {});
+    }
     setAnsweringId(null);
     setAnswerText('');
     loadQuestions();
@@ -434,6 +448,8 @@ export function ListingScreen({ navigation, route }: Props) {
     );
   }
 
+  const visibleQuestions = isOwner ? questions : questions.filter((q) => q.answer !== null);
+
   const images = listing.images ?? [];
   const sellerName = listing.profiles?.username ?? 'Vendeur';
   const publishedAt = new Date(listing.created_at).toLocaleDateString('fr-FR', {
@@ -585,10 +601,10 @@ export function ListingScreen({ navigation, route }: Props) {
           <View style={styles.divider} />
           <Text style={styles.sectionLabel}>Questions</Text>
 
-          {questions.length === 0 && (
+          {visibleQuestions.length === 0 && (
             <Text style={styles.qEmpty}>Aucune question pour le moment.</Text>
           )}
-          {questions.map((q) => (
+          {visibleQuestions.map((q) => (
             <View key={q.id} style={styles.qItem}>
               <View style={styles.qRow}>
                 <View style={styles.qAvatar}>
@@ -687,7 +703,7 @@ export function ListingScreen({ navigation, route }: Props) {
       {/* Modal offre */}
       {showOfferModal && (
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior="padding"
           style={styles.offerOverlay}
         >
           <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowOfferModal(false)} />

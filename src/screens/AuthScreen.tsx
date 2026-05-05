@@ -221,7 +221,7 @@ export function AuthScreen() {
           </View>
           {tab !== 'forgot' && (
             <TouchableOpacity style={styles.guestBtn} onPress={enterGuestMode} activeOpacity={0.7}>
-              <Text style={styles.guestText}>Parcourir sans compte →</Text>
+              <Text style={styles.guestText}>Découvrir sans compte →</Text>
             </TouchableOpacity>
           )}
         </ScrollView>

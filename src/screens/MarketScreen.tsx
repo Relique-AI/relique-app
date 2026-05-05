@@ -172,9 +172,6 @@ export function MarketScreen({ navigation }: Props) {
     <SafeAreaView style={styles.root}>
       {/* Barre recherche */}
       <View style={styles.searchBar}>
-        <TouchableOpacity style={styles.inboxBtn} onPress={() => navigation.navigate('Inbox')}>
-          <Ionicons name="chatbubbles-outline" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
         <View style={styles.searchInput}>
           <Ionicons name="search-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
           <TextInput

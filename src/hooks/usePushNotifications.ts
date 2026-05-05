@@ -16,6 +16,31 @@ Notifications.setNotificationHandler({
   }),
 });
 
+function handleNotificationData(data: Record<string, any>) {
+  if (data?.type === 'message' && data?.listing_id && data?.sender_id) {
+    navigate('Messages', {
+      screen: 'Chat',
+      params: {
+        listing_id: data.listing_id,
+        receiver_id: data.sender_id,
+        listing_name: data.listing_name ?? '',
+      },
+    });
+  } else if (data?.type === 'message') {
+    navigate('Messages');
+  } else if (data?.type === 'question_answer' && data?.listing_id) {
+    navigate('Marché', {
+      screen: 'Listing',
+      params: { id: data.listing_id },
+    });
+  } else if (data?.type === 'new_listing' && data?.listing_id) {
+    navigate('Marché', {
+      screen: 'Listing',
+      params: { id: data.listing_id },
+    });
+  }
+}
+
 export function usePushNotifications() {
   const { user } = useAuth();
   const notificationListener = useRef<Notifications.EventSubscription | undefined>(undefined);
@@ -29,19 +54,13 @@ export function usePushNotifications() {
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (!response) return;
       const data = response.notification.request.content.data as Record<string, any>;
-      if (data?.type === 'message') navigate('Messages');
-      else if (data?.type === 'new_listing') navigate('Marché');
+      handleNotificationData(data);
     });
 
     notificationListener.current = Notifications.addNotificationReceivedListener((_n) => {});
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as Record<string, any>;
-      if (data?.type === 'message') {
-        // Naviguer vers l'onglet Messages → Inbox
-        navigate('Messages');
-      } else if (data?.type === 'new_listing' && data?.listing_id) {
-        navigate('Marché');
-      }
+      handleNotificationData(data);
     });
 
     return () => {

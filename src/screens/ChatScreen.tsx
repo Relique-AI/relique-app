@@ -16,7 +16,7 @@ import { RouteProp } from '@react-navigation/native';
 import { MarketStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Message } from '../services/supabase';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 
 type Props = {
@@ -115,6 +115,9 @@ export function ChatScreen({ navigation, route }: Props) {
         sender_name: senderProfile?.username ?? 'Quelqu\'un',
         listing_name,
         message_preview: text.length > 60 ? text.slice(0, 60) + '…' : text,
+        type: 'message',
+        listing_id,
+        sender_id: user.id,
       },
     }).catch(() => {});
 
@@ -130,7 +133,7 @@ export function ChatScreen({ navigation, route }: Props) {
             {item.content}
           </Text>
           <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeMine : styles.bubbleTimeTheirs]}>
-            {new Date(item.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            {(() => { const d = new Date(item.created_at); return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`; })()}
           </Text>
         </View>
       </View>
@@ -153,8 +156,7 @@ export function ChatScreen({ navigation, route }: Props) {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior="padding"
       >
         {loading ? (
           <View style={styles.loader}>
