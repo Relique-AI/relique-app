@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  SafeAreaView,
   RefreshControl,
   Alert,
   Dimensions,
   Share,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { colors, fonts, spacing } from '../theme';
@@ -25,17 +25,30 @@ type Props = {
   navigation: StackNavigationProp<ProfileStackParamList, 'Profile'>;
 };
 
-type Tab = 'listings' | 'favorites';
+type Tab = 'listings' | 'favorites' | 'purchases';
+
+type Purchase = {
+  id: string;
+  amount: number;
+  fee: number;
+  status: string;
+  created_at: string;
+  listing_id: string;
+  listings: { name: string; images: string[] } | null;
+};
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.section * 2 - 12) / 2;
 
 export function ProfileScreen({ navigation }: Props) {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [tab, setTab] = useState<Tab>('listings');
   const [myListings, setMyListings] = useState<Listing[]>([]);
   const [favorites, setFavorites] = useState<Listing[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [referralCode, setReferralCode] = useState('');
+  const [referralCount, setReferralCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -66,13 +79,31 @@ export function ProfileScreen({ navigation }: Props) {
   const loadProfile = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-    if (data) setProfile(data as Profile);
+    if (data) {
+      setProfile(data as Profile);
+      setReferralCode(data.referral_code ?? '');
+    }
+    const { count } = await supabase
+      .from('referrals')
+      .select('*', { count: 'exact', head: true })
+      .eq('referrer_id', user.id);
+    setReferralCount(count ?? 0);
+  }, [user]);
+
+  const loadPurchases = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('transactions')
+      .select('id, amount, fee, status, created_at, listing_id, listings(name, images)')
+      .eq('buyer_id', user.id)
+      .order('created_at', { ascending: false });
+    if (data) setPurchases(data as unknown as Purchase[]);
   }, [user]);
 
   const loadAll = useCallback(async () => {
-    await Promise.all([loadProfile(), loadMyListings(), loadFavorites()]);
+    await Promise.all([loadProfile(), loadMyListings(), loadFavorites(), loadPurchases()]);
     setLoading(false);
-  }, [loadProfile, loadMyListings, loadFavorites]);
+  }, [loadProfile, loadMyListings, loadFavorites, loadPurchases]);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -132,11 +163,14 @@ export function ProfileScreen({ navigation }: Props) {
     ]);
   };
 
-  const handleInvite = async () => {
+  const handleShareReferral = async () => {
+    if (!referralCode) return;
     await Share.share({
       message:
-        'Découvre Pépite, l\'app qui révèle la valeur de tes objets ! ' +
-        'Scanne, estime et vends en quelques minutes.',
+        `Rejoins-moi sur Pépite, l'app pour scanner, estimer et vendre tes objets !\n\n` +
+        `Utilise mon code de parrainage : ${referralCode}\n\n` +
+        `📱 iOS : https://apps.apple.com/app/id6744942840\n` +
+        `🤖 Android : https://play.google.com/store/apps/details?id=com.hugosld.pepite`,
     });
   };
 
@@ -178,11 +212,11 @@ export function ProfileScreen({ navigation }: Props) {
           )}
           {!isSold && (
             <TouchableOpacity style={styles.actionBtn} onPress={() => markAsSold(item.id)}>
-              <Ionicons name="checkmark-circle-outline" size={22} color="#4CAF50" />
+              <Ionicons name="checkmark-circle-outline" size={22} color={colors.success} />
             </TouchableOpacity>
           )}
           <TouchableOpacity style={styles.actionBtn} onPress={() => deleteListing(item.id)}>
-            <Ionicons name="trash-outline" size={22} color="#E57373" />
+            <Ionicons name="trash-outline" size={22} color={colors.danger} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -214,6 +248,41 @@ export function ProfileScreen({ navigation }: Props) {
     </TouchableOpacity>
   );
 
+  const renderPurchase = ({ item }: { item: Purchase }) => {
+    const net = (item.amount / 100).toFixed(2);
+    const date = new Date(item.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    const isPending = item.status === 'pending';
+    return (
+      <TouchableOpacity
+        style={styles.myCard}
+        activeOpacity={0.75}
+        onPress={() => navigation.navigate('Listing', { id: item.listing_id })}
+      >
+        <View style={styles.myCardLeft}>
+          {item.listings?.images?.[0] ? (
+            <Image source={{ uri: item.listings.images[0] }} style={styles.myCardImg} />
+          ) : (
+            <View style={[styles.myCardImg, styles.myCardImgPlaceholder]}>
+              <Ionicons name="bag-outline" size={20} color={colors.textSecondary} />
+            </View>
+          )}
+        </View>
+        <View style={styles.myCardBody}>
+          <Text style={styles.myCardName} numberOfLines={2}>{item.listings?.name ?? 'Annonce supprimée'}</Text>
+          <Text style={styles.myCardPrice}>{net} €</Text>
+          <View style={styles.myCardRow}>
+            <View style={[styles.statusBadge, isPending ? styles.statusPending : styles.statusActive]}>
+              <Text style={[styles.statusText, isPending ? styles.statusTextPending : styles.statusTextActive]}>
+                {isPending ? 'En cours' : 'Payé'}
+              </Text>
+            </View>
+          </View>
+        </View>
+        <Text style={styles.purchaseDate}>{date}</Text>
+      </TouchableOpacity>
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loader}>
@@ -222,7 +291,7 @@ export function ProfileScreen({ navigation }: Props) {
     );
   }
 
-  const currentData = tab === 'listings' ? myListings : favorites;
+  const currentData = tab === 'listings' ? myListings : tab === 'favorites' ? favorites : purchases;
 
   return (
     <SafeAreaView style={styles.root}>
@@ -249,11 +318,11 @@ export function ProfileScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Wallet')}>
+            <Ionicons name="wallet-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Settings')}>
             <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-            <Ionicons name="log-out-outline" size={22} color="#E57373" />
           </TouchableOpacity>
         </View>
       </View>
@@ -265,7 +334,7 @@ export function ProfileScreen({ navigation }: Props) {
           onPress={() => setTab('listings')}
         >
           <Text style={[styles.tabText, tab === 'listings' && styles.tabTextActive]}>
-            Mes annonces ({myListings.length})
+            Annonces ({myListings.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -276,6 +345,14 @@ export function ProfileScreen({ navigation }: Props) {
             Favoris ({favorites.length})
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabItem, tab === 'purchases' && styles.tabItemActive]}
+          onPress={() => setTab('purchases')}
+        >
+          <Text style={[styles.tabText, tab === 'purchases' && styles.tabTextActive]}>
+            Achats ({purchases.length})
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Contenu */}
@@ -284,7 +361,7 @@ export function ProfileScreen({ navigation }: Props) {
         data={currentData}
         keyExtractor={(item) => item.id}
         numColumns={tab === 'favorites' ? 2 : 1}
-        renderItem={tab === 'listings' ? renderMyListing : renderFavorite}
+        renderItem={tab === 'listings' ? renderMyListing : tab === 'favorites' ? renderFavorite : renderPurchase as any}
         contentContainerStyle={tab === 'favorites' ? styles.favGrid : styles.myList}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -298,30 +375,47 @@ export function ProfileScreen({ navigation }: Props) {
         ItemSeparatorComponent={tab === 'listings' ? () => <View style={styles.separator} /> : undefined}
         ListFooterComponent={
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.footerBtn} onPress={handleInvite}>
-              <Ionicons name="person-add-outline" size={20} color={colors.primary} />
-              <Text style={styles.footerBtnText}>Inviter des amis</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.footerBtn} onPress={() => navigation.navigate('Legal')}>
-              <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
-              <Text style={[styles.footerBtnText, { color: colors.textSecondary }]}>Mentions légales & CGU</Text>
-            </TouchableOpacity>
+            {!!referralCode && (
+              <View style={styles.referralCard}>
+                <Text style={styles.referralSectionLabel}>Parrainage</Text>
+                <View style={styles.referralCodeRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.referralLabel}>Mon code</Text>
+                    <Text style={styles.referralCode}>{referralCode}</Text>
+                  </View>
+                  <TouchableOpacity style={styles.shareBtn} onPress={handleShareReferral} activeOpacity={0.8}>
+                    <Ionicons name="share-social-outline" size={16} color={colors.background} />
+                    <Text style={styles.shareBtnText}>Partager</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.referralStatRow}>
+                  <Ionicons name="people-outline" size={16} color={colors.primary} />
+                  <Text style={styles.referralStatText}>
+                    {referralCount === 0
+                      ? 'Aucun filleul pour l\'instant'
+                      : `${referralCount} filleul${referralCount > 1 ? 's' : ''} parrainé${referralCount > 1 ? 's' : ''}`}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
         }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons
-              name={tab === 'listings' ? 'cube-outline' : 'heart-outline'}
+              name={tab === 'listings' ? 'cube-outline' : tab === 'favorites' ? 'heart-outline' : 'bag-outline'}
               size={44}
               color={colors.textSecondary}
             />
             <Text style={styles.emptyTitle}>
-              {tab === 'listings' ? 'Aucune annonce' : 'Aucun favori'}
+              {tab === 'listings' ? 'Aucune annonce' : tab === 'favorites' ? 'Aucun favori' : 'Aucun achat'}
             </Text>
             <Text style={styles.emptyText}>
               {tab === 'listings'
                 ? 'Publiez votre premier objet via l\'onglet Scanner.'
-                : 'Ajoutez des annonces à vos favoris depuis le marché.'}
+                : tab === 'favorites'
+                ? 'Ajoutez des annonces à vos favoris depuis le marché.'
+                : 'Vos achats effectués dans l\'app apparaîtront ici.'}
             </Text>
           </View>
         }
@@ -415,11 +509,14 @@ const styles = StyleSheet.create({
   myCardPrice: { fontFamily: fonts.serif, fontSize: 18, color: colors.primary, marginTop: 2 },
   myCardRow: { flexDirection: 'row', marginTop: 6 },
   statusBadge: { borderRadius: 20, paddingVertical: 3, paddingHorizontal: 10 },
-  statusActive: { backgroundColor: 'rgba(76,175,80,0.15)' },
-  statusSold: { backgroundColor: 'rgba(158,158,158,0.15)' },
+  statusActive: { backgroundColor: 'rgba(181,212,121,0.15)' },
+  statusSold: { backgroundColor: 'rgba(169,150,128,0.12)' },
   statusText: { fontFamily: fonts.bodySemiBold, fontSize: 11 },
-  statusTextActive: { color: '#4CAF50' },
+  statusTextActive: { color: colors.success },
   statusTextSold: { color: colors.textSecondary },
+  statusPending: { backgroundColor: 'rgba(245,184,46,0.15)' },
+  statusTextPending: { color: colors.primary },
+  purchaseDate: { fontFamily: fonts.body, fontSize: 11, color: colors.textSecondary, paddingRight: 4 },
   myCardActions: { flexDirection: 'column', gap: 4 },
   actionBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   separator: { height: 10 },
@@ -433,6 +530,39 @@ const styles = StyleSheet.create({
   favInfo: { padding: 10, gap: 4 },
   favName: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textPrimary, lineHeight: 18 },
   favPrice: { fontFamily: fonts.serif, fontSize: 17, color: colors.primary },
+
+  // Parrainage
+  referralCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(245,184,46,0.2)',
+    gap: 12,
+  },
+  referralSectionLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.primaryDim,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  referralCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  referralLabel: { fontFamily: fonts.mono, fontSize: 11, color: colors.textDisabled, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 1.5 },
+  referralCode: { fontFamily: fonts.serif, fontSize: 24, color: colors.primary, letterSpacing: 3 },
+  shareBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 50,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  shareBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.background },
+  referralStatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  referralStatText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
 
   // Footer
   footer: {

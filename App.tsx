@@ -1,10 +1,14 @@
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { useFonts } from 'expo-font';
 import {
-  PlayfairDisplay_400Regular,
-  PlayfairDisplay_700Bold,
-} from '@expo-google-fonts/playfair-display';
+  Fraunces_400Regular,
+  Fraunces_400Regular_Italic,
+  Fraunces_500Medium,
+} from '@expo-google-fonts/fraunces';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { JetBrainsMono_400Regular, JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { NavigationContainer } from '@react-navigation/native';
+import { navigationRef } from './src/navigation/navigationRef';
 import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,19 +21,22 @@ import { colors } from './src/theme';
 function AppWithNotifications() {
   usePushNotifications();
   return (
-    <>
+    <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY!}>
       <StatusBar style="light" />
       <AppNavigator />
-    </>
+    </StripeProvider>
   );
 }
 
 export default function App() {
   const [fontsLoaded] = useFonts({
-    PlayfairDisplay_400Regular,
-    PlayfairDisplay_700Bold,
+    Fraunces_400Regular,
+    Fraunces_400Regular_Italic,
+    Fraunces_500Medium,
     Inter_400Regular,
     Inter_600SemiBold,
+    JetBrainsMono_400Regular,
+    JetBrainsMono_500Medium,
   });
 
   if (!fontsLoaded) {
@@ -40,7 +47,7 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <NavigationContainer>
+          <NavigationContainer ref={navigationRef}>
             <AppWithNotifications />
           </NavigationContainer>
         </AuthProvider>

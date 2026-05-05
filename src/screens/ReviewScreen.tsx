@@ -8,7 +8,7 @@ import {
   ScrollView,
   Image,
   Dimensions,
-  SafeAreaView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,24 +32,47 @@ export function ReviewScreen({ navigation, route }: Props) {
   const [memory, setMemory] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const addPhoto = async () => {
+  const addPhotoFromCamera = async () => {
+    if (photos.length >= MAX_PHOTOS) return;
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') return;
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      base64: true,
+      quality: 0.3,
+    });
+    if (!result.canceled && result.assets[0].base64) {
+      const asset = result.assets[0];
+      setPhotos((prev) => [...prev, { uri: asset.uri, base64: asset.base64! }]);
+    }
+  };
+
+  const addPhotoFromLibrary = async () => {
     if (photos.length >= MAX_PHOTOS) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       base64: true,
       quality: 0.3,
     });
-
     if (!result.canceled && result.assets[0].base64) {
       const asset = result.assets[0];
-      setPhotos((prev) => [
-        ...prev,
-        { uri: asset.uri, base64: asset.base64! },
-      ]);
+      setPhotos((prev) => [...prev, { uri: asset.uri, base64: asset.base64! }]);
     }
+  };
+
+  const addPhoto = () => {
+    if (photos.length >= MAX_PHOTOS) return;
+    Alert.alert(
+      'Ajouter une photo',
+      '',
+      [
+        { text: 'Prendre une photo', onPress: addPhotoFromCamera },
+        { text: 'Choisir dans la galerie', onPress: addPhotoFromLibrary },
+        { text: 'Annuler', style: 'cancel' },
+      ],
+    );
   };
 
   const handleAnalyse = () => {
@@ -108,9 +131,14 @@ export function ReviewScreen({ navigation, route }: Props) {
         {photos.length < MAX_PHOTOS && (
           <TouchableOpacity style={styles.addButton} onPress={addPhoto}>
             <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-            <Text style={styles.addButtonText}>Ajouter une photo</Text>
+            <Text style={styles.addButtonText}>
+              Ajouter une photo ({photos.length}/{MAX_PHOTOS})
+            </Text>
           </TouchableOpacity>
         )}
+        <Text style={styles.photoHint}>
+          Plus il y a de photos (angles, détails, signatures), plus l'estimation sera précise.
+        </Text>
 
         {/* Champ souvenir */}
         <View style={styles.memorySection}>
@@ -210,6 +238,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: 15,
     color: colors.primary,
+  },
+  photoHint: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginHorizontal: spacing.section,
+    marginBottom: spacing.section,
+    lineHeight: 18,
   },
   memorySection: {
     paddingHorizontal: spacing.section,

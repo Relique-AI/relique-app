@@ -1,4 +1,4 @@
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ import {
   MarketStackParamList,
   BrowseStackParamList,
   ProfileStackParamList,
-  WalletStackParamList,
+  MessagesStackParamList,
   TabParamList,
 } from '../types';
 
@@ -33,6 +33,8 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { LegalScreen } from '../screens/LegalScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { EditListingScreen } from '../screens/EditListingScreen';
+import { OnboardingScreen } from '../screens/OnboardingScreen';
+import { AdminScreen } from '../screens/AdminScreen';
 
 // ─── Stacks ──────────────────────────────────────────────────────────────────
 
@@ -123,12 +125,17 @@ function MarketNavigator() {
   );
 }
 
-const WalletStack = createStackNavigator<WalletStackParamList>();
-function WalletNavigator() {
+const MessagesStack = createStackNavigator<MessagesStackParamList>();
+function MessagesNavigator() {
   return (
-    <WalletStack.Navigator screenOptions={{ headerShown: false }}>
-      <WalletStack.Screen name="Wallet" component={WalletScreen} />
-    </WalletStack.Navigator>
+    <MessagesStack.Navigator screenOptions={{ headerShown: false }}>
+      <MessagesStack.Screen name="Inbox" component={InboxScreen} />
+      <MessagesStack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+    </MessagesStack.Navigator>
   );
 }
 
@@ -153,6 +160,11 @@ function ProfileNavigator() {
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
       <ProfileStack.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <ProfileStack.Screen
         name="Settings"
         component={SettingsScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
@@ -162,7 +174,41 @@ function ProfileNavigator() {
         component={LegalScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
+      <ProfileStack.Screen
+        name="Wallet"
+        component={WalletScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <ProfileStack.Screen
+        name="Admin"
+        component={AdminScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
     </ProfileStack.Navigator>
+  );
+}
+
+// ─── Guest gate screen ───────────────────────────────────────────────────────
+
+function GuestGateScreen() {
+  const { exitGuestMode } = useAuth();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 }}>
+      <Text style={{ fontSize: 48, color: colors.primary }}>✦</Text>
+      <Text style={{ fontFamily: fonts.serif, fontSize: 26, color: colors.textPrimary, textAlign: 'center' }}>
+        Connexion requise
+      </Text>
+      <Text style={{ fontFamily: fonts.body, fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 23 }}>
+        Créez un compte gratuit pour vendre vos objets, discuter avec les vendeurs et accéder à toutes les fonctionnalités.
+      </Text>
+      <TouchableOpacity
+        style={{ backgroundColor: colors.primary, borderRadius: 50, paddingVertical: 16, paddingHorizontal: 40, marginTop: 8 }}
+        onPress={exitGuestMode}
+        activeOpacity={0.85}
+      >
+        <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background }}>Se connecter / Créer un compte</Text>
+      </TouchableOpacity>
+    </SafeAreaView>
   );
 }
 
@@ -171,13 +217,14 @@ function ProfileNavigator() {
 const Tab = createBottomTabNavigator<TabParamList>();
 function MainTabs() {
   const insets = useSafeAreaInsets();
+  const { isGuest } = useAuth();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.surface,
-          borderTopColor: 'rgba(201,168,76,0.15)',
+          borderTopColor: 'rgba(245,184,46,0.15)',
           borderTopWidth: 1,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom + 8,
@@ -193,7 +240,7 @@ function MainTabs() {
             Scanner: { active: 'camera', inactive: 'camera-outline' },
             Parcourir: { active: 'grid', inactive: 'grid-outline' },
             Marché: { active: 'storefront', inactive: 'storefront-outline' },
-            Portefeuille: { active: 'wallet', inactive: 'wallet-outline' },
+            Messages: { active: 'chatbubbles', inactive: 'chatbubbles-outline' },
             Profil: { active: 'person', inactive: 'person-outline' },
           };
           const icon = icons[route.name];
@@ -207,11 +254,11 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Scanner" component={ScannerNavigator} />
+      <Tab.Screen name="Scanner" component={isGuest ? GuestGateScreen : ScannerNavigator} />
       <Tab.Screen name="Parcourir" component={BrowseNavigator} />
       <Tab.Screen name="Marché" component={MarketNavigator} />
-      <Tab.Screen name="Portefeuille" component={WalletNavigator} />
-      <Tab.Screen name="Profil" component={ProfileNavigator} />
+      <Tab.Screen name="Messages" component={isGuest ? GuestGateScreen : MessagesNavigator} />
+      <Tab.Screen name="Profil" component={isGuest ? GuestGateScreen : ProfileNavigator} />
     </Tab.Navigator>
   );
 }
@@ -220,7 +267,7 @@ function MainTabs() {
 
 const Root = createStackNavigator();
 export function AppNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, hasUsername, isGuest } = useAuth();
 
   if (loading) {
     return (
@@ -232,8 +279,10 @@ export function AppNavigator() {
 
   return (
     <Root.Navigator screenOptions={{ headerShown: false, animation: 'none' } as any}>
-      {!user ? (
+      {!user && !isGuest ? (
         <Root.Screen name="Auth" component={AuthScreen} />
+      ) : user && !hasUsername ? (
+        <Root.Screen name="Onboarding" component={OnboardingScreen} />
       ) : (
         <Root.Screen name="Main" component={MainTabs} />
       )}

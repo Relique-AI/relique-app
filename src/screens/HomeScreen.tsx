@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Animated,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
@@ -138,19 +138,18 @@ const styles = StyleSheet.create({
   // Texte
   brand: {
     fontFamily: fonts.serif,
-    fontSize: 58,
+    fontSize: 64,
     color: colors.primary,
-    letterSpacing: 2,
+    letterSpacing: -1,
     marginBottom: 12,
   },
   tagline: {
-    fontFamily: fonts.serifRegular,
-    fontSize: 20,
-    color: colors.textPrimary,
+    fontFamily: fonts.serifItalic,
+    fontSize: 19,
+    color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 30,
+    lineHeight: 29,
     marginBottom: 44,
-    opacity: 0.9,
   },
 
   // Étapes
@@ -176,10 +175,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepLabel: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 13,
-    color: colors.textSecondary,
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.textDisabled,
     marginLeft: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   stepLine: {
     width: 24,

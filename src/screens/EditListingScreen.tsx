@@ -8,11 +8,11 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
-  SafeAreaView,
   Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
@@ -32,6 +32,8 @@ export function EditListingScreen({ navigation, route }: Props) {
   const [price, setPrice] = useState('');
   const [story, setStory] = useState('');
   const [location, setLocation] = useState('');
+  const [shippingPrice, setShippingPrice] = useState('0');
+  const [tipsOpen, setTipsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -51,6 +53,7 @@ export function EditListingScreen({ navigation, route }: Props) {
       setPrice(String(l.price_final));
       setStory(l.story ?? '');
       setLocation(l.location ?? '');
+      setShippingPrice(String(l.shipping_price ?? 0));
     }
     setLoading(false);
   };
@@ -68,6 +71,7 @@ export function EditListingScreen({ navigation, route }: Props) {
         price_final: parsedPrice,
         story: story.trim(),
         location: location.trim() || null,
+        shipping_price: parseFloat(shippingPrice.replace(',', '.')) || 0,
       })
       .eq('id', id);
     setSaving(false);
@@ -191,6 +195,51 @@ export function EditListingScreen({ navigation, route }: Props) {
             />
           </View>
 
+          {/* Prix livraison */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Prix de livraison (€)</Text>
+            <View style={styles.priceWrap}>
+              <TextInput
+                style={styles.priceInput}
+                value={shippingPrice}
+                onChangeText={setShippingPrice}
+                keyboardType="decimal-pad"
+                placeholder="0"
+                placeholderTextColor={colors.textSecondary}
+              />
+              <Text style={styles.priceSymbol}>€</Text>
+            </View>
+            <Text style={styles.fieldHint}>0 = livraison gratuite</Text>
+          </View>
+
+          {/* Conseils de vente IA */}
+          {(listing.selling_tips?.length ?? 0) > 0 && (
+            <View style={styles.fieldGroup}>
+              <TouchableOpacity
+                style={styles.tipsHeader}
+                onPress={() => setTipsOpen((o) => !o)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.label}>Conseils de vente IA</Text>
+                <Ionicons
+                  name={tipsOpen ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+              {tipsOpen && (
+                <View style={styles.tipsList}>
+                  {listing.selling_tips!.map((tip: string, i: number) => (
+                    <View key={i} style={styles.tipRow}>
+                      <View style={styles.tipBullet} />
+                      <Text style={styles.tipText}>{tip}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Info champs non éditables */}
           <View style={styles.infoBox}>
             <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
@@ -284,6 +333,12 @@ const styles = StyleSheet.create({
     borderColor: colors.chipBackground,
     minHeight: 120,
   },
+  tipsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  tipsList: { marginTop: 10, gap: 10 },
+  tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  tipBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, marginTop: 7, flexShrink: 0 },
+  tipText: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary, flex: 1, lineHeight: 21 },
+
   infoBox: {
     flexDirection: 'row',
     gap: 8,

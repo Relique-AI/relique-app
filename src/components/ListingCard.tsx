@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts } from '../theme';
 import { Listing } from '../services/supabase';
@@ -22,7 +23,13 @@ export function ListingCard({ listing, width, isFavorited, onPress, onFavoriteTo
       {/* Photo */}
       <View style={[styles.imageBox, { height: width * 1.1 }]}>
         {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.image} />
+          <Image
+            source={imageUri}
+            style={styles.image}
+            contentFit="cover"
+            recyclingKey={imageUri}
+            cachePolicy="disk"
+          />
         ) : (
           <View style={styles.imagePlaceholder}>
             <Ionicons name="image-outline" size={32} color={colors.textSecondary} />
@@ -33,7 +40,7 @@ export function ListingCard({ listing, width, isFavorited, onPress, onFavoriteTo
           <Ionicons
             name={isFavorited ? 'heart' : 'heart-outline'}
             size={20}
-            color={isFavorited ? '#E57373' : '#fff'}
+            color={isFavorited ? colors.danger : '#fff'}
           />
         </TouchableOpacity>
       </View>
@@ -62,7 +69,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.1)',
+    borderColor: 'rgba(245,184,46,0.06)',
   },
   imageBox: {
     width: '100%',
@@ -71,7 +78,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
   imagePlaceholder: {
     flex: 1,

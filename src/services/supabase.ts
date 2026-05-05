@@ -79,6 +79,7 @@ export interface Listing {
   images: string[];
   status: 'active' | 'sold' | 'deleted';
   location: string | null;
+  shipping_price: number | null;
   created_at: string;
   profiles?: Profile;
 }

@@ -4,9 +4,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ProfileStackParamList } from '../types';
@@ -34,7 +34,7 @@ function SettingsRow({
   return (
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
       <View style={[styles.rowIcon, destructive && styles.rowIconDestructive]}>
-        <Ionicons name={icon as any} size={20} color={destructive ? '#E57373' : colors.primary} />
+        <Ionicons name={icon as any} size={20} color={destructive ? colors.danger : colors.primary} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.rowLabel, destructive && styles.rowLabelDestructive]}>{label}</Text>
@@ -46,7 +46,7 @@ function SettingsRow({
 }
 
 export function SettingsScreen({ navigation }: Props) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -99,6 +99,21 @@ export function SettingsScreen({ navigation }: Props) {
           />
         </View>
 
+        {/* Admin */}
+        {isAdmin && (
+          <>
+            <Text style={styles.sectionLabel}>Administration</Text>
+            <View style={styles.group}>
+              <SettingsRow
+                icon="shield-checkmark-outline"
+                label="Modération"
+                subtitle="Traiter les signalements"
+                onPress={() => navigation.navigate('Admin')}
+              />
+            </View>
+          </>
+        )}
+
         {/* Légal */}
         <Text style={styles.sectionLabel}>Informations</Text>
         <View style={styles.group}>
@@ -143,9 +158,9 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.bodySemiBold, fontSize: 17, color: colors.textPrimary },
   scroll: { padding: spacing.section, paddingBottom: 40 },
   sectionLabel: {
-    fontFamily: fonts.bodySemiBold,
+    fontFamily: fonts.mono,
     fontSize: 11,
-    color: colors.primary,
+    color: colors.primaryDim,
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginTop: 24,
@@ -174,15 +189,15 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: 'rgba(201,168,76,0.12)',
+    backgroundColor: 'rgba(245,184,46,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowIconDestructive: {
-    backgroundColor: 'rgba(229,115,115,0.12)',
+    backgroundColor: 'rgba(224,135,102,0.12)',
   },
   rowLabel: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary },
-  rowLabelDestructive: { color: '#E57373' },
+  rowLabelDestructive: { color: colors.danger },
   rowSubtitle: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   version: {
     fontFamily: fonts.body,

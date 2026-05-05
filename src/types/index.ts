@@ -1,4 +1,6 @@
 export interface AnalysisResult {
+  unsellable?: boolean;
+  humourMessage?: string;
   name: string;
   category: string;
   era: string;
@@ -10,6 +12,7 @@ export interface AnalysisResult {
   priceMax: number;
   priceSuggested: number;
   sellingTips: string[];
+  clarifyingQuestions?: string[];
 }
 
 export interface CapturedPhoto {
@@ -52,14 +55,19 @@ export type ProfileStackParamList = {
   EditProfile: undefined;
   EditListing: { id: string };
   Listing: { id: string };
+  Chat: { listing_id: string; receiver_id: string; listing_name: string };
+  Wallet: undefined;
   Settings: undefined;
   Legal: undefined;
+  Admin: undefined;
+  Purchases: undefined;
 };
 
-// ─── Wallet stack ─────────────────────────────────────────────────────────────
+// ─── Messages stack ───────────────────────────────────────────────────────────
 
-export type WalletStackParamList = {
-  Wallet: undefined;
+export type MessagesStackParamList = {
+  Inbox: undefined;
+  Chat: { listing_id: string; receiver_id: string; listing_name: string };
 };
 
 // ─── Bottom tabs ─────────────────────────────────────────────────────────────
@@ -68,6 +76,6 @@ export type TabParamList = {
   Scanner: undefined;
   Parcourir: undefined;
   Marché: undefined;
-  Portefeuille: undefined;
+  Messages: undefined;
   Profil: undefined;
 };

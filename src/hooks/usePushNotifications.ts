@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
+import { navigate } from '../navigation/navigationRef';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -24,8 +25,24 @@ export function usePushNotifications() {
     if (!user) return;
     registerForPushNotifications();
 
+    // Gérer l'ouverture depuis une notif quand l'app était fermée
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const data = response.notification.request.content.data as Record<string, any>;
+      if (data?.type === 'message') navigate('Messages');
+      else if (data?.type === 'new_listing') navigate('Marché');
+    });
+
     notificationListener.current = Notifications.addNotificationReceivedListener((_n) => {});
-    responseListener.current = Notifications.addNotificationResponseReceivedListener((_r) => {});
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, any>;
+      if (data?.type === 'message') {
+        // Naviguer vers l'onglet Messages → Inbox
+        navigate('Messages');
+      } else if (data?.type === 'new_listing' && data?.listing_id) {
+        navigate('Marché');
+      }
+    });
 
     return () => {
       notificationListener.current?.remove();
@@ -39,7 +56,7 @@ export function usePushNotifications() {
         name: 'Messages',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#C9A84C',
+        lightColor: '#F5B82E',
       });
     }
 

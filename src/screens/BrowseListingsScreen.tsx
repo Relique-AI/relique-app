@@ -6,10 +6,10 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
   RefreshControl,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
@@ -61,7 +61,7 @@ export function BrowseListingsScreen({ navigation, route }: Props) {
       .from('listings')
       .select('*')
       .eq('status', 'active')
-      .eq('category', category)
+      .ilike('category', `%${category}%`)
       .order('created_at', { ascending: false })
       .range(from, to);
     const rows = (data ?? []) as Listing[];

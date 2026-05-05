@@ -3,10 +3,10 @@ import { fonts } from '../theme';
 import { AnalysisResult } from '../types';
 
 const COLORS: Record<AnalysisResult['condition'], string> = {
-  Excellent: '#4CAF50',
-  Bon: '#2196F3',
-  Correct: '#FF9800',
-  'À restaurer': '#F44336',
+  Excellent: '#B5D479',
+  Bon:       '#C9A9DB',
+  Correct:   '#F5B82E',
+  'À restaurer': '#E08766',
 };
 
 interface Props {

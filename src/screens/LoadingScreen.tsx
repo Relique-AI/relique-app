@@ -7,8 +7,8 @@ import {
   Image,
   Dimensions,
   TouchableOpacity,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     width: width - 64,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.25)',
+    borderColor: 'rgba(245,184,46,0.25)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.5,
@@ -220,11 +220,11 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: 'rgba(201,168,76,0.2)',
+    backgroundColor: 'rgba(245,184,46,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: 'rgba(201,168,76,0.5)',
+    borderColor: 'rgba(245,184,46,0.5)',
   },
   orbCore: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary },
   brand: { fontFamily: fonts.serif, fontSize: 30, color: colors.primary, marginBottom: 12, letterSpacing: 2 },
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     lineHeight: 22,
   },
-  progressTrack: { width: '100%', height: 3, backgroundColor: 'rgba(201,168,76,0.15)', borderRadius: 2, overflow: 'hidden' },
+  progressTrack: { width: '100%', height: 3, backgroundColor: 'rgba(245,184,46,0.15)', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 2 },
   errorIcon: { fontSize: 40, marginBottom: 12, color: colors.primary },
   errorTitle: { fontFamily: fonts.serif, fontSize: 26, color: colors.textPrimary, marginBottom: 12 },

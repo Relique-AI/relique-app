@@ -7,13 +7,13 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
-  SafeAreaView,
   ActivityIndicator,
   Platform,
   Alert,
   KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
@@ -32,16 +32,40 @@ const CONDITIONS: AnalysisResult['condition'][] = [
   'Excellent', 'Bon', 'Correct', 'À restaurer',
 ];
 
+const CATEGORIES = [
+  'Mobilier', 'Arts décoratifs', 'Bijoux', 'Argenterie',
+  'Céramique & Porcelaine', 'Horlogerie', 'Tableaux & Gravures',
+  'Livres & BD', 'Jouets & Jeux', 'Vintage & Mode',
+  'Appareils photo', 'Vinyles & Musique', 'Autre',
+];
+
+const SHIPPING_OPTIONS = [
+  { id: 'hand', label: 'Remise en main propre', detail: 'Gratuit · À définir avec l\'acheteur' },
+  { id: 'relay', label: 'Mondial Relay', detail: 'À partir de 3,99 €' },
+  { id: 'colissimo', label: 'Colissimo', detail: 'À partir de 6,50 €' },
+  { id: 'chronopost', label: 'Chronopost', detail: 'À partir de 12,00 €' },
+];
+
+async function compressPhoto(uri: string): Promise<string> {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 1200 } }],
+    { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+  );
+  return result.uri;
+}
+
 async function uploadPhoto(
   photoUri: string,
   userId: string,
   token: string,
 ): Promise<string> {
+  const compressed = await compressPhoto(photoUri);
   const fileName = `${userId}/${Date.now()}.jpg`;
 
   const formData = new FormData();
   formData.append('file', {
-    uri: photoUri,
+    uri: compressed,
     type: 'image/jpeg',
     name: `${Date.now()}.jpg`,
   } as any);
@@ -76,7 +100,16 @@ export function SellScreen({ navigation, route }: Props) {
   const [description, setDescription] = useState(analysis.story);
   const [price, setPrice] = useState(String(analysis.priceSuggested));
   const [location, setLocation] = useState('');
+  const [shippingOptions, setShippingOptions] = useState<string[]>(['hand']);
+  const [shippingPrice, setShippingPrice] = useState('0');
+  const [tipsOpen, setTipsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const toggleShipping = (id: string) => {
+    setShippingOptions((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
+    );
+  };
 
   const handlePublish = async () => {
     if (!name.trim()) {
@@ -112,6 +145,8 @@ export function SellScreen({ navigation, route }: Props) {
         images: [imageUrl],
         status: 'active',
         location: location.trim() || null,
+        shipping_options: shippingOptions,
+        shipping_price: parseFloat(shippingPrice.replace(',', '.')) || 0,
       });
 
       if (error) throw error;
@@ -121,7 +156,10 @@ export function SellScreen({ navigation, route }: Props) {
         'Votre objet est maintenant visible sur le marché.',
         [{
           text: 'Voir le marché',
-          onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Home' }] }),
+          onPress: () => {
+            navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+            navigation.getParent()?.navigate('Marché');
+          },
         }],
       );
     } catch (err: unknown) {
@@ -172,12 +210,20 @@ export function SellScreen({ navigation, route }: Props) {
           {/* Catégorie */}
           <View style={styles.field}>
             <Text style={styles.label}>Catégorie</Text>
-            <TextInput
-              style={styles.input}
-              value={category}
-              onChangeText={setCategory}
-              placeholderTextColor={colors.textSecondary}
-            />
+            <View style={styles.categoryGrid}>
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
+                  onPress={() => setCategory(cat)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.categoryChipText, category === cat && styles.categoryChipTextActive]}>
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* État */}
@@ -239,6 +285,74 @@ export function SellScreen({ navigation, route }: Props) {
             />
           </View>
 
+          {/* Livraison */}
+          <View style={styles.field}>
+            <Text style={styles.label}>Modes de livraison</Text>
+            <Text style={styles.shippingSubtitle}>Sélectionnez les options que vous proposez</Text>
+            {SHIPPING_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                style={[styles.shippingRow, shippingOptions.includes(opt.id) && styles.shippingRowActive]}
+                onPress={() => toggleShipping(opt.id)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.shippingCheck, shippingOptions.includes(opt.id) && styles.shippingCheckActive]}>
+                  {shippingOptions.includes(opt.id) && (
+                    <Ionicons name="checkmark" size={13} color={colors.background} />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.shippingLabel, shippingOptions.includes(opt.id) && styles.shippingLabelActive]}>
+                    {opt.label}
+                  </Text>
+                  <Text style={styles.shippingDetail}>{opt.detail}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Prix de livraison */}
+          <View style={styles.field}>
+            <Text style={styles.label}>Prix de livraison (€)</Text>
+            <Text style={styles.shippingSubtitle}>0 = livraison gratuite · frais à votre charge</Text>
+            <TextInput
+              style={styles.input}
+              value={shippingPrice}
+              onChangeText={setShippingPrice}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              placeholderTextColor={colors.textSecondary}
+            />
+          </View>
+
+          {/* Conseils de vente IA */}
+          {analysis.sellingTips.length > 0 && (
+            <View style={styles.field}>
+              <TouchableOpacity
+                style={styles.tipsHeader}
+                onPress={() => setTipsOpen((o) => !o)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.label}>Conseils de vente IA</Text>
+                <Ionicons
+                  name={tipsOpen ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+              {tipsOpen && (
+                <View style={styles.tipsList}>
+                  {analysis.sellingTips.map((tip, i) => (
+                    <View key={i} style={styles.tipRow}>
+                      <View style={styles.tipBullet} />
+                      <Text style={styles.tipText}>{tip}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
           <View style={{ height: 24 }} />
         </ScrollView>
 
@@ -283,10 +397,10 @@ const styles = StyleSheet.create({
   },
   field: { paddingHorizontal: spacing.section, paddingTop: spacing.base },
   label: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 12,
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.textDisabled,
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
@@ -351,4 +465,50 @@ const styles = StyleSheet.create({
   },
   ctaDisabled: { opacity: 0.6 },
   ctaText: { fontFamily: fonts.bodySemiBold, fontSize: 17, color: colors.background },
+
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  categoryChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.chipBackground,
+  },
+  categoryChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  categoryChipText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
+  categoryChipTextActive: { color: colors.background, fontFamily: fonts.bodySemiBold },
+
+  shippingSubtitle: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, marginBottom: 10 },
+  shippingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.chipBackground,
+  },
+  shippingRowActive: { borderColor: colors.primary },
+  shippingCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.textSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shippingCheckActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  shippingLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textSecondary },
+  shippingLabelActive: { color: colors.textPrimary },
+  shippingDetail: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+
+  tipsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  tipsList: { marginTop: 12, gap: 10 },
+  tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  tipBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, marginTop: 7, flexShrink: 0 },
+  tipText: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary, flex: 1, lineHeight: 21 },
 });

@@ -8,7 +8,6 @@ import {
   Image,
   Animated,
   Dimensions,
-  SafeAreaView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,10 +25,10 @@ type Props = {
 };
 
 const CONDITION_COLORS: Record<AnalysisResult['condition'], string> = {
-  Excellent: '#4CAF50',
-  Bon: '#2196F3',
-  Correct: '#FF9800',
-  'À restaurer': '#F44336',
+  Excellent: '#B5D479',
+  Bon:       '#C9A9DB',
+  Correct:   '#F5B82E',
+  'À restaurer': '#E08766',
 };
 
 function Chip({ label }: { label: string }) {
@@ -101,6 +100,30 @@ export function ResultScreen({ navigation, route }: Props) {
   };
 
   const conditionColor = CONDITION_COLORS[analysis.condition] ?? colors.primary;
+
+  if (analysis.unsellable) {
+    return (
+      <View style={styles.container}>
+        <Animated.View style={[styles.cardContainer, { transform: [{ translateY: slideAnim }] }]}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <Animated.View style={{ opacity: fadeAnims[0] }}>
+              <Image source={{ uri: photos[0].uri }} style={styles.heroImage} />
+            </Animated.View>
+            <Animated.View style={[styles.section, styles.humourCard, { opacity: fadeAnims[1] }]}>
+              <Text style={styles.humourIcon}>✦</Text>
+              <Text style={styles.humourText}>{analysis.humourMessage}</Text>
+            </Animated.View>
+            <View style={{ height: 120 }} />
+          </ScrollView>
+        </Animated.View>
+        <SafeAreaView style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
+          <TouchableOpacity style={[styles.primaryButton, { flex: 1 }]} onPress={handleRestart} activeOpacity={0.85}>
+            <Text style={styles.primaryText}>Réessayer</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -206,6 +229,24 @@ export function ResultScreen({ navigation, route }: Props) {
             )}
           </Animated.View>
 
+          {/* Questions de clarification */}
+          {(analysis.clarifyingQuestions ?? []).length > 0 && (
+            <Animated.View style={[styles.section, { opacity: fadeAnims[4] }]}>
+              <View style={styles.clarifyCard}>
+                <View style={styles.clarifyHeader}>
+                  <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
+                  <Text style={styles.clarifyTitle}>Pour affiner l'estimation</Text>
+                </View>
+                {analysis.clarifyingQuestions!.map((q, i) => (
+                  <Text key={i} style={styles.clarifyQ}>• {q}</Text>
+                ))}
+                <Text style={styles.clarifyHint}>
+                  Renseignez ces informations dans le champ "souvenir" et relancez l'analyse.
+                </Text>
+              </View>
+            </Animated.View>
+          )}
+
           {/* Espace pour la barre fixe */}
           <View style={{ height: 120 }} />
         </ScrollView>
@@ -273,9 +314,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.section,
   },
   sectionLabel: {
-    fontFamily: fonts.bodySemiBold,
+    fontFamily: fonts.mono,
     fontSize: 11,
-    color: colors.primary,
+    color: colors.primaryDim,
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginBottom: 12,
@@ -322,6 +363,27 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 21,
   },
+  humourCard: {
+    margin: spacing.section,
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: spacing.section,
+    borderWidth: 1,
+    borderColor: 'rgba(245,184,46,0.2)',
+    alignItems: 'center',
+    gap: 16,
+  },
+  humourIcon: {
+    fontSize: 40,
+    color: colors.primary,
+  },
+  humourText: {
+    fontFamily: fonts.serifRegular,
+    fontSize: 17,
+    color: colors.textPrimary,
+    lineHeight: 28,
+    textAlign: 'center',
+  },
   priceCard: {
     backgroundColor: colors.surface,
     marginHorizontal: spacing.section,
@@ -329,12 +391,12 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: spacing.section,
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.2)',
+    borderColor: 'rgba(245,184,46,0.2)',
   },
   priceLabel: {
-    fontFamily: fonts.bodySemiBold,
+    fontFamily: fonts.mono,
     fontSize: 11,
-    color: colors.textSecondary,
+    color: colors.primaryDim,
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginBottom: 6,
@@ -396,6 +458,19 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 21,
   },
+  clarifyCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(245,184,46,0.15)',
+  },
+  clarifyHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  clarifyTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.primary },
+  clarifyQ: { fontFamily: fonts.body, fontSize: 13, color: colors.textPrimary, lineHeight: 20 },
+  clarifyHint: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, lineHeight: 17, marginTop: 4 },
+
   bottomBar: {
     position: 'absolute',
     bottom: 0,

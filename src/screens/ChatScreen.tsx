@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,8 +20,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 
 type Props = {
-  navigation: StackNavigationProp<MarketStackParamList, 'Chat'>;
-  route: RouteProp<MarketStackParamList, 'Chat'>;
+  navigation: StackNavigationProp<any, any>;
+  route: RouteProp<{ Chat: { listing_id: string; receiver_id: string; listing_name: string } }, 'Chat'>;
 };
 
 export function ChatScreen({ navigation, route }: Props) {

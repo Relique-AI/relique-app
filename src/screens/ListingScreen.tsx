@@ -7,12 +7,21 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  SafeAreaView,
   Dimensions,
   Alert,
   Platform,
   Share,
+  TextInput,
+  KeyboardAvoidingView,
+  Modal,
 } from 'react-native';
+import { useStripe } from '@stripe/stripe-react-native';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
@@ -31,11 +40,88 @@ type Props = {
 
 const { width } = Dimensions.get('window');
 
-function InfoChip({ label }: { label: string }) {
+function InfoChip({ label, onPress }: { label: string; onPress?: () => void }) {
+  if (onPress) {
+    return (
+      <TouchableOpacity style={[styles.chip, styles.chipClickable]} onPress={onPress} activeOpacity={0.7}>
+        <Text style={[styles.chipText, { color: colors.primary }]}>{label}</Text>
+        <Ionicons name="chevron-forward" size={11} color={colors.primary} />
+      </TouchableOpacity>
+    );
+  }
   return (
     <View style={styles.chip}>
       <Text style={styles.chipText}>{label}</Text>
     </View>
+  );
+}
+
+function ZoomableImage({ uri }: { uri: string }) {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedX = useSharedValue(0);
+  const savedY = useSharedValue(0);
+
+  const pinch = Gesture.Pinch()
+    .onUpdate((e) => { scale.value = Math.max(1, savedScale.value * e.scale); })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      if (scale.value < 1.05) {
+        scale.value = withSpring(1);
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+        savedScale.value = 1;
+        savedX.value = 0;
+        savedY.value = 0;
+      }
+    });
+
+  const pan = Gesture.Pan()
+    .onUpdate((e) => {
+      translateX.value = savedX.value + e.translationX;
+      translateY.value = savedY.value + e.translationY;
+    })
+    .onEnd(() => {
+      savedX.value = translateX.value;
+      savedY.value = translateY.value;
+    });
+
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      if (scale.value > 1) {
+        scale.value = withSpring(1);
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+        savedScale.value = 1;
+        savedX.value = 0;
+        savedY.value = 0;
+      } else {
+        scale.value = withSpring(2.5);
+        savedScale.value = 2.5;
+      }
+    });
+
+  const gesture = Gesture.Simultaneous(pinch, pan, doubleTap);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: scale.value },
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+  }));
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.Image
+        source={{ uri }}
+        style={[{ width, height: width * 1.3 }, animStyle]}
+        resizeMode="contain"
+      />
+    </GestureDetector>
   );
 }
 
@@ -44,15 +130,28 @@ export function ListingScreen({ navigation, route }: Props) {
   const { id } = route.params;
   const { user } = useAuth();
 
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [listing, setListing] = useState<Listing | null>(null);
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
   const [markingAsSold, setMarkingAsSold] = useState(false);
+  const [buying, setBuying] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [sellerListings, setSellerListings] = useState<Listing[]>([]);
   const [sellerRating, setSellerRating] = useState<{ avg: number; count: number } | null>(null);
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [offerAmount, setOfferAmount] = useState('');
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [zoomVisible, setZoomVisible] = useState(false);
+  const [zoomIndex, setZoomIndex] = useState(0);
+
+  type Question = { id: string; question: string; answer: string | null; created_at: string; profiles: { username: string } | null };
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [newQuestion, setNewQuestion] = useState('');
+  const [submittingQ, setSubmittingQ] = useState(false);
+  const [answeringId, setAnsweringId] = useState<string | null>(null);
+  const [answerText, setAnswerText] = useState('');
 
   const isOwner = listing?.seller_id === user?.id;
 
@@ -60,8 +159,10 @@ export function ListingScreen({ navigation, route }: Props) {
     setLoading(true);
     setPhotoIndex(0);
     setSellerListings([]);
+    setQuestions([]);
     loadListing();
     loadFavorite();
+    loadQuestions();
   }, [id]);
 
   const loadListing = async () => {
@@ -109,6 +210,52 @@ export function ListingScreen({ navigation, route }: Props) {
       .order('created_at', { ascending: false })
       .limit(10);
     if (data) setSellerListings(data as Listing[]);
+  };
+
+  const loadQuestions = async () => {
+    const { data } = await supabase
+      .from('listing_questions')
+      .select('id, question, answer, created_at, profiles(username)')
+      .eq('listing_id', id)
+      .order('created_at', { ascending: true });
+    if (data) setQuestions(data as unknown as Question[]);
+  };
+
+  const submitQuestion = async () => {
+    if (!user || !newQuestion.trim()) return;
+    setSubmittingQ(true);
+    const { error } = await supabase.from('listing_questions').insert({
+      listing_id: id,
+      asker_id: user.id,
+      question: newQuestion.trim(),
+    });
+    if (!error) {
+      setNewQuestion('');
+      loadQuestions();
+      // Notify seller
+      if (listing) {
+        supabase.functions.invoke('send-push', {
+          body: {
+            receiver_id: listing.seller_id,
+            sender_name: 'Nouvelle question',
+            listing_name: listing.name,
+            message_preview: newQuestion.trim(),
+          },
+        });
+      }
+    }
+    setSubmittingQ(false);
+  };
+
+  const submitAnswer = async (questionId: string) => {
+    if (!answerText.trim()) return;
+    await supabase
+      .from('listing_questions')
+      .update({ answer: answerText.trim(), answered_at: new Date().toISOString() })
+      .eq('id', questionId);
+    setAnsweringId(null);
+    setAnswerText('');
+    loadQuestions();
   };
 
   const loadFavorite = async () => {
@@ -183,12 +330,76 @@ export function ListingScreen({ navigation, route }: Props) {
 
   const handleShare = async () => {
     if (!listing) return;
+    const deepLink = `pepite://listing/${listing.id}`;
     await Share.share({
       title: listing.name,
       message:
         `${listing.name} — ${listing.price_final} €\n` +
         `${listing.category} · ${listing.era}\n\n` +
-        `Découvre cette annonce sur Pépite !`,
+        `Voir cette annonce sur Pépite : ${deepLink}`,
+    });
+  };
+
+  const handleBuy = async () => {
+    if (!listing || !user) return;
+    setBuying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+        body: { listing_id: listing.id },
+        headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
+      });
+      if (error) {
+        let errMsg = 'Impossible de lancer le paiement.';
+        try {
+          const body = await (error as any).context?.json?.();
+          if (body?.error) errMsg = body.error;
+        } catch {}
+        if (errMsg.includes('non configuré') || errMsg.includes('Vendeur')) {
+          Alert.alert('Paiement indisponible', 'Ce vendeur n\'a pas encore configuré son compte de paiement. Contactez-le directement.');
+        } else {
+          Alert.alert('Erreur', errMsg);
+        }
+        return;
+      }
+      if (!data?.clientSecret) throw new Error('Erreur paiement');
+
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'Pépite',
+        paymentIntentClientSecret: data.clientSecret,
+        defaultBillingDetails: { email: user.email },
+      });
+      if (initError) throw new Error(initError.message);
+
+      const { error: presentError } = await presentPaymentSheet();
+      if (presentError) {
+        if (presentError.code !== 'Canceled') Alert.alert('Erreur', presentError.message);
+        return;
+      }
+
+      Alert.alert('Achat confirmé !', 'Le vendeur a été notifié. Vous pouvez le contacter pour organiser la livraison.');
+      loadListing();
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message ?? 'Une erreur est survenue');
+    } finally {
+      setBuying(false);
+    }
+  };
+
+  const sendOffer = async () => {
+    if (!user || !listing || !offerAmount.trim()) return;
+    const text = `Je vous propose ${offerAmount.trim()} € pour "${listing.name}".`;
+    await supabase.from('messages').insert({
+      listing_id: listing.id,
+      sender_id: user.id,
+      receiver_id: listing.seller_id,
+      content: text,
+    });
+    setShowOfferModal(false);
+    setOfferAmount('');
+    navigation.navigate('Chat', {
+      listing_id: listing.id,
+      receiver_id: listing.seller_id,
+      listing_name: listing.name,
     });
   };
 
@@ -246,7 +457,9 @@ export function ListingScreen({ navigation, route }: Props) {
             }
           >
             {images.length > 0 ? images.map((uri, i) => (
-              <Image key={i} source={{ uri }} style={styles.photo} />
+              <TouchableOpacity key={i} activeOpacity={1} onPress={() => { setZoomIndex(i); setZoomVisible(true); }}>
+                <Image source={{ uri }} style={styles.photo} />
+              </TouchableOpacity>
             )) : (
               <View style={[styles.photo, styles.photoPlaceholder]}>
                 <Ionicons name="image-outline" size={48} color={colors.textSecondary} />
@@ -279,7 +492,7 @@ export function ListingScreen({ navigation, route }: Props) {
                 <Ionicons
                   name={isFavorited ? 'heart' : 'heart-outline'}
                   size={22}
-                  color={isFavorited ? '#E57373' : '#fff'}
+                  color={isFavorited ? colors.danger : '#fff'}
                 />
               </TouchableOpacity>
             </View>
@@ -292,10 +505,27 @@ export function ListingScreen({ navigation, route }: Props) {
           {/* Nom + prix */}
           <Text style={styles.name}>{listing.name}</Text>
           <Text style={styles.price}>{listing.price_final} €</Text>
+          {(listing.shipping_price ?? 0) > 0 ? (
+            <Text style={styles.shippingLine}>
+              + {listing.shipping_price} € de livraison · Total {(listing.price_final + listing.shipping_price!).toFixed(2)} €
+            </Text>
+          ) : (
+            <Text style={styles.shippingLine}>Livraison gratuite</Text>
+          )}
 
           {/* Chips infos */}
           <View style={styles.chips}>
-            {!!listing.category && <InfoChip label={listing.category} />}
+            {!!listing.category && (
+              <InfoChip
+                label={listing.category}
+                onPress={() =>
+                  (navigation as any).getParent()?.navigate('Parcourir', {
+                    screen: 'BrowseListings',
+                    params: { category: listing.category },
+                  })
+                }
+              />
+            )}
             {!!listing.era && <InfoChip label={listing.era} />}
             {!!listing.origin && <InfoChip label={listing.origin} />}
           </View>
@@ -318,22 +548,6 @@ export function ListingScreen({ navigation, route }: Props) {
             <>
               <Text style={styles.sectionLabel}>Histoire de l'objet</Text>
               <Text style={styles.storyText}>{listing.story}</Text>
-              <View style={styles.divider} />
-            </>
-          )}
-
-          {/* Conseils IA */}
-          {tips.length > 0 && (
-            <>
-              <Text style={styles.sectionLabel}>Conseils de vente IA</Text>
-              <View style={styles.tipsList}>
-                {tips.map((tip, i) => (
-                  <View key={i} style={styles.tipRow}>
-                    <View style={styles.tipBullet} />
-                    <Text style={styles.tipText}>{tip}</Text>
-                  </View>
-                ))}
-              </View>
               <View style={styles.divider} />
             </>
           )}
@@ -367,6 +581,78 @@ export function ListingScreen({ navigation, route }: Props) {
             )}
           </View>
 
+          {/* Questions / Réponses */}
+          <View style={styles.divider} />
+          <Text style={styles.sectionLabel}>Questions</Text>
+
+          {questions.length === 0 && (
+            <Text style={styles.qEmpty}>Aucune question pour le moment.</Text>
+          )}
+          {questions.map((q) => (
+            <View key={q.id} style={styles.qItem}>
+              <View style={styles.qRow}>
+                <View style={styles.qAvatar}>
+                  <Ionicons name="person" size={12} color={colors.textSecondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.qAsker}>{q.profiles?.username ?? 'Utilisateur'}</Text>
+                  <Text style={styles.qText}>{q.question}</Text>
+                </View>
+              </View>
+              {q.answer ? (
+                <View style={styles.aRow}>
+                  <Ionicons name="return-down-forward" size={14} color={colors.primary} />
+                  <Text style={styles.aText}>{q.answer}</Text>
+                </View>
+              ) : isOwner ? (
+                answeringId === q.id ? (
+                  <View style={styles.aInputRow}>
+                    <TextInput
+                      style={styles.aInput}
+                      value={answerText}
+                      onChangeText={setAnswerText}
+                      placeholder="Votre réponse..."
+                      placeholderTextColor={colors.textSecondary}
+                      multiline
+                      autoFocus
+                    />
+                    <TouchableOpacity style={styles.aSendBtn} onPress={() => submitAnswer(q.id)}>
+                      <Ionicons name="send" size={16} color={colors.background} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.replyBtn} onPress={() => { setAnsweringId(q.id); setAnswerText(''); }}>
+                    <Text style={styles.replyBtnText}>Répondre</Text>
+                  </TouchableOpacity>
+                )
+              ) : null}
+            </View>
+          ))}
+
+          {!isOwner && (
+            <View style={styles.qInputRow}>
+              <TextInput
+                style={styles.qInput}
+                value={newQuestion}
+                onChangeText={setNewQuestion}
+                placeholder="Poser une question..."
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                maxLength={300}
+              />
+              <TouchableOpacity
+                style={[styles.qSendBtn, (!newQuestion.trim() || submittingQ) && { opacity: 0.4 }]}
+                onPress={submitQuestion}
+                disabled={!newQuestion.trim() || submittingQ}
+              >
+                {submittingQ
+                  ? <ActivityIndicator size="small" color={colors.background} />
+                  : <Ionicons name="send" size={16} color={colors.background} />
+                }
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Autres annonces du vendeur */}
           {sellerListings.length > 0 && (
             <>
@@ -398,6 +684,61 @@ export function ListingScreen({ navigation, route }: Props) {
         </View>
       </ScrollView>
 
+      {/* Modal offre */}
+      {showOfferModal && (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.offerOverlay}
+        >
+          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowOfferModal(false)} />
+          <View style={styles.offerSheet}>
+            <Text style={styles.offerTitle}>Faire une offre</Text>
+            <Text style={styles.offerSub}>Prix affiché : {listing?.price_final} €</Text>
+            <View style={styles.offerInputRow}>
+              <TextInput
+                style={styles.offerInput}
+                value={offerAmount}
+                onChangeText={setOfferAmount}
+                placeholder="Votre offre"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="numeric"
+                autoFocus
+                maxLength={8}
+              />
+              <Text style={styles.offerCurrency}>€</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.offerSendBtn, !offerAmount.trim() && { opacity: 0.4 }]}
+              onPress={sendOffer}
+              disabled={!offerAmount.trim()}
+            >
+              <Text style={styles.offerSendText}>Envoyer l'offre</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      )}
+
+      {/* Modal zoom photo */}
+      <Modal visible={zoomVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setZoomVisible(false)}>
+        <View style={styles.zoomOverlay}>
+          <TouchableOpacity style={styles.zoomClose} onPress={() => setZoomVisible(false)}>
+            <Ionicons name="close" size={28} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.zoomContent}>
+            <ZoomableImage uri={images[zoomIndex]} />
+          </View>
+          {images.length > 1 && (
+            <View style={styles.zoomDots}>
+              {images.map((_, i) => (
+                <TouchableOpacity key={i} onPress={() => setZoomIndex(i)}>
+                  <View style={[styles.dot, i === zoomIndex && styles.dotActive]} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      </Modal>
+
       {listing && (
         <ReviewModal
           visible={showReviewModal}
@@ -428,13 +769,6 @@ export function ListingScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         ) : (
           <>
-            <TouchableOpacity style={styles.btnFav} onPress={toggleFavorite}>
-              <Ionicons
-                name={isFavorited ? 'heart' : 'heart-outline'}
-                size={22}
-                color={isFavorited ? '#E57373' : colors.textPrimary}
-              />
-            </TouchableOpacity>
             <TouchableOpacity
               style={styles.btnContact}
               onPress={() =>
@@ -445,8 +779,24 @@ export function ListingScreen({ navigation, route }: Props) {
                 })
               }
             >
-              <Ionicons name="chatbubble-outline" size={18} color={colors.background} style={{ marginRight: 8 }} />
-              <Text style={styles.btnContactText}>Contacter le vendeur</Text>
+              <Ionicons name="chatbubble-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.btnContact}
+              onPress={() => { setOfferAmount(''); setShowOfferModal(true); }}
+            >
+              <Ionicons name="pricetag-outline" size={18} color={colors.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.btnContactText}>Offre</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btnBuy, buying && { opacity: 0.6 }]}
+              onPress={handleBuy}
+              disabled={buying}
+            >
+              {buying
+                ? <ActivityIndicator color={colors.background} size="small" />
+                : <Text style={styles.btnBuyText}>Acheter · {((listing.price_final) + (listing.shipping_price ?? 0)).toFixed(2)} €</Text>
+              }
             </TouchableOpacity>
           </>
         )}
@@ -497,17 +847,23 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.section, paddingTop: spacing.section },
   name: { fontFamily: fonts.serif, fontSize: 28, color: colors.textPrimary, lineHeight: 36, marginBottom: 6 },
   price: { fontFamily: fonts.serif, fontSize: 36, color: colors.primary, marginBottom: 16 },
+  shippingLine: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, marginBottom: 12, marginTop: -10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   chip: { backgroundColor: colors.chipBackground, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12 },
+  chipClickable: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: 'rgba(245,184,46,0.3)' },
   chipText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
+  zoomOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)', justifyContent: 'center' },
+  zoomClose: { position: 'absolute', top: 52, right: 20, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  zoomContent: { flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  zoomDots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingBottom: 40 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   locationText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
   divider: { height: 1, backgroundColor: colors.surface, marginVertical: spacing.section },
   sectionLabel: {
-    fontFamily: fonts.bodySemiBold,
+    fontFamily: fonts.mono,
     fontSize: 11,
-    color: colors.primary,
+    color: colors.primaryDim,
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginBottom: 12,
@@ -599,6 +955,18 @@ const styles = StyleSheet.create({
     borderColor: colors.chipBackground,
   },
   btnContact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 50,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  btnContactText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.primary },
+  btnBuy: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -612,14 +980,113 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
-  btnContactText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
+  btnBuyText: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.background },
   btnSold: {
     flex: 1,
     paddingVertical: 16,
     borderRadius: 50,
-    backgroundColor: '#E57373',
+    backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnSoldText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: '#fff' },
+  btnSoldText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
+
+  // Offer modal
+  offerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  offerSheet: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 28,
+    paddingBottom: 40,
+    gap: 14,
+  },
+  offerTitle: { fontFamily: fonts.serif, fontSize: 22, color: colors.textPrimary },
+  offerSub: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
+  offerInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  offerInput: {
+    flex: 1,
+    fontFamily: fonts.serif,
+    fontSize: 28,
+    color: colors.primary,
+    paddingVertical: 14,
+  },
+  offerCurrency: { fontFamily: fonts.serif, fontSize: 24, color: colors.primary },
+  offerSendBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 50,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  offerSendText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
+
+  // Q&A
+  qEmpty: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, marginBottom: 12 },
+  qItem: { backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 8, gap: 8 },
+  qRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  qAvatar: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: colors.chipBackground,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  qAsker: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.primary, marginBottom: 2 },
+  qText: { fontFamily: fonts.body, fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
+  aRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', paddingLeft: 34 },
+  aText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, flex: 1, lineHeight: 19 },
+  aInputRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-end', paddingLeft: 34 },
+  aInput: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    padding: 10,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.textPrimary,
+    maxHeight: 80,
+  },
+  aSendBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  replyBtn: { alignSelf: 'flex-start', marginLeft: 34 },
+  replyBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.primary },
+  qInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-end',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  qInput: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.textPrimary,
+    maxHeight: 80,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  qSendBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
 });

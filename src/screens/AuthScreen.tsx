@@ -9,19 +9,20 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { colors, fonts, spacing } from '../theme';
 
 type Tab = 'login' | 'signup' | 'forgot';
 
 export function AuthScreen() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, enterGuestMode } = useAuth();
   const [tab, setTab] = useState<Tab>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -56,13 +57,22 @@ export function AuthScreen() {
         setError('Le mot de passe doit contenir au moins 6 caractères.');
         return;
       }
+      const trimmedUsername = username.trim();
+      if (trimmedUsername.length < 3) {
+        setError('Le pseudo doit contenir au moins 3 caractères.');
+        return;
+      }
+      if (!/^[a-zA-Z0-9_.-]+$/.test(trimmedUsername)) {
+        setError('Pseudo : uniquement lettres, chiffres, _ . -');
+        return;
+      }
     }
 
     setLoading(true);
     const errMsg =
       tab === 'login'
         ? await signIn(email.trim(), password)
-        : await signUp(email.trim(), password);
+        : await signUp(email.trim(), password, username.trim());
     setLoading(false);
 
     if (errMsg) {
@@ -97,7 +107,7 @@ export function AuthScreen() {
             <View style={styles.tabs}>
               <TouchableOpacity
                 style={[styles.tabItem, tab === 'login' && styles.tabItemActive]}
-                onPress={() => { setTab('login'); setError(null); setSuccess(null); }}
+                onPress={() => { setTab('login'); setUsername(''); setError(null); setSuccess(null); }}
               >
                 <Text style={[styles.tabText, tab === 'login' && styles.tabTextActive]}>Connexion</Text>
               </TouchableOpacity>
@@ -121,18 +131,35 @@ export function AuthScreen() {
           {/* Formulaire */}
           <View style={styles.form}>
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>{tab === 'login' ? 'Email ou pseudo' : 'Email'}</Text>
               <TextInput
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="votre@email.com"
+                placeholder={tab === 'login' ? 'email ou pseudo' : 'votre@email.com'}
                 placeholderTextColor={colors.textSecondary}
-                keyboardType="email-address"
+                keyboardType={tab === 'login' ? 'default' : 'email-address'}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
             </View>
+
+            {tab === 'signup' && (
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Pseudo</Text>
+                <TextInput
+                  style={styles.input}
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="ex : chineuse_paris, vintage_paul"
+                  placeholderTextColor={colors.textSecondary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={30}
+                />
+                <Text style={styles.fieldHint}>Lettres, chiffres, _ . - · 3 à 30 caractères</Text>
+              </View>
+            )}
 
             {tab !== 'forgot' && (
               <View style={styles.fieldGroup}>
@@ -190,7 +217,13 @@ export function AuthScreen() {
                 <Text style={styles.forgotLink}>← Retour à la connexion</Text>
               </TouchableOpacity>
             )}
+
           </View>
+          {tab !== 'forgot' && (
+            <TouchableOpacity style={styles.guestBtn} onPress={enterGuestMode} activeOpacity={0.7}>
+              <Text style={styles.guestText}>Parcourir sans compte →</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -289,16 +322,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.chipBackground,
   },
+  guestBtn: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
+  guestText: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary },
+  fieldHint: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   errorText: {
     fontFamily: fonts.body,
     fontSize: 14,
-    color: '#E57373',
+    color: colors.danger,
     textAlign: 'center',
   },
   successText: {
     fontFamily: fonts.body,
     fontSize: 14,
-    color: '#81C784',
+    color: colors.success,
     textAlign: 'center',
     lineHeight: 20,
   },

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pépite",
     "slug": "relique",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -13,11 +13,11 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0F0E0B"
+      "backgroundColor": "#0B0907"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.relique.app",
+      "bundleIdentifier": "com.hugosld.pepite",
       "infoPlist": {
         "NSCameraUsageDescription": "Pépite utilise la caméra pour scanner et analyser vos objets.",
         "NSPhotoLibraryUsageDescription": "Pépite accède à vos photos pour analyser vos objets.",
@@ -27,16 +27,23 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0F0E0B"
+        "backgroundColor": "#0B0907"
       },
-      "package": "com.relique.app",
+      "package": "com.hugosld.pepite",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "versionCode": 15
     },
+    "androidStatusBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#0B0907",
+      "translucent": false
+    },
+    "scheme": "pepite",
     "web": {
       "favicon": "./assets/favicon.png"
     },
@@ -55,21 +62,30 @@
       ],
       "expo-secure-store",
       "expo-font",
+      "expo-apple-authentication",
       [
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#C9A84C",
+          "color": "#F5B82E",
           "androidMode": "default",
           "androidCollapsedTitle": "Pépite"
         }
-      ]
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.hugosld.pepite",
+          "enableGooglePay": false
+        }
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "eas": {
         "projectId": "b0484eb9-4573-4ad1-b7a8-6d7cc41ea927"
       }
     },
-    "owner": "hugosld"
+    "owner": "HugoSld2"
   }
 }

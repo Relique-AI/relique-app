@@ -8,10 +8,10 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  SafeAreaView,
   Dimensions,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { MarketStackParamList } from '../types';
@@ -41,8 +41,6 @@ export function MarketScreen({ navigation }: Props) {
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [categories, setCategories] = useState<string[]>([]);
-  const [activeCategory, setActiveCategory] = useState('Tous');
   const [sort, setSort] = useState<SortOption>('recent');
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -94,19 +92,6 @@ export function MarketScreen({ navigation }: Props) {
     loadingRef.current = false;
   };
 
-  // ─── Chargement des catégories ──────────────────────────────────────────────
-
-  const loadCategories = async () => {
-    const { data } = await supabase
-      .from('listings')
-      .select('category')
-      .eq('status', 'active');
-    if (data) {
-      const unique = [...new Set(data.map((d) => d.category).filter(Boolean))] as string[];
-      setCategories(unique);
-    }
-  };
-
   // ─── Favoris ────────────────────────────────────────────────────────────────
 
   const loadFavorites = async () => {
@@ -136,7 +121,6 @@ export function MarketScreen({ navigation }: Props) {
   // ─── Initialisation ─────────────────────────────────────────────────────────
 
   useEffect(() => {
-    loadCategories();
     loadFavorites();
     loadListings(true, '', 'Tous', 'recent');
   }, []);
@@ -152,22 +136,21 @@ export function MarketScreen({ navigation }: Props) {
   // ─── Reload sur changement de filtres ───────────────────────────────────────
 
   useEffect(() => {
-    loadListings(true, searchQuery, activeCategory, sort);
-  }, [searchQuery, activeCategory, sort]);
+    loadListings(true, searchQuery, 'Tous', sort);
+  }, [searchQuery, sort]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
-      loadCategories(),
       loadFavorites(),
-      loadListings(true, searchQuery, activeCategory, sort),
+      loadListings(true, searchQuery, 'Tous', sort),
     ]);
     setRefreshing(false);
   };
 
   const handleEndReached = () => {
     if (hasMore && !loadingRef.current) {
-      loadListings(false, searchQuery, activeCategory, sort);
+      loadListings(false, searchQuery, 'Tous', sort);
     }
   };
 
@@ -210,28 +193,6 @@ export function MarketScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {/* Filtres catégorie */}
-      {categories.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoryScroll}
-          contentContainerStyle={styles.categoryStrip}
-        >
-          {['Tous', ...categories].map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.catChip, activeCategory === cat && styles.catChipActive]}
-              onPress={() => setActiveCategory(cat)}
-            >
-              <Text style={[styles.catChipText, activeCategory === cat && styles.catChipTextActive]}>
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
       {/* Tri */}
       <View style={styles.sortRow}>
         {(Object.keys(SORT_LABELS) as SortOption[]).map((s) => (
@@ -255,6 +216,11 @@ export function MarketScreen({ navigation }: Props) {
         numColumns={2}
         contentContainerStyle={styles.grid}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={6}
+        windowSize={5}
+        initialNumToRender={6}
+        updateCellsBatchingPeriod={100}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

@@ -1,0 +1,64 @@
+/* Pépite — Design tokens
+   Univers graphique v1.0 · Mai 2026
+   Importe ce fichier ou copie-colle dans ton :root
+*/
+
+:root {
+  /* ── Couleurs ───────────────────────────────── */
+
+  /* Or — la pépite */
+  --pepite-gold-100: #FFF4D6;
+  --pepite-gold-300: #FBD56B;
+  --pepite-gold-500: #F5B82E;  /* PRIMAIRE */
+  --pepite-gold-600: #D9A024;
+  --pepite-gold-700: #A87A1A;
+  --pepite-gold-800: #6E4F11;
+  --pepite-gold-900: #3F2D08;
+
+  /* Ink — noirs chauds */
+  --pepite-ink-1000: #0B0907;  /* fond principal */
+  --pepite-ink-900:  #110D08;
+  --pepite-ink-800:  #1A1410;
+  --pepite-ink-700:  #241C16;
+  --pepite-ink-600:  #322820;
+  --pepite-ink-500:  #463930;
+
+  /* Cream — neutres chauds */
+  --pepite-cream-50:  #FAF6EC;  /* texte principal */
+  --pepite-cream-100: #F1EAD9;
+  --pepite-cream-200: #E0D4BA;
+  --pepite-warm-400:  #A99680;
+  --pepite-warm-500:  #7E6E5C;
+
+  /* Sémantique */
+  --pepite-success: #B5D479;
+  --pepite-danger:  #E08766;
+  --pepite-info:    #C9A9DB;
+
+  /* ── Typographie ────────────────────────────── */
+  --pepite-font-display: "Fraunces", Georgia, serif;
+  --pepite-font-ui:      "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --pepite-font-mono:    "JetBrains Mono", ui-monospace, monospace;
+
+  /* ── Forme ──────────────────────────────────── */
+  --pepite-r-xs:   6px;
+  --pepite-r-sm:  10px;
+  --pepite-r-md:  16px;
+  --pepite-r-lg:  24px;
+  --pepite-r-pill: 999px;
+
+  /* ── Ombres / effets ────────────────────────── */
+  --pepite-shadow-glow:    0 0 60px rgba(245, 184, 46, 0.18);
+  --pepite-shadow-card:    0 20px 60px rgba(0, 0, 0, 0.5);
+  --pepite-shadow-btn:     0 8px 24px rgba(245, 184, 46, 0.25);
+  --pepite-shadow-btn-hov: 0 12px 32px rgba(245, 184, 46, 0.35);
+
+  --pepite-halo: radial-gradient(circle, rgba(245,184,46,0.18) 0%, rgba(245,184,46,0.04) 35%, transparent 60%);
+  --pepite-stripe: repeating-linear-gradient(45deg, var(--pepite-ink-700), var(--pepite-ink-700) 10px, var(--pepite-ink-800) 10px, var(--pepite-ink-800) 20px);
+}
+
+/* ::selection signature */
+::selection {
+  background: var(--pepite-gold-500);
+  color: var(--pepite-ink-1000);
+}
