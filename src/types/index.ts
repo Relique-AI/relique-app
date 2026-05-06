@@ -68,6 +68,7 @@ export type ProfileStackParamList = {
 export type MessagesStackParamList = {
   Inbox: undefined;
   Chat: { listing_id: string; receiver_id: string; listing_name: string };
+  Listing: { id: string };
 };
 
 // ─── Bottom tabs ─────────────────────────────────────────────────────────────

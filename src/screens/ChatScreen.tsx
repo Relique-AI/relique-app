@@ -7,13 +7,13 @@ import {
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
+  Image,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-import { MarketStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Message } from '../services/supabase';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +24,47 @@ type Props = {
   route: RouteProp<{ Chat: { listing_id: string; receiver_id: string; listing_name: string } }, 'Chat'>;
 };
 
+function formatTime(dateStr: string): string {
+  // Ensure timestamp is parsed as UTC
+  const iso = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z';
+  const d = new Date(iso);
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+}
+
+function TypingDots() {
+  const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
+
+  useEffect(() => {
+    const anims = dots.map((dot, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 150),
+          Animated.timing(dot, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.delay(600 - i * 150),
+        ]),
+      ),
+    );
+    anims.forEach((a) => a.start());
+    return () => anims.forEach((a) => a.stop());
+  }, []);
+
+  return (
+    <View style={{ flexDirection: 'row', gap: 4, paddingVertical: 2 }}>
+      {dots.map((dot, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            width: 7, height: 7, borderRadius: 3.5,
+            backgroundColor: colors.textSecondary,
+            opacity: dot,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 export function ChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { listing_id, receiver_id, listing_name } = route.params;
@@ -33,26 +74,28 @@ export function ChatScreen({ navigation, route }: Props) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [listingImage, setListingImage] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
+  // Charger l'image de l'annonce
+  useEffect(() => {
+    supabase.from('listings').select('images').eq('id', listing_id).single()
+      .then(({ data }) => { if (data?.images?.[0]) setListingImage(data.images[0]); });
+  }, [listing_id]);
+
+  // Messages + temps réel
   useEffect(() => {
     loadMessages();
     markAsRead();
 
-    // Souscription temps réel
     const channel = supabase
       .channel(`chat-${listing_id}-${user?.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `listing_id=eq.${listing_id}`,
-        },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `listing_id=eq.${listing_id}` },
         (payload) => {
           const msg = payload.new as Message;
-          // N'ajouter que si le message concerne cet utilisateur
           if (msg.sender_id === user?.id || msg.receiver_id === user?.id) {
             setMessages((prev) => [...prev, msg]);
             if (msg.receiver_id === user?.id) markAsRead();
@@ -63,6 +106,26 @@ export function ChatScreen({ navigation, route }: Props) {
 
     return () => { supabase.removeChannel(channel); };
   }, [listing_id]);
+
+  // Canal indicateur de saisie
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`typing-${listing_id}`)
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload?.user_id !== user.id) {
+          setIsOtherTyping(true);
+          if (typingTimer.current) clearTimeout(typingTimer.current);
+          typingTimer.current = setTimeout(() => setIsOtherTyping(false), 3000);
+        }
+      })
+      .subscribe();
+    typingChannelRef.current = channel;
+    return () => {
+      supabase.removeChannel(channel);
+      if (typingTimer.current) clearTimeout(typingTimer.current);
+    };
+  }, [listing_id, user?.id]);
 
   const loadMessages = async () => {
     if (!user) return;
@@ -81,12 +144,15 @@ export function ChatScreen({ navigation, route }: Props) {
 
   const markAsRead = async () => {
     if (!user) return;
-    await supabase
-      .from('messages')
-      .update({ read: true })
-      .eq('listing_id', listing_id)
-      .eq('receiver_id', user.id)
-      .eq('read', false);
+    await supabase.from('messages').update({ read: true })
+      .eq('listing_id', listing_id).eq('receiver_id', user.id).eq('read', false);
+  };
+
+  const handleInputChange = (text: string) => {
+    setInput(text);
+    if (text && typingChannelRef.current) {
+      typingChannelRef.current.send({ type: 'broadcast', event: 'typing', payload: { user_id: user?.id } });
+    }
   };
 
   const sendMessage = async () => {
@@ -95,20 +161,9 @@ export function ChatScreen({ navigation, route }: Props) {
     setInput('');
     setSending(true);
 
-    await supabase.from('messages').insert({
-      listing_id,
-      sender_id: user.id,
-      receiver_id,
-      content: text,
-    });
+    await supabase.from('messages').insert({ listing_id, sender_id: user.id, receiver_id, content: text });
 
-    // Notification push au destinataire (fire and forget)
-    const { data: senderProfile } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('id', user.id)
-      .single();
-
+    const { data: senderProfile } = await supabase.from('profiles').select('username').eq('id', user.id).single();
     supabase.functions.invoke('send-push', {
       body: {
         receiver_id,
@@ -133,7 +188,7 @@ export function ChatScreen({ navigation, route }: Props) {
             {item.content}
           </Text>
           <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeMine : styles.bubbleTimeTheirs]}>
-            {(() => { const d = new Date(item.created_at); return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`; })()}
+            {formatTime(item.created_at)}
           </Text>
         </View>
       </View>
@@ -151,13 +206,22 @@ export function ChatScreen({ navigation, route }: Props) {
           <Text style={styles.headerTitle} numberOfLines={1}>{listing_name}</Text>
           <Text style={styles.headerSub}>Conversation</Text>
         </View>
-        <View style={{ width: 48 }} />
+        <TouchableOpacity
+          style={styles.headerThumb}
+          onPress={() => navigation.navigate('Listing', { id: listing_id })}
+          activeOpacity={0.75}
+        >
+          {listingImage ? (
+            <Image source={{ uri: listingImage }} style={styles.headerThumbImg} />
+          ) : (
+            <View style={[styles.headerThumb, { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }]}>
+              <Ionicons name="image-outline" size={18} color={colors.textSecondary} />
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding"
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         {loading ? (
           <View style={styles.loader}>
             <ActivityIndicator color={colors.primary} />
@@ -177,6 +241,15 @@ export function ChatScreen({ navigation, route }: Props) {
                 <Text style={styles.emptyText}>Démarrez la conversation !</Text>
               </View>
             }
+            ListFooterComponent={
+              isOtherTyping ? (
+                <View style={[styles.bubbleRow, styles.bubbleRowLeft, { marginBottom: 8 }]}>
+                  <View style={[styles.bubble, styles.bubbleTheirs]}>
+                    <TypingDots />
+                  </View>
+                </View>
+              ) : null
+            }
           />
         )}
 
@@ -185,7 +258,7 @@ export function ChatScreen({ navigation, route }: Props) {
           <TextInput
             style={styles.input}
             value={input}
-            onChangeText={setInput}
+            onChangeText={handleInputChange}
             placeholder="Votre message..."
             placeholderTextColor={colors.textSecondary}
             multiline
@@ -221,6 +294,8 @@ const styles = StyleSheet.create({
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary },
   headerSub: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary },
+  headerThumb: { width: 42, height: 42, borderRadius: 10, overflow: 'hidden' },
+  headerThumbImg: { width: 42, height: 42, resizeMode: 'cover' },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   messageList: { padding: spacing.base, gap: 8, flexGrow: 1, justifyContent: 'flex-end' },
   empty: { alignItems: 'center', gap: 12, paddingTop: 60 },
@@ -262,12 +337,9 @@ const styles = StyleSheet.create({
     borderColor: colors.chipBackground,
   },
   sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   sendBtnDisabled: { opacity: 0.4 },
 });

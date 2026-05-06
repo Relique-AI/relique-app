@@ -126,11 +126,16 @@ export function CameraScreen({ navigation }: Props) {
               contentContainerStyle={styles.thumbnailStrip}
             >
               {photos.map((photo, index) => (
-                <Image
-                  key={index}
-                  source={{ uri: photo.uri }}
-                  style={styles.thumbnail}
-                />
+                <View key={index} style={styles.thumbnailWrapper}>
+                  <Image source={{ uri: photo.uri }} style={styles.thumbnail} />
+                  <TouchableOpacity
+                    style={styles.thumbnailDelete}
+                    onPress={() => setPhotos((prev) => prev.filter((_, i) => i !== index))}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#fff" />
+                  </TouchableOpacity>
+                </View>
               ))}
             </ScrollView>
             <TouchableOpacity
@@ -227,12 +232,22 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
   },
+  thumbnailWrapper: {
+    position: 'relative',
+  },
   thumbnail: {
     width: 64,
     height: 64,
     borderRadius: 10,
     borderWidth: 2,
     borderColor: colors.primary,
+  },
+  thumbnailDelete: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 10,
   },
   analyserButton: {
     backgroundColor: colors.primary,

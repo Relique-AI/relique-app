@@ -16,7 +16,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-function handleNotificationData(data: Record<string, any>) {
+function doNavigate(data: Record<string, any>) {
   if (data?.type === 'message' && data?.listing_id && data?.sender_id) {
     navigate('Messages', {
       screen: 'Chat',
@@ -28,7 +28,12 @@ function handleNotificationData(data: Record<string, any>) {
     });
   } else if (data?.type === 'message') {
     navigate('Messages');
-  } else if (data?.type === 'question_answer' && data?.listing_id) {
+  } else if (data?.type === 'question' && data?.listing_id) {
+    navigate('Profil', {
+      screen: 'Listing',
+      params: { id: data.listing_id },
+    });
+  } else if ((data?.type === 'question_answer') && data?.listing_id) {
     navigate('Marché', {
       screen: 'Listing',
       params: { id: data.listing_id },
@@ -38,6 +43,24 @@ function handleNotificationData(data: Record<string, any>) {
       screen: 'Listing',
       params: { id: data.listing_id },
     });
+  }
+}
+
+function handleNotificationData(data: Record<string, any>) {
+  // Retry until navigation is ready (app may not be mounted yet after cold start)
+  if (navigationRef.isReady()) {
+    doNavigate(data);
+  } else {
+    let tries = 0;
+    const interval = setInterval(() => {
+      tries++;
+      if (navigationRef.isReady()) {
+        clearInterval(interval);
+        doNavigate(data);
+      } else if (tries > 20) {
+        clearInterval(interval);
+      }
+    }, 300);
   }
 }
 

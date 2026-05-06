@@ -23,6 +23,7 @@ export function AuthScreen() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [username, setUsername] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -72,7 +73,7 @@ export function AuthScreen() {
     const errMsg =
       tab === 'login'
         ? await signIn(email.trim(), password)
-        : await signUp(email.trim(), password, username.trim());
+        : await signUp(email.trim(), password, username.trim(), referralCode.trim() || undefined);
     setLoading(false);
 
     if (errMsg) {
@@ -86,7 +87,7 @@ export function AuthScreen() {
     <SafeAreaView style={styles.root}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -190,6 +191,22 @@ export function AuthScreen() {
                   placeholder="••••••••"
                   placeholderTextColor={colors.textSecondary}
                   secureTextEntry
+                />
+              </View>
+            )}
+
+            {tab === 'signup' && (
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Code de parrainage (optionnel)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={referralCode}
+                  onChangeText={setReferralCode}
+                  placeholder="ex : ABC12345"
+                  placeholderTextColor={colors.textSecondary}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  maxLength={8}
                 />
               </View>
             )}

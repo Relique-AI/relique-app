@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
       .single();
 
     const token = profile?.push_token;
-    if (!token?.startsWith('ExponentPushToken[')) {
+    if (!token) {
       return new Response(JSON.stringify({ sent: false, reason: 'no_token' }), {
         headers: { 'Content-Type': 'application/json' },
       });

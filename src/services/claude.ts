@@ -95,7 +95,7 @@ async function callAPI(
       ],
       generationConfig: {
         response_mime_type: 'application/json',
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
       },
     }),
     signal,

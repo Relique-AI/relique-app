@@ -58,6 +58,18 @@ export function SettingsScreen({ navigation }: Props) {
           text: 'Supprimer',
           style: 'destructive',
           onPress: async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) {
+              await supabase.auth.signOut();
+              return;
+            }
+            const { error } = await supabase.functions.invoke('delete-account', {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            if (error) {
+              Alert.alert('Erreur', 'Impossible de supprimer le compte. Réessayez plus tard.');
+              return;
+            }
             await supabase.auth.signOut();
           },
         },

@@ -49,6 +49,7 @@ export function ProfileScreen({ navigation }: Props) {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [referralCode, setReferralCode] = useState('');
   const [referralCount, setReferralCount] = useState(0);
+  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -61,6 +62,21 @@ export function ProfileScreen({ navigation }: Props) {
       .neq('status', 'deleted')
       .order('created_at', { ascending: false });
     if (data) setMyListings(data as Listing[]);
+  }, [user]);
+
+  const loadQuestionCounts = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('listing_questions')
+      .select('listing_id, listings!inner(seller_id)')
+      .eq('listings.seller_id', user.id)
+      .is('answer', null);
+    if (!data) return;
+    const counts: Record<string, number> = {};
+    for (const row of data as any[]) {
+      counts[row.listing_id] = (counts[row.listing_id] ?? 0) + 1;
+    }
+    setQuestionCounts(counts);
   }, [user]);
 
   const loadFavorites = useCallback(async () => {
@@ -101,17 +117,20 @@ export function ProfileScreen({ navigation }: Props) {
   }, [user]);
 
   const loadAll = useCallback(async () => {
-    await Promise.all([loadProfile(), loadMyListings(), loadFavorites(), loadPurchases()]);
+    await Promise.all([loadProfile(), loadMyListings(), loadFavorites(), loadPurchases(), loadQuestionCounts()]);
     setLoading(false);
-  }, [loadProfile, loadMyListings, loadFavorites, loadPurchases]);
+  }, [loadProfile, loadMyListings, loadFavorites, loadPurchases, loadQuestionCounts]);
 
   useEffect(() => { loadAll(); }, []);
 
-  // Reload profile when coming back from EditProfile
+  // Reload profile + question counts when returning from a sub-screen
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', loadProfile);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadProfile();
+      loadQuestionCounts();
+    });
     return unsubscribe;
-  }, [navigation, loadProfile]);
+  }, [navigation, loadProfile, loadQuestionCounts]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -178,6 +197,7 @@ export function ProfileScreen({ navigation }: Props) {
 
   const renderMyListing = ({ item }: { item: Listing }) => {
     const isSold = item.status === 'sold';
+    const unanswered = questionCounts[item.id] ?? 0;
     return (
       <TouchableOpacity
         style={styles.myCard}
@@ -202,6 +222,12 @@ export function ProfileScreen({ navigation }: Props) {
                 {isSold ? 'Vendu' : 'En ligne'}
               </Text>
             </View>
+            {unanswered > 0 && (
+              <View style={styles.questionBadge}>
+                <Ionicons name="help-circle" size={12} color={colors.primary} />
+                <Text style={styles.questionBadgeText}>{unanswered} question{unanswered > 1 ? 's' : ''}</Text>
+              </View>
+            )}
           </View>
         </View>
         <View style={styles.myCardActions}>
@@ -516,6 +542,17 @@ const styles = StyleSheet.create({
   statusTextSold: { color: colors.textSecondary },
   statusPending: { backgroundColor: 'rgba(245,184,46,0.15)' },
   statusTextPending: { color: colors.primary },
+  questionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(245,184,46,0.15)',
+    borderRadius: 20,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginLeft: 6,
+  },
+  questionBadgeText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.primary },
   purchaseDate: { fontFamily: fonts.body, fontSize: 11, color: colors.textSecondary, paddingRight: 4 },
   myCardActions: { flexDirection: 'column', gap: 4 },
   actionBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },

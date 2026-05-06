@@ -88,8 +88,37 @@ export function AdminScreen({ navigation }: Props) {
           text: 'Supprimer',
           style: 'destructive',
           onPress: async () => {
+            const report = reports.find((r) => r.id === reportId);
             await supabase.from('listings').update({ status: 'removed' }).eq('id', listingId);
             await supabase.from('reports').update({ status: 'resolved' }).eq('listing_id', listingId);
+
+            if (report) {
+              const reason = REASON_LABELS[report.reason] ?? report.reason;
+              // Notify seller
+              const { data: listing } = await supabase.from('listings').select('seller_id, name').eq('id', listingId).single();
+              if (listing) {
+                supabase.functions.invoke('send-push', {
+                  body: {
+                    receiver_id: listing.seller_id,
+                    sender_name: 'Pépite',
+                    listing_name: listing.name,
+                    message_preview: `Votre annonce a été retirée suite à un signalement : ${reason}.`,
+                    type: 'moderation',
+                  },
+                }).catch(() => {});
+              }
+              // Notify reporter
+              supabase.functions.invoke('send-push', {
+                body: {
+                  receiver_id: report.reporter_id,
+                  sender_name: 'Pépite',
+                  listing_name: report.listing_name,
+                  message_preview: `L'annonce que vous avez signalée a bien été retirée. Merci.`,
+                  type: 'moderation',
+                },
+              }).catch(() => {});
+            }
+
             setReports((prev) => prev.filter((r) => r.listing_id !== listingId));
           },
         },

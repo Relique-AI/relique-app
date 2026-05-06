@@ -6,6 +6,7 @@ interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  profileLoading: boolean;
   hasUsername: boolean;
   isAdmin: boolean;
   isGuest: boolean;
@@ -13,7 +14,7 @@ interface AuthContextValue {
   exitGuestMode: () => void;
   refreshProfile: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<string | null>;
-  signUp: (email: string, password: string, username?: string) => Promise<string | null>;
+  signUp: (email: string, password: string, username?: string, referralCode?: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -23,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [hasUsername, setHasUsername] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
@@ -58,16 +60,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(s?.user ?? null);
       if (s?.user) {
         setIsGuest(false);
+        setProfileLoading(true);
+        const meta = s.user.user_metadata ?? {};
+        await supabase.rpc('ensure_profile');
+        // Copy username + referral code from signup metadata if not yet set
+        if (meta.username) {
+          await supabase.from('profiles').update({ username: meta.username }).eq('id', s.user.id).is('username', null);
+        }
         const { data: profile } = await supabase
           .from('profiles')
-          .select('username, is_admin')
+          .select('username, is_admin, referred_by')
           .eq('id', s.user.id)
           .single();
-        setHasUsername(!!profile?.username);
+        // Process referral code from metadata if not already referred
+        if (meta.referral_code && !profile?.referred_by) {
+          const code = (meta.referral_code as string).toUpperCase();
+          const { data: referrer } = await supabase.from('profiles').select('id').eq('referral_code', code).neq('id', s.user.id).single();
+          if (referrer) {
+            await supabase.from('profiles').update({ referred_by: referrer.id }).eq('id', s.user.id);
+            await supabase.from('referrals').insert({ referrer_id: referrer.id, referred_id: s.user.id });
+          }
+        }
+        setHasUsername(!!profile?.username || !!meta.username);
         setIsAdmin(!!profile?.is_admin);
+        setProfileLoading(false);
       } else {
         setHasUsername(false);
         setIsAdmin(false);
+        setProfileLoading(false);
       }
     });
 
@@ -97,11 +117,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   };
 
-  const signUp = async (email: string, password: string, username?: string): Promise<string | null> => {
+  const signUp = async (email: string, password: string, username?: string, referralCode?: string): Promise<string | null> => {
+    const meta: Record<string, string> = {};
+    if (username) meta.username = username;
+    if (referralCode) meta.referral_code = referralCode.toUpperCase();
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: username ? { data: { username } } : undefined,
+      options: Object.keys(meta).length > 0 ? { data: meta } : undefined,
     });
     return error?.message ?? null;
   };
@@ -111,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, hasUsername, isAdmin, isGuest, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, profileLoading, hasUsername, isAdmin, isGuest, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

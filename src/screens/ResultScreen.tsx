@@ -8,6 +8,7 @@ import {
   Image,
   Animated,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList, AnalysisResult } from '../types';
 import { colors, fonts, spacing } from '../theme';
+import { useAuth } from '../context/AuthContext';
 
 const { height } = Dimensions.get('window');
 const SECTION_COUNT = 5;
@@ -56,6 +58,7 @@ const chipStyles = StyleSheet.create({
 export function ResultScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { analysis, photos, memory } = route.params;
+  const { isGuest, exitGuestMode } = useAuth();
   const [tipsOpen, setTipsOpen] = useState(false);
 
   // Animation de glissement vers le haut
@@ -89,6 +92,17 @@ export function ResultScreen({ navigation, route }: Props) {
   }, []);
 
   const handleSell = () => {
+    if (isGuest) {
+      Alert.alert(
+        'Compte requis',
+        'Créez un compte gratuit pour publier vos annonces sur Pépite.',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: "S'inscrire", onPress: exitGuestMode },
+        ],
+      );
+      return;
+    }
     navigation.navigate('Sell', { analysis, photo: photos[0] });
   };
 

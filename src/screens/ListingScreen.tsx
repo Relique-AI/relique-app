@@ -40,6 +40,12 @@ type Props = {
 
 const { width } = Dimensions.get('window');
 
+const REASON_LABELS: Record<string, string> = {
+  inappropriate: 'Contenu inapproprié',
+  scam: 'Arnaque / Fraude',
+  prohibited: 'Objet interdit',
+};
+
 function InfoChip({ label, onPress }: { label: string; onPress?: () => void }) {
   if (onPress) {
     return (
@@ -232,7 +238,6 @@ export function ListingScreen({ navigation, route }: Props) {
     if (!error) {
       setNewQuestion('');
       loadQuestions();
-      // Notify seller
       if (listing) {
         supabase.functions.invoke('send-push', {
           body: {
@@ -240,8 +245,10 @@ export function ListingScreen({ navigation, route }: Props) {
             sender_name: 'Nouvelle question',
             listing_name: listing.name,
             message_preview: newQuestion.trim(),
+            type: 'question',
+            listing_id: listing.id,
           },
-        });
+        }).catch(() => {});
       }
     }
     setSubmittingQ(false);
@@ -419,11 +426,23 @@ export function ListingScreen({ navigation, route }: Props) {
 
   const submitReport = async (reason: string) => {
     if (!user) return;
-    await supabase.from('reports').insert({
-      reporter_id: user.id,
-      listing_id: id,
-      reason,
-    });
+    await supabase.from('reports').insert({ reporter_id: user.id, listing_id: id, reason });
+    // Notify all admins
+    const { data: admins } = await supabase.from('profiles').select('id').eq('is_admin', true);
+    if (admins && listing) {
+      admins.forEach((admin) => {
+        supabase.functions.invoke('send-push', {
+          body: {
+            receiver_id: admin.id,
+            sender_name: 'Signalement',
+            listing_name: listing.name,
+            message_preview: `${REASON_LABELS[reason] ?? reason}`,
+            type: 'report',
+            listing_id: id,
+          },
+        }).catch(() => {});
+      });
+    }
     Alert.alert('Signalement envoyé', 'Merci, notre équipe va examiner cette annonce.');
   };
 
@@ -448,7 +467,9 @@ export function ListingScreen({ navigation, route }: Props) {
     );
   }
 
-  const visibleQuestions = isOwner ? questions : questions.filter((q) => q.answer !== null);
+  const visibleQuestions = isOwner
+    ? questions
+    : questions.filter((q) => q.answer !== null || q.asker_id === user?.id);
 
   const images = listing.images ?? [];
   const sellerName = listing.profiles?.username ?? 'Vendeur';

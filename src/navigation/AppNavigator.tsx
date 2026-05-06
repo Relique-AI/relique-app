@@ -137,6 +137,11 @@ function MessagesNavigator() {
         component={ChatScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
+      <MessagesStack.Screen
+        name="Listing"
+        component={ListingScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
     </MessagesStack.Navigator>
   );
 }
@@ -222,6 +227,8 @@ function MainTabs() {
   const { isGuest, user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const [questionBadge, setQuestionBadge] = useState(0);
+
   const fetchUnreadCount = useCallback(async () => {
     if (!user) { setUnreadCount(0); return; }
     const { count } = await supabase
@@ -232,15 +239,33 @@ function MainTabs() {
     setUnreadCount(count ?? 0);
   }, [user]);
 
+  const fetchQuestionBadge = useCallback(async () => {
+    if (!user || isGuest) { setQuestionBadge(0); return; }
+    const { count } = await supabase
+      .from('listing_questions')
+      .select('id, listings!inner(seller_id)', { count: 'exact', head: true })
+      .eq('listings.seller_id', user.id)
+      .is('answer', null);
+    setQuestionBadge(count ?? 0);
+  }, [user, isGuest]);
+
   useEffect(() => {
     if (!user) return;
     fetchUnreadCount();
-    const channel = supabase
+    fetchQuestionBadge();
+    const msgChannel = supabase
       .channel(`inbox-badge-${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` }, fetchUnreadCount)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user, fetchUnreadCount]);
+    const qChannel = supabase
+      .channel(`questions-badge-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'listing_questions' }, fetchQuestionBadge)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(msgChannel);
+      supabase.removeChannel(qChannel);
+    };
+  }, [user, fetchUnreadCount, fetchQuestionBadge]);
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -277,7 +302,7 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Scanner" component={isGuest ? GuestGateScreen : ScannerNavigator} />
+      <Tab.Screen name="Scanner" component={ScannerNavigator} />
       <Tab.Screen name="Parcourir" component={BrowseNavigator} />
       <Tab.Screen name="Marché" component={MarketNavigator} />
       <Tab.Screen
@@ -285,7 +310,12 @@ function MainTabs() {
         component={isGuest ? GuestGateScreen : MessagesNavigator}
         options={{ tabBarBadge: !isGuest && unreadCount > 0 ? unreadCount : undefined }}
       />
-      <Tab.Screen name="Profil" component={isGuest ? GuestGateScreen : ProfileNavigator} />
+      <Tab.Screen
+        name="Profil"
+        component={isGuest ? GuestGateScreen : ProfileNavigator}
+        options={{ tabBarBadge: !isGuest && questionBadge > 0 ? questionBadge : undefined }}
+        listeners={{ focus: () => fetchQuestionBadge() }}
+      />
     </Tab.Navigator>
   );
 }
@@ -294,9 +324,9 @@ function MainTabs() {
 
 const Root = createStackNavigator();
 export function AppNavigator() {
-  const { user, loading, hasUsername, isGuest } = useAuth();
+  const { user, loading, profileLoading, hasUsername, isGuest } = useAuth();
 
-  if (loading) {
+  if (loading || profileLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={colors.primary} size="large" />
