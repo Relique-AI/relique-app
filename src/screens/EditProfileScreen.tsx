@@ -30,6 +30,7 @@ export function EditProfileScreen({ navigation }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [username, setUsername] = useState('');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [referrerUsername, setReferrerUsername] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -49,6 +50,14 @@ export function EditProfileScreen({ navigation }: Props) {
       setProfile(data as Profile);
       setUsername(data.username ?? '');
       setAvatarUri(data.avatar_url ?? null);
+      if ((data as any).referred_by) {
+        const { data: referrer } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', (data as any).referred_by)
+          .single();
+        setReferrerUsername(referrer?.username ?? null);
+      }
     }
     setLoading(false);
   };
@@ -203,6 +212,16 @@ export function EditProfileScreen({ navigation }: Props) {
           </View>
           <Text style={styles.fieldHint}>L'email ne peut pas être modifié.</Text>
         </View>
+
+        {/* Parrain (si applicable) */}
+        {referrerUsername && (
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Parrainé par</Text>
+            <View style={styles.inputDisabled}>
+              <Text style={styles.inputDisabledText}>{referrerUsername}</Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

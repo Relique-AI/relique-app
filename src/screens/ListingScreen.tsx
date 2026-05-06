@@ -238,6 +238,11 @@ export function ListingScreen({ navigation, route }: Props) {
     if (!error) {
       setNewQuestion('');
       loadQuestions();
+      if (!isFavorited) {
+        supabase.from('favorites').insert({ user_id: user.id, listing_id: id }).then(() => {
+          setIsFavorited(true);
+        });
+      }
       if (listing) {
         supabase.functions.invoke('send-push', {
           body: {

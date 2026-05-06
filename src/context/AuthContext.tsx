@@ -44,13 +44,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setUser(data.session?.user ?? null);
       if (data.session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username, is_admin')
-          .eq('id', data.session.user.id)
-          .single();
-        setHasUsername(!!profile?.username);
-        setIsAdmin(!!profile?.is_admin);
+        const userId = data.session.user.id;
+        // Race against a 5s timeout to prevent infinite loading when iOS resumes
+        // with a stale network connection that hangs Supabase queries.
+        await Promise.race([
+          (async () => {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('username, is_admin')
+              .eq('id', userId)
+              .single();
+            setHasUsername(!!profile?.username);
+            setIsAdmin(!!profile?.is_admin);
+          })(),
+          new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+        ]);
       }
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -62,27 +70,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsGuest(false);
         setProfileLoading(true);
         const meta = s.user.user_metadata ?? {};
-        await supabase.rpc('ensure_profile');
-        // Copy username + referral code from signup metadata if not yet set
-        if (meta.username) {
-          await supabase.from('profiles').update({ username: meta.username }).eq('id', s.user.id).is('username', null);
-        }
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username, is_admin, referred_by')
-          .eq('id', s.user.id)
-          .single();
-        // Process referral code from metadata if not already referred
-        if (meta.referral_code && !profile?.referred_by) {
-          const code = (meta.referral_code as string).toUpperCase();
-          const { data: referrer } = await supabase.from('profiles').select('id').eq('referral_code', code).neq('id', s.user.id).single();
-          if (referrer) {
-            await supabase.from('profiles').update({ referred_by: referrer.id }).eq('id', s.user.id);
-            await supabase.from('referrals').insert({ referrer_id: referrer.id, referred_id: s.user.id });
-          }
-        }
-        setHasUsername(!!profile?.username || !!meta.username);
-        setIsAdmin(!!profile?.is_admin);
+        const userId = s.user.id;
+        await Promise.race([
+          (async () => {
+            await supabase.rpc('ensure_profile');
+            if (meta.username) {
+              await supabase.from('profiles').update({ username: meta.username }).eq('id', userId).is('username', null);
+            }
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('username, is_admin, referred_by')
+              .eq('id', userId)
+              .single();
+            if (meta.referral_code && !profile?.referred_by) {
+              const code = (meta.referral_code as string).toUpperCase();
+              const { data: referrer } = await supabase.from('profiles').select('id').eq('referral_code', code).neq('id', userId).single();
+              if (referrer) {
+                await supabase.from('profiles').update({ referred_by: referrer.id }).eq('id', userId);
+                await supabase.from('referrals').insert({ referrer_id: referrer.id, referred_id: userId });
+                const newUsername = profile?.username || (meta.username as string | undefined) || 'Un nouvel utilisateur';
+                supabase.functions.invoke('send-push', {
+                  body: {
+                    receiver_id: referrer.id,
+                    sender_name: '✦ Nouveau filleul !',
+                    message_preview: `${newUsername} vient de rejoindre Pépite avec ton code de parrainage.`,
+                    type: 'referral',
+                  },
+                });
+              }
+            }
+            setHasUsername(!!profile?.username || !!meta.username);
+            setIsAdmin(!!profile?.is_admin);
+          })(),
+          new Promise<void>((resolve) => setTimeout(resolve, 8000)),
+        ]);
         setProfileLoading(false);
       } else {
         setHasUsername(false);

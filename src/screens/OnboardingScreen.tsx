@@ -65,6 +65,14 @@ export function OnboardingScreen() {
 
     if (referrerId) {
       await supabase.from('referrals').insert({ referrer_id: referrerId, referred_id: user!.id });
+      supabase.functions.invoke('send-push', {
+        body: {
+          receiver_id: referrerId,
+          sender_name: '✦ Nouveau filleul !',
+          message_preview: `${trimmed} vient de rejoindre Pépite avec ton code de parrainage.`,
+          type: 'referral',
+        },
+      });
     }
 
     await refreshProfile();

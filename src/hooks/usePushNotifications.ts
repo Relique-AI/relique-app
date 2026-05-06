@@ -4,7 +4,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
-import { navigate } from '../navigation/navigationRef';
+import { navigate, navigationRef } from '../navigation/navigationRef';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -43,6 +43,8 @@ function doNavigate(data: Record<string, any>) {
       screen: 'Listing',
       params: { id: data.listing_id },
     });
+  } else if (data?.type === 'referral') {
+    navigate('Profil');
   }
 }
 
