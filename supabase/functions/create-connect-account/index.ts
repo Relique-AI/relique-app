@@ -32,7 +32,10 @@ Deno.serve(async (req) => {
     });
 
     const body = await req.json();
-    const { account_token, iban, first_name, last_name, business_type, account_holder_name } = body;
+    const {
+      account_token, iban, first_name, last_name, business_type, account_holder_name,
+      dob_day, dob_month, dob_year, address_line1, address_city, address_postal_code,
+    } = body;
 
     if (!account_token) {
       return new Response(JSON.stringify({ error: 'account_token manquant' }), {
@@ -69,6 +72,20 @@ Deno.serve(async (req) => {
       });
 
       accountId = account.id;
+
+      if (business_type === 'company' && first_name && last_name) {
+        await stripe.accounts.createPerson(accountId, {
+          first_name,
+          last_name,
+          ...(dob_day && dob_month && dob_year ? {
+            dob: { day: parseInt(dob_day), month: parseInt(dob_month), year: parseInt(dob_year) },
+          } : {}),
+          ...(address_line1 ? {
+            address: { line1: address_line1, city: address_city, postal_code: address_postal_code, country: 'FR' },
+          } : {}),
+          relationship: { representative: true, title: 'CEO' },
+        });
+      }
 
       await stripe.accounts.createExternalAccount(accountId, {
         external_account: {

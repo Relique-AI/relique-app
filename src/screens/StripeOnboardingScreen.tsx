@@ -112,17 +112,6 @@ export function StripeOnboardingScreen({ navigation }: Props) {
         params.append('account[company][address][city]', city.trim());
         params.append('account[company][address][postal_code]', postalCode.trim());
         params.append('account[company][address][country]', 'FR');
-        params.append('account[individual][first_name]', firstName.trim());
-        params.append('account[individual][last_name]', lastName.trim());
-        params.append('account[individual][dob][day]', dobDay.trim());
-        params.append('account[individual][dob][month]', dobMonth.trim());
-        params.append('account[individual][dob][year]', dobYear.trim());
-        params.append('account[individual][address][line1]', addressLine1.trim());
-        params.append('account[individual][address][city]', city.trim());
-        params.append('account[individual][address][postal_code]', postalCode.trim());
-        params.append('account[individual][address][country]', 'FR');
-        params.append('account[individual][email]', session.user.email ?? '');
-        params.append('account[individual][relationship][representative]', 'true');
       }
 
       const tokenRes = await fetch('https://api.stripe.com/v1/tokens', {
@@ -158,6 +147,12 @@ export function StripeOnboardingScreen({ navigation }: Props) {
           last_name: lastName.trim(),
           business_type: businessType,
           account_holder_name: accountHolderName,
+          dob_day: dobDay.trim(),
+          dob_month: dobMonth.trim(),
+          dob_year: dobYear.trim(),
+          address_line1: addressLine1.trim(),
+          address_city: city.trim(),
+          address_postal_code: postalCode.trim(),
         },
       });
 
