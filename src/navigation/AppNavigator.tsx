@@ -37,6 +37,8 @@ import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { EditListingScreen } from '../screens/EditListingScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { AdminScreen } from '../screens/AdminScreen';
+import { AlertsScreen } from '../screens/AlertsScreen';
+import { StripeOnboardingScreen } from '../screens/StripeOnboardingScreen';
 
 // ─── Stacks ──────────────────────────────────────────────────────────────────
 
@@ -189,6 +191,16 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="Admin"
         component={AdminScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <ProfileStack.Screen
+        name="Alerts"
+        component={AlertsScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <ProfileStack.Screen
+        name="StripeOnboarding"
+        component={StripeOnboardingScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
     </ProfileStack.Navigator>

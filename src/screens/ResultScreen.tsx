@@ -163,6 +163,18 @@ export function ResultScreen({ navigation, route }: Props) {
             </View>
           </Animated.View>
 
+          {/* Disclaimer montres */}
+          {analysis.category === 'Horlogerie' && (
+            <Animated.View style={[styles.section, { opacity: fadeAnims[1] }]}>
+              <View style={styles.disclaimerCard}>
+                <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+                <Text style={styles.disclaimerText}>
+                  L'authenticité d'une montre ne peut être certifiée que par un expert horloger. Cette estimation est indicative.
+                </Text>
+              </View>
+            </Animated.View>
+          )}
+
           {/* Divider */}
           <View style={styles.divider} />
 
@@ -471,6 +483,23 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     flex: 1,
     lineHeight: 21,
+  },
+  disclaimerCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+  },
+  disclaimerText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
+    flex: 1,
+    lineHeight: 18,
+    fontStyle: 'italic',
   },
   clarifyCard: {
     backgroundColor: colors.surface,

@@ -5,6 +5,13 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 );
 
+// Maps notification type → notification_prefs column
+const PREF_MAP: Record<string, string> = {
+  message: 'new_message',
+  question: 'question_asked',
+  offer: 'offer_received',
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
@@ -32,7 +39,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Récupérer le push token du destinataire
+    // Check notification preference if applicable
+    const prefKey = PREF_MAP[type];
+    if (prefKey) {
+      const { data: userPrefs } = await supabase
+        .from('notification_prefs')
+        .select(prefKey)
+        .eq('user_id', receiver_id)
+        .maybeSingle();
+      if (userPrefs && userPrefs[prefKey] === false) {
+        return new Response(JSON.stringify({ sent: false, reason: 'pref_disabled' }), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('push_token')
@@ -46,7 +67,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Envoyer via l'API Expo Push
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'gzip, deflate' },

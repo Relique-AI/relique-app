@@ -5,15 +5,15 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { colors, fonts, spacing } from '../theme';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
+import { ProfileStackParamList } from '../types';
 
 function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
@@ -25,10 +25,13 @@ function StatCard({ label, value, icon }: { label: string; value: string; icon: 
   );
 }
 
-export function WalletScreen() {
-  const { user, session } = useAuth();
+type Props = {
+  navigation: StackNavigationProp<ProfileStackParamList, 'Wallet'>;
+};
+
+export function WalletScreen({ navigation }: Props) {
+  const { user } = useAuth();
   const [onboarded, setOnboarded] = useState(false);
-  const [loadingOnboard, setLoadingOnboard] = useState(false);
   const [stats, setStats] = useState({ sales: 0, pending: 0, total: 0 });
 
   const loadData = async () => {
@@ -57,22 +60,6 @@ export function WalletScreen() {
   };
 
   useFocusEffect(useCallback(() => { loadData(); }, [user]));
-
-  const handleOnboarding = async () => {
-    if (!session) return;
-    setLoadingOnboard(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('create-connect-account', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (error) throw error;
-      if (data?.url) await Linking.openURL(data.url);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingOnboard(false);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.root}>
@@ -118,20 +105,12 @@ export function WalletScreen() {
                 Pour recevoir vos paiements directement sur votre compte bancaire, configurez votre compte vendeur Stripe. Cela prend environ 5 minutes.
               </Text>
               <TouchableOpacity
-                style={[styles.stripeBtn, loadingOnboard && { opacity: 0.6 }]}
-                onPress={handleOnboarding}
-                disabled={loadingOnboard}
+                style={styles.stripeBtn}
+                onPress={() => navigation.navigate('StripeOnboarding')}
                 activeOpacity={0.85}
               >
-                {loadingOnboard
-                  ? <ActivityIndicator color={colors.background} />
-                  : (
-                    <>
-                      <Ionicons name="card-outline" size={18} color={colors.background} />
-                      <Text style={styles.stripeBtnText}>Configurer mes paiements</Text>
-                    </>
-                  )
-                }
+                <Ionicons name="card-outline" size={18} color={colors.background} />
+                <Text style={styles.stripeBtnText}>Configurer mes paiements</Text>
               </TouchableOpacity>
             </View>
           )}

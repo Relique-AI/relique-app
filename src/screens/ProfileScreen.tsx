@@ -347,6 +347,9 @@ export function ProfileScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Wallet')}>
             <Ionicons name="wallet-outline" size={22} color={colors.primary} />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Alerts')}>
+            <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Settings')}>
             <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
           </TouchableOpacity>

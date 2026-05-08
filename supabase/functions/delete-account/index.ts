@@ -24,7 +24,6 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // Pass the JWT directly to getUser — the only reliable way in an Edge Function
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     if (authError || !user) {
@@ -34,15 +33,37 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
-    if (deleteError) {
-      return new Response(JSON.stringify({ error: deleteError.message }), {
+    const userId = user.id;
+    const anonymizedEmail = `deleted_${userId}@pepite-deleted.com`;
+
+    // 1. Changer l'email + bannir le compte (libère l'email original pour réinscription)
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      email: anonymizedEmail,
+      ban_duration: '876600h',
+      user_metadata: {},
+      app_metadata: {},
+    });
+    if (updateError) {
+      return new Response(JSON.stringify({ error: updateError.message }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    return new Response(JSON.stringify({ deleted: true }), {
+    // 2. Anonymiser le profil
+    await supabaseAdmin.from('profiles').update({
+      username: 'Utilisateur supprimé',
+      avatar_url: null,
+      push_token: null,
+    }).eq('id', userId);
+
+    // 3. Dépublier toutes les annonces actives
+    await supabaseAdmin.from('listings')
+      .update({ status: 'removed' })
+      .eq('seller_id', userId)
+      .eq('status', 'active');
+
+    return new Response(JSON.stringify({ anonymized: true }), {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {

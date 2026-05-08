@@ -16,7 +16,7 @@ import {
   Modal,
 } from 'react-native';
 import { useStripe } from '@stripe/stripe-react-native';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -762,6 +762,7 @@ export function ListingScreen({ navigation, route }: Props) {
 
       {/* Modal zoom photo */}
       <Modal visible={zoomVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setZoomVisible(false)}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={styles.zoomOverlay}>
           <TouchableOpacity style={styles.zoomClose} onPress={() => setZoomVisible(false)}>
             <Ionicons name="close" size={28} color="#fff" />
@@ -779,6 +780,7 @@ export function ListingScreen({ navigation, route }: Props) {
             </View>
           )}
         </View>
+        </GestureHandlerRootView>
       </Modal>
 
       {listing && (
@@ -896,7 +898,7 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
   zoomOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)', justifyContent: 'center' },
   zoomClose: { position: 'absolute', top: 52, right: 20, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  zoomContent: { flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  zoomContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   zoomDots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingBottom: 40 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },

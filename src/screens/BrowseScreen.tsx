@@ -13,7 +13,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { BrowseStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase } from '../services/supabase';
-import { useAuth } from '../context/AuthContext';
 
 type Props = {
   navigation: StackNavigationProp<BrowseStackParamList, 'Browse'>;
@@ -35,8 +34,6 @@ const CATEGORIES = [
 ] as const;
 
 export function BrowseScreen({ navigation }: Props) {
-  const { user } = useAuth();
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [visibleCategories, setVisibleCategories] = useState<typeof CATEGORIES[number][]>([...CATEGORIES]);
 
   const loadAvailableCategories = async () => {
@@ -56,66 +53,22 @@ export function BrowseScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       loadAvailableCategories();
-      if (!user) return;
-      supabase
-        .from('favorite_categories')
-        .select('category')
-        .eq('user_id', user.id)
-        .then(({ data }) => {
-          setFavorites(new Set((data ?? []).map((r) => r.category)));
-        });
-    }, [user]),
+    }, []),
   );
 
-  const toggleFavorite = async (category: string) => {
-    if (!user) return;
-    const isFav = favorites.has(category);
-    const next = new Set(favorites);
-    if (isFav) {
-      next.delete(category);
-      setFavorites(next);
-      await supabase
-        .from('favorite_categories')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('category', category);
-    } else {
-      next.add(category);
-      setFavorites(next);
-      await supabase
-        .from('favorite_categories')
-        .insert({ user_id: user.id, category });
-    }
-  };
-
   const renderCategory = ({ item }: { item: typeof CATEGORIES[number] }) => {
-    const isFav = favorites.has(item.name);
     return (
-      <View style={styles.card}>
-        <TouchableOpacity
-          style={styles.cardMain}
-          activeOpacity={0.75}
-          onPress={() => navigation.navigate('BrowseListings', { category: item.name })}
-        >
-          <View style={styles.iconWrap}>
-            <Ionicons name={item.icon as any} size={28} color={colors.primary} />
-          </View>
-          <Text style={styles.cardText}>{item.name}</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.bellBtn}
-          onPress={() => toggleFavorite(item.name)}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons
-            name={isFav ? 'notifications' : 'notifications-outline'}
-            size={20}
-            color={isFav ? colors.primary : colors.textSecondary}
-          />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.75}
+        onPress={() => navigation.navigate('BrowseListings', { category: item.name })}
+      >
+        <View style={styles.iconWrap}>
+          <Ionicons name={item.icon as any} size={28} color={colors.primary} />
+        </View>
+        <Text style={styles.cardText}>{item.name}</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+      </TouchableOpacity>
     );
   };
 
@@ -153,11 +106,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 16,
-  },
-  cardMain: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 14,
   },
   iconWrap: {
@@ -169,6 +117,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardText: { flex: 1, fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary },
-  bellBtn: { paddingLeft: 12 },
   separator: { height: 1, backgroundColor: colors.surface },
 });

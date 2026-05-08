@@ -60,7 +60,9 @@ export type ProfileStackParamList = {
   Settings: undefined;
   Legal: undefined;
   Admin: undefined;
+  Alerts: undefined;
   Purchases: undefined;
+  StripeOnboarding: undefined;
 };
 
 // ─── Messages stack ───────────────────────────────────────────────────────────

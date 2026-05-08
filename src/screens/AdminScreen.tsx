@@ -74,7 +74,12 @@ export function AdminScreen({ navigation }: Props) {
   useFocusEffect(useCallback(() => { loadReports(); }, []));
 
   const dismissReport = async (id: string) => {
-    await supabase.from('reports').update({ status: 'dismissed' }).eq('id', id);
+    const { data: { session } } = await supabase.auth.getSession();
+    const { error } = await supabase.functions.invoke('admin-moderate', {
+      body: { action: 'dismiss', reportId: id },
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    });
+    if (error) { Alert.alert('Erreur', 'Impossible d\'ignorer ce signalement.'); return; }
     setReports((prev) => prev.filter((r) => r.id !== id));
   };
 
@@ -89,12 +94,15 @@ export function AdminScreen({ navigation }: Props) {
           style: 'destructive',
           onPress: async () => {
             const report = reports.find((r) => r.id === reportId);
-            await supabase.from('listings').update({ status: 'removed' }).eq('id', listingId);
-            await supabase.from('reports').update({ status: 'resolved' }).eq('listing_id', listingId);
+            const { data: { session } } = await supabase.auth.getSession();
+            const { error } = await supabase.functions.invoke('admin-moderate', {
+              body: { action: 'remove', reportId, listingId },
+              headers: { Authorization: `Bearer ${session?.access_token}` },
+            });
+            if (error) { Alert.alert('Erreur', 'Impossible de supprimer cette annonce.'); return; }
 
             if (report) {
               const reason = REASON_LABELS[report.reason] ?? report.reason;
-              // Notify seller
               const { data: listing } = await supabase.from('listings').select('seller_id, name').eq('id', listingId).single();
               if (listing) {
                 supabase.functions.invoke('send-push', {
@@ -107,7 +115,6 @@ export function AdminScreen({ navigation }: Props) {
                   },
                 }).catch(() => {});
               }
-              // Notify reporter
               supabase.functions.invoke('send-push', {
                 body: {
                   receiver_id: report.reporter_id,

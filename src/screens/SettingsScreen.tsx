@@ -67,7 +67,12 @@ export function SettingsScreen({ navigation }: Props) {
               headers: { Authorization: `Bearer ${session.access_token}` },
             });
             if (error) {
-              Alert.alert('Erreur', 'Impossible de supprimer le compte. Réessayez plus tard.');
+              let msg = 'Impossible de supprimer le compte.';
+              try {
+                const body = await (error as any).context?.json?.();
+                if (body?.error) msg = body.error;
+              } catch {}
+              Alert.alert('Erreur', msg);
               return;
             }
             await supabase.auth.signOut();

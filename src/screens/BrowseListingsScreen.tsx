@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Dimensions,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,12 +38,19 @@ export function BrowseListingsScreen({ navigation, route }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
   const pageRef = useRef(0);
 
   useEffect(() => {
-    loadListings(true);
     loadFavorites();
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadListings(true, searchQuery);
+    }, searchQuery ? 350 : 0);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const loadFavorites = async () => {
     if (!user) return;
@@ -53,15 +61,20 @@ export function BrowseListingsScreen({ navigation, route }: Props) {
     if (data) setFavorites(new Set(data.map((f: any) => f.listing_id)));
   };
 
-  const loadListings = async (reset = false) => {
+  const loadListings = async (reset = false, search?: string) => {
     if (reset) { pageRef.current = 0; setHasMore(true); }
     const from = pageRef.current * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
-    const { data } = await supabase
+    const s = search !== undefined ? search : searchQuery;
+    let dbQuery = supabase
       .from('listings')
       .select('*')
       .eq('status', 'active')
-      .ilike('category', `%${category}%`)
+      .ilike('category', `%${category}%`);
+    if (s.trim()) {
+      dbQuery = dbQuery.ilike('name', `%${s.trim()}%`);
+    }
+    const { data } = await dbQuery
       .order('created_at', { ascending: false })
       .range(from, to);
     const rows = (data ?? []) as Listing[];
@@ -73,7 +86,7 @@ export function BrowseListingsScreen({ navigation, route }: Props) {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadListings(true);
+    await loadListings(true, searchQuery);
     setRefreshing(false);
   };
 
@@ -110,6 +123,19 @@ export function BrowseListingsScreen({ navigation, route }: Props) {
         <View style={{ width: 48 }} />
       </View>
 
+      <View style={styles.searchRow}>
+        <Ionicons name="search-outline" size={16} color={colors.textSecondary} />
+        <TextInput
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Rechercher dans cette catégorie..."
+          placeholderTextColor={colors.textSecondary}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+        />
+      </View>
+
       <FlatList
         data={listings}
         keyExtractor={(item) => item.id}
@@ -129,7 +155,7 @@ export function BrowseListingsScreen({ navigation, route }: Props) {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} colors={[colors.primary]} />
         }
-        onEndReached={() => hasMore && loadListings()}
+        onEndReached={() => hasMore && loadListings(false, searchQuery)}
         onEndReachedThreshold={0.4}
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -162,6 +188,23 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: fonts.bodySemiBold, fontSize: 17, color: colors.textPrimary, flex: 1, textAlign: 'center' },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    marginHorizontal: spacing.section,
+    marginVertical: 10,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.textPrimary,
+    paddingVertical: 10,
+  },
   grid: { paddingHorizontal: spacing.section, paddingTop: 12, paddingBottom: 24, gap: 12 },
   row: { gap: 12, justifyContent: 'space-between' },
   empty: { alignItems: 'center', gap: 12, paddingTop: 60, paddingHorizontal: spacing.section },

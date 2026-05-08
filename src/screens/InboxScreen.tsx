@@ -23,6 +23,7 @@ type Props = {
 };
 
 interface Conversation {
+  key: string;
   listing_id: string;
   listing_name: string;
   listing_image: string | null;
@@ -56,11 +57,13 @@ export function InboxScreen({ navigation }: Props) {
 
     if (!data) { setLoading(false); return; }
 
-    // Grouper par listing_id, garder le message le plus récent
+    // Grouper par (listing_id + other_user_id), garder le message le plus récent
     const map = new Map<string, Conversation>();
     for (const msg of data as any[]) {
-      if (map.has(msg.listing_id)) continue;
       const isSender = msg.sender_id === user.id;
+      const otherUserId = isSender ? msg.receiver_id : msg.sender_id;
+      const convKey = `${msg.listing_id}_${otherUserId}`;
+      if (map.has(convKey)) continue;
       const otherProfile = isSender ? msg.receiver_profile : msg.sender_profile;
       const listing = msg.listings;
 
@@ -71,12 +74,13 @@ export function InboxScreen({ navigation }: Props) {
         .eq('receiver_id', user.id)
         .eq('read', false);
 
-      map.set(msg.listing_id, {
+      map.set(convKey, {
+        key: convKey,
         listing_id: msg.listing_id,
         listing_name: listing?.name ?? 'Annonce',
         listing_image: listing?.images?.[0] ?? null,
-        other_user_id: isSender ? msg.receiver_id : msg.sender_id,
-        other_username: otherProfile?.username ?? 'Utilisateur',
+        other_user_id: otherUserId,
+        other_username: otherProfile?.username ?? 'Utilisateur supprimé',
         last_message: msg.content,
         last_message_at: msg.created_at,
         unread_count: unreadRes.count ?? 0,
@@ -152,7 +156,7 @@ export function InboxScreen({ navigation }: Props) {
       ) : (
         <FlatList
           data={conversations}
-          keyExtractor={(item) => item.listing_id}
+          keyExtractor={(item) => item.key}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           refreshControl={
