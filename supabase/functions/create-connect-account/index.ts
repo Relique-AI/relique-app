@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     });
 
     const body = await req.json();
-    const { account_token, iban, first_name, last_name } = body;
+    const { account_token, iban, first_name, last_name, business_type, account_holder_name } = body;
 
     if (!account_token) {
       return new Response(JSON.stringify({ error: 'account_token manquant' }), {
@@ -58,6 +58,10 @@ Deno.serve(async (req) => {
         type: 'custom',
         country: 'FR',
         account_token,
+        business_profile: {
+          mcc: '5932',
+          product_description: 'Vente d\'objets de collection et de seconde main entre particuliers via la plateforme Pépite.',
+        },
         capabilities: {
           card_payments: { requested: true },
           transfers: { requested: true },
@@ -71,8 +75,8 @@ Deno.serve(async (req) => {
           object: 'bank_account',
           country: 'FR',
           currency: 'eur',
-          account_holder_name: `${first_name} ${last_name}`,
-          account_holder_type: 'individual',
+          account_holder_name: account_holder_name ?? `${first_name} ${last_name}`,
+          account_holder_type: business_type === 'company' ? 'company' : 'individual',
           account_number: iban.replace(/\s/g, ''),
         },
       });

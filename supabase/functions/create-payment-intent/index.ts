@@ -59,8 +59,9 @@ serve(async (req) => {
     });
 
     return json({ clientSecret: paymentIntent.client_secret, amount });
-  } catch (err) {
-    console.error('create-payment-intent error:', err);
-    return json({ error: 'Erreur serveur' }, 500);
+  } catch (err: any) {
+    const msg = err?.message ?? String(err);
+    console.error('create-payment-intent error:', msg);
+    return json({ error: msg }, 500);
   }
 });

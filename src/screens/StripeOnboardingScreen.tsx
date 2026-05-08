@@ -11,59 +11,119 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { ProfileStackParamList } from '../types';
 
-const STRIPE_PUBLISHABLE_KEY = 'pk_test_51TRsheEn6Dd2QHHQW1sqfqTxa98pDEqHsRHagLbBFyLq0PGEAUfqfsVQMfTZiRxNWDhYwD2AhPhQdsnS7STO6CnD00wXoG5NWJ';
+const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY!;
 
 type Props = {
   navigation: StackNavigationProp<ProfileStackParamList, 'StripeOnboarding'>;
 };
 
-const STEPS = ['Identité', 'Adresse', 'Coordonnées bancaires'];
+type BusinessType = 'individual' | 'company';
+
+const INDIVIDUAL_STEPS = ['Identité', 'Adresse', 'Coordonnées bancaires'];
+const COMPANY_STEPS = ['Entreprise', 'Représentant légal', 'Coordonnées bancaires'];
 
 export function StripeOnboardingScreen({ navigation }: Props) {
   const { session } = useAuth();
+  const [businessType, setBusinessType] = useState<BusinessType | null>(null);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // Individual / representative fields
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [dobDay, setDobDay] = useState('');
   const [dobMonth, setDobMonth] = useState('');
   const [dobYear, setDobYear] = useState('');
-
   const [addressLine1, setAddressLine1] = useState('');
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
 
+  // Company-specific fields
+  const [companyName, setCompanyName] = useState('');
+  const [siret, setSiret] = useState('');
+
+  // Common
   const [iban, setIban] = useState('');
   const [tosAccepted, setTosAccepted] = useState(false);
 
-  const canProceedStep0 = firstName.trim() && lastName.trim() &&
-    dobDay.trim() && dobMonth.trim() && dobYear.trim().length === 4;
-  const canProceedStep1 = addressLine1.trim() && city.trim() && postalCode.trim().length >= 5;
-  const canProceedStep2 = iban.trim().length >= 14 && tosAccepted;
+  const steps = businessType === 'company' ? COMPANY_STEPS : INDIVIDUAL_STEPS;
+  const totalSteps = steps.length;
+
+  const canProceed = (() => {
+    if (businessType === 'individual') {
+      if (step === 0) return !!(firstName.trim() && lastName.trim() && dobDay && dobMonth && dobYear.trim().length === 4);
+      if (step === 1) return !!(addressLine1.trim() && city.trim() && postalCode.trim().length >= 5);
+      if (step === 2) return iban.trim().length >= 14 && tosAccepted;
+    }
+    if (businessType === 'company') {
+      if (step === 0) return !!(companyName.trim() && siret.replace(/\s/g, '').length >= 9);
+      if (step === 1) return !!(
+        firstName.trim() && lastName.trim() &&
+        dobDay && dobMonth && dobYear.trim().length === 4 &&
+        addressLine1.trim() && city.trim() && postalCode.trim().length >= 5
+      );
+      if (step === 2) return iban.trim().length >= 14 && tosAccepted;
+    }
+    return false;
+  })();
+
+  const handleBack = () => {
+    if (step > 0) {
+      setStep(step - 1);
+    } else if (businessType !== null) {
+      setBusinessType(null);
+      setStep(0);
+    } else {
+      navigation.goBack();
+    }
+  };
 
   const handleNext = () => {
-    if (step < 2) { setStep(step + 1); return; }
-    handleSubmit();
+    if (step < totalSteps - 1) {
+      setStep(step + 1);
+    } else {
+      handleSubmit();
+    }
   };
 
   const handleSubmit = async () => {
     if (!session) return;
     setLoading(true);
     try {
-      // Étape 1 : créer le token côté app avec la clé publique Stripe
       const params = new URLSearchParams();
-      params.append('account[individual][first_name]', firstName.trim());
-      params.append('account[individual][last_name]', lastName.trim());
-      params.append('account[individual][dob][day]', dobDay.trim());
-      params.append('account[individual][dob][month]', dobMonth.trim());
-      params.append('account[individual][dob][year]', dobYear.trim());
-      params.append('account[individual][address][line1]', addressLine1.trim());
-      params.append('account[individual][address][city]', city.trim());
-      params.append('account[individual][address][postal_code]', postalCode.trim());
-      params.append('account[individual][address][country]', 'FR');
-      params.append('account[individual][email]', session.user.email ?? '');
+      params.append('account[business_type]', businessType!);
       params.append('account[tos_shown_and_accepted]', 'true');
+
+      if (businessType === 'individual') {
+        params.append('account[individual][first_name]', firstName.trim());
+        params.append('account[individual][last_name]', lastName.trim());
+        params.append('account[individual][dob][day]', dobDay.trim());
+        params.append('account[individual][dob][month]', dobMonth.trim());
+        params.append('account[individual][dob][year]', dobYear.trim());
+        params.append('account[individual][address][line1]', addressLine1.trim());
+        params.append('account[individual][address][city]', city.trim());
+        params.append('account[individual][address][postal_code]', postalCode.trim());
+        params.append('account[individual][address][country]', 'FR');
+        params.append('account[individual][email]', session.user.email ?? '');
+      } else {
+        params.append('account[company][name]', companyName.trim());
+        params.append('account[company][tax_id]', siret.replace(/\s/g, ''));
+        params.append('account[company][address][line1]', addressLine1.trim());
+        params.append('account[company][address][city]', city.trim());
+        params.append('account[company][address][postal_code]', postalCode.trim());
+        params.append('account[company][address][country]', 'FR');
+        params.append('account[individual][first_name]', firstName.trim());
+        params.append('account[individual][last_name]', lastName.trim());
+        params.append('account[individual][dob][day]', dobDay.trim());
+        params.append('account[individual][dob][month]', dobMonth.trim());
+        params.append('account[individual][dob][year]', dobYear.trim());
+        params.append('account[individual][address][line1]', addressLine1.trim());
+        params.append('account[individual][address][city]', city.trim());
+        params.append('account[individual][address][postal_code]', postalCode.trim());
+        params.append('account[individual][address][country]', 'FR');
+        params.append('account[individual][email]', session.user.email ?? '');
+        params.append('account[individual][relationship][representative]', 'true');
+      }
 
       const tokenRes = await fetch('https://api.stripe.com/v1/tokens', {
         method: 'POST',
@@ -85,7 +145,10 @@ export function StripeOnboardingScreen({ navigation }: Props) {
         return;
       }
 
-      // Étape 2 : envoyer le token + IBAN à l'Edge Function
+      const accountHolderName = businessType === 'company'
+        ? companyName.trim()
+        : `${firstName.trim()} ${lastName.trim()}`;
+
       const { error } = await supabase.functions.invoke('create-connect-account', {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: {
@@ -93,12 +156,18 @@ export function StripeOnboardingScreen({ navigation }: Props) {
           iban: iban.replace(/\s/g, ''),
           first_name: firstName.trim(),
           last_name: lastName.trim(),
+          business_type: businessType,
+          account_holder_name: accountHolderName,
         },
       });
 
       if (error) {
         let msg = 'Une erreur est survenue.';
-        try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch {}
+        try {
+          const ctx = (error as any).context;
+          const body = typeof ctx?.json === 'function' ? await ctx.json() : ctx;
+          if (body?.error) msg = body.error;
+        } catch {}
         Alert.alert('Erreur', msg);
         return;
       }
@@ -112,24 +181,67 @@ export function StripeOnboardingScreen({ navigation }: Props) {
     }
   };
 
-  const canProceed = step === 0 ? canProceedStep0 : step === 1 ? canProceedStep1 : canProceedStep2;
+  // ─── Type selection ───────────────────────────────────────────────────────────
 
-  return (
-    <SafeAreaView style={styles.root}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-
-        {/* Header */}
+  if (businessType === null) {
+    return (
+      <SafeAreaView style={styles.root}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => step > 0 ? setStep(step - 1) : navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Recevoir des paiements</Text>
           <View style={{ width: 36 }} />
         </View>
 
-        {/* Progress */}
+        <View style={styles.typeContainer}>
+          <Text style={styles.typeTitle}>Vous êtes…</Text>
+          <Text style={styles.typeSub}>
+            Ce choix détermine les informations requises par Stripe pour votre compte de paiement.
+          </Text>
+
+          <TouchableOpacity style={styles.typeCard} onPress={() => setBusinessType('individual')} activeOpacity={0.8}>
+            <View style={styles.typeIconWrap}>
+              <Ionicons name="person-outline" size={26} color={colors.primary} />
+            </View>
+            <View style={styles.typeCardContent}>
+              <Text style={styles.typeCardTitle}>Particulier</Text>
+              <Text style={styles.typeCardDesc}>Vous vendez à titre personnel, sans structure juridique.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.typeCard} onPress={() => setBusinessType('company')} activeOpacity={0.8}>
+            <View style={styles.typeIconWrap}>
+              <Ionicons name="business-outline" size={26} color={colors.primary} />
+            </View>
+            <View style={styles.typeCardContent}>
+              <Text style={styles.typeCardTitle}>Entreprise</Text>
+              <Text style={styles.typeCardDesc}>Vous vendez via une structure juridique (SASU, SARL, auto-entrepreneur…)</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ─── Step flow ────────────────────────────────────────────────────────────────
+
+  return (
+    <SafeAreaView style={styles.root}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Recevoir des paiements</Text>
+          <View style={{ width: 36 }} />
+        </View>
+
         <View style={styles.progressRow}>
-          {STEPS.map((label, i) => (
+          {steps.map((label, i) => (
             <View key={i} style={styles.progressItem}>
               <View style={[styles.progressDot, i <= step && styles.progressDotActive]}>
                 {i < step
@@ -144,14 +256,13 @@ export function StripeOnboardingScreen({ navigation }: Props) {
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-          {step === 0 && (
+          {/* ── Particulier – Étape 1 : Identité ── */}
+          {businessType === 'individual' && step === 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Vos informations personnelles</Text>
               <Text style={styles.sectionSub}>Requises par Stripe pour vérifier votre identité.</Text>
-
               <Field label="Prénom" value={firstName} onChange={setFirstName} placeholder="Marie" />
               <Field label="Nom" value={lastName} onChange={setLastName} placeholder="Dupont" />
-
               <Text style={styles.fieldLabel}>Date de naissance</Text>
               <View style={styles.dobRow}>
                 <TextInput style={[styles.input, styles.dobInput]} placeholder="JJ" keyboardType="numeric"
@@ -164,18 +275,51 @@ export function StripeOnboardingScreen({ navigation }: Props) {
             </View>
           )}
 
-          {step === 1 && (
+          {/* ── Particulier – Étape 2 : Adresse ── */}
+          {businessType === 'individual' && step === 1 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Votre adresse</Text>
               <Text style={styles.sectionSub}>Votre adresse de résidence en France.</Text>
-
               <Field label="Rue et numéro" value={addressLine1} onChange={setAddressLine1} placeholder="12 rue des Lilas" />
               <Field label="Ville" value={city} onChange={setCity} placeholder="Paris" />
               <Field label="Code postal" value={postalCode} onChange={setPostalCode} placeholder="75001" keyboardType="numeric" maxLength={5} />
             </View>
           )}
 
-          {step === 2 && (
+          {/* ── Entreprise – Étape 1 : Infos légales ── */}
+          {businessType === 'company' && step === 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Votre entreprise</Text>
+              <Text style={styles.sectionSub}>Informations légales de votre structure.</Text>
+              <Field label="Raison sociale" value={companyName} onChange={setCompanyName} placeholder="Ma Société SAS" />
+              <Field label="SIRET" value={siret} onChange={setSiret} placeholder="123 456 789 00012" keyboardType="numeric" maxLength={17} />
+            </View>
+          )}
+
+          {/* ── Entreprise – Étape 2 : Représentant légal ── */}
+          {businessType === 'company' && step === 1 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Représentant légal</Text>
+              <Text style={styles.sectionSub}>Identité et adresse personnelle du dirigeant ou gérant.</Text>
+              <Field label="Prénom" value={firstName} onChange={setFirstName} placeholder="Marie" />
+              <Field label="Nom" value={lastName} onChange={setLastName} placeholder="Dupont" />
+              <Text style={styles.fieldLabel}>Date de naissance</Text>
+              <View style={styles.dobRow}>
+                <TextInput style={[styles.input, styles.dobInput]} placeholder="JJ" keyboardType="numeric"
+                  maxLength={2} value={dobDay} onChangeText={setDobDay} placeholderTextColor={colors.textDisabled} />
+                <TextInput style={[styles.input, styles.dobInput]} placeholder="MM" keyboardType="numeric"
+                  maxLength={2} value={dobMonth} onChangeText={setDobMonth} placeholderTextColor={colors.textDisabled} />
+                <TextInput style={[styles.input, styles.dobInputYear]} placeholder="AAAA" keyboardType="numeric"
+                  maxLength={4} value={dobYear} onChangeText={setDobYear} placeholderTextColor={colors.textDisabled} />
+              </View>
+              <Field label="Rue et numéro" value={addressLine1} onChange={setAddressLine1} placeholder="12 rue des Lilas" />
+              <Field label="Ville" value={city} onChange={setCity} placeholder="Paris" />
+              <Field label="Code postal" value={postalCode} onChange={setPostalCode} placeholder="75001" keyboardType="numeric" maxLength={5} />
+            </View>
+          )}
+
+          {/* ── Étape commune : IBAN ── */}
+          {step === totalSteps - 1 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Votre IBAN</Text>
               <Text style={styles.sectionSub}>Vos paiements seront virés sur ce compte bancaire.</Text>
@@ -219,7 +363,7 @@ export function StripeOnboardingScreen({ navigation }: Props) {
           >
             {loading
               ? <ActivityIndicator color={colors.background} />
-              : <Text style={styles.btnText}>{step < 2 ? 'Continuer' : 'Confirmer'}</Text>
+              : <Text style={styles.btnText}>{step < totalSteps - 1 ? 'Continuer' : 'Confirmer'}</Text>
             }
           </TouchableOpacity>
         </View>
@@ -260,6 +404,35 @@ const styles = StyleSheet.create({
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.textPrimary },
 
+  // Type selection
+  typeContainer: {
+    flex: 1,
+    paddingHorizontal: spacing.section,
+    paddingTop: 40,
+    gap: 16,
+  },
+  typeTitle: { fontFamily: fonts.serif, fontSize: 28, color: colors.textPrimary },
+  typeSub: {
+    fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary,
+    lineHeight: 20, marginBottom: 8,
+  },
+  typeCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 16, padding: 20,
+    borderWidth: 1, borderColor: colors.chipBackground,
+  },
+  typeIconWrap: {
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: 'rgba(245,184,46,0.12)',
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  typeCardContent: { flex: 1, gap: 4 },
+  typeCardTitle: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.textPrimary },
+  typeCardDesc: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+
+  // Stepper
   progressRow: {
     flexDirection: 'row', justifyContent: 'center', gap: 32,
     paddingVertical: 20, paddingHorizontal: spacing.section,
@@ -285,12 +458,8 @@ const styles = StyleSheet.create({
   fieldLabel: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textSecondary, marginBottom: 8 },
   input: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontFamily: fonts.body,
-    fontSize: 15,
-    color: colors.textPrimary,
+    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
+    fontFamily: fonts.body, fontSize: 15, color: colors.textPrimary,
   },
   dobRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   dobInput: { flex: 1 },

@@ -377,10 +377,11 @@ export function ListingScreen({ navigation, route }: Props) {
       if (error) {
         let errMsg = 'Impossible de lancer le paiement.';
         try {
-          const body = await (error as any).context?.json?.();
+          const ctx = (error as any).context;
+          const body = typeof ctx?.json === 'function' ? await ctx.json() : ctx;
           if (body?.error) errMsg = body.error;
         } catch {}
-        if (errMsg.includes('non configuré') || errMsg.includes('Vendeur')) {
+        if (errMsg.includes('non configuré') || errMsg.includes('Vendeur') || errMsg.includes('configuré')) {
           Alert.alert('Paiement indisponible', 'Ce vendeur n\'a pas encore configuré son compte de paiement. Contactez-le directement.');
         } else {
           Alert.alert('Erreur', errMsg);
