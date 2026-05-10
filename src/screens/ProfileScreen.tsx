@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Listing, Profile } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -23,6 +24,7 @@ import { AnalysisResult, ProfileStackParamList } from '../types';
 
 type Props = {
   navigation: StackNavigationProp<ProfileStackParamList, 'Profile'>;
+  route: RouteProp<ProfileStackParamList, 'Profile'>;
 };
 
 type Tab = 'listings' | 'favorites' | 'purchases';
@@ -40,10 +42,10 @@ type Purchase = {
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.section * 2 - 12) / 2;
 
-export function ProfileScreen({ navigation }: Props) {
+export function ProfileScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [tab, setTab] = useState<Tab>('listings');
+  const [tab, setTab] = useState<Tab>(route.params?.initialTab ?? 'listings');
   const [myListings, setMyListings] = useState<Listing[]>([]);
   const [favorites, setFavorites] = useState<Listing[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);

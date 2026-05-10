@@ -41,6 +41,12 @@ serve(async (req) => {
     const { listing_id, buyer_id, seller_id } = pi.metadata;
 
     if (listing_id && buyer_id && seller_id) {
+      const { data: listing } = await supabase
+        .from('listings')
+        .select('name, profiles(push_token)')
+        .eq('id', listing_id)
+        .single();
+
       await supabase
         .from('listings')
         .update({ status: 'sold', buyer_id })
@@ -55,6 +61,21 @@ serve(async (req) => {
         stripe_payment_intent_id: pi.id,
         status: 'completed',
       });
+
+      const sellerToken = (listing?.profiles as any)?.push_token;
+      if (sellerToken && listing?.name) {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: sellerToken,
+            title: 'Votre article a été vendu !',
+            body: listing.name,
+            sound: 'default',
+            data: { type: 'sale', listing_id, buyer_id },
+          }),
+        });
+      }
     }
   }
 

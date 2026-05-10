@@ -403,8 +403,10 @@ export function ListingScreen({ navigation, route }: Props) {
         return;
       }
 
-      Alert.alert('Achat confirmé !', 'Le vendeur a été notifié. Vous pouvez le contacter pour organiser la livraison.');
-      loadListing();
+      navigation.getParent()?.navigate('Profil', {
+        screen: 'Profile',
+        params: { initialTab: 'purchases' },
+      });
     } catch (e: any) {
       Alert.alert('Erreur', e.message ?? 'Une erreur est survenue');
     } finally {
@@ -801,7 +803,11 @@ export function ListingScreen({ navigation, route }: Props) {
 
       {/* Barre d'actions */}
       <SafeAreaView style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
-        {isOwner ? (
+        {isOwner && listing.status === 'sold' ? (
+          <View style={[styles.btnSold, { opacity: 0.6 }]}>
+            <Text style={styles.btnSoldText}>Article vendu</Text>
+          </View>
+        ) : isOwner ? (
           <TouchableOpacity
             style={[styles.btnSold, markingAsSold && { opacity: 0.6 }]}
             onPress={markAsSold}

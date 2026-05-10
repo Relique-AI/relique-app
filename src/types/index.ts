@@ -51,7 +51,7 @@ export type BrowseStackParamList = {
 // ─── Profile stack ───────────────────────────────────────────────────────────
 
 export type ProfileStackParamList = {
-  Profile: undefined;
+  Profile: { initialTab?: 'listings' | 'favorites' | 'purchases' } | undefined;
   EditProfile: undefined;
   EditListing: { id: string };
   Listing: { id: string };
