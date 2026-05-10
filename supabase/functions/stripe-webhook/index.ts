@@ -7,37 +7,55 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+);
+
 serve(async (req) => {
   const body = await req.text();
   const sig = req.headers.get('stripe-signature')!;
 
-  let event: Stripe.Event;
-  try {
-    event = await stripe.webhooks.constructEventAsync(body, sig, Deno.env.get('STRIPE_WEBHOOK_SECRET')!);
-  } catch {
-    return new Response(JSON.stringify({ error: 'Signature invalide' }), { status: 400 });
+  let event: Stripe.Event | null = null;
+
+  const secrets = [
+    Deno.env.get('STRIPE_WEBHOOK_SECRET'),
+    Deno.env.get('STRIPE_WEBHOOK_SECRET_CONNECT'),
+  ].filter(Boolean) as string[];
+
+  for (const secret of secrets) {
+    try {
+      event = await stripe.webhooks.constructEventAsync(body, sig, secret);
+      break;
+    } catch {
+      // mauvaise clé, on essaie la suivante
+    }
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  );
+  if (!event) {
+    return new Response(JSON.stringify({ error: 'Signature invalide' }), { status: 400 });
+  }
 
   if (event.type === 'payment_intent.succeeded') {
     const pi = event.data.object as Stripe.PaymentIntent;
     const { listing_id, buyer_id, seller_id } = pi.metadata;
 
-    await supabase.from('listings').update({ status: 'sold', buyer_id }).eq('id', listing_id);
+    if (listing_id && buyer_id && seller_id) {
+      await supabase
+        .from('listings')
+        .update({ status: 'sold', buyer_id })
+        .eq('id', listing_id);
 
-    await supabase.from('transactions').insert({
-      listing_id,
-      buyer_id,
-      seller_id,
-      amount: pi.amount,
-      fee: pi.application_fee_amount ?? 0,
-      stripe_payment_intent_id: pi.id,
-      status: 'completed',
-    });
+      await supabase.from('transactions').insert({
+        listing_id,
+        buyer_id,
+        seller_id,
+        amount: pi.amount,
+        fee: pi.application_fee_amount ?? 0,
+        stripe_payment_intent_id: pi.id,
+        status: 'completed',
+      });
+    }
   }
 
   if (event.type === 'account.updated') {
@@ -45,7 +63,10 @@ serve(async (req) => {
     const onboarded = account.details_submitted && account.charges_enabled;
     await supabase
       .from('profiles')
-      .update({ stripe_onboarded: onboarded })
+      .update({
+        stripe_onboarded: onboarded,
+        stripe_kyc_status: onboarded ? 'active' : 'pending',
+      })
       .eq('stripe_account_id', account.id);
   }
 

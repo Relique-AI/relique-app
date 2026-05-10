@@ -1,10 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  View, Text, StyleSheet, ScrollView,
+  TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +11,10 @@ import { colors, fonts, spacing } from '../theme';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { ProfileStackParamList } from '../types';
+
+type Props = {
+  navigation: StackNavigationProp<ProfileStackParamList, 'Wallet'>;
+};
 
 function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
@@ -25,23 +26,23 @@ function StatCard({ label, value, icon }: { label: string; value: string; icon: 
   );
 }
 
-type Props = {
-  navigation: StackNavigationProp<ProfileStackParamList, 'Wallet'>;
-};
-
 export function WalletScreen({ navigation }: Props) {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [onboarded, setOnboarded] = useState(false);
   const [stats, setStats] = useState({ sales: 0, pending: 0, total: 0 });
+  const [balance, setBalance] = useState({ available: 0, pending: 0 });
+  const [loadingPayout, setLoadingPayout] = useState(false);
 
   const loadData = async () => {
-    if (!user) return;
+    if (!user || !session) return;
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('stripe_onboarded')
       .eq('id', user.id)
       .single();
-    setOnboarded(!!profile?.stripe_onboarded);
+    const isOnboarded = !!profile?.stripe_onboarded;
+    setOnboarded(isOnboarded);
 
     const { data: transactions } = await supabase
       .from('transactions')
@@ -57,9 +58,49 @@ export function WalletScreen({ navigation }: Props) {
         total,
       });
     }
+
+    if (isOnboarded) {
+      const { data } = await supabase.functions.invoke('get-stripe-balance', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (data) setBalance({ available: data.available ?? 0, pending: data.pending ?? 0 });
+    }
   };
 
   useFocusEffect(useCallback(() => { loadData(); }, [user]));
+
+  const handlePayout = async () => {
+    if (!session) return;
+    Alert.alert(
+      'Virer mes fonds',
+      `Virer ${(balance.available / 100).toFixed(2)} € sur votre compte bancaire ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Confirmer',
+          onPress: async () => {
+            setLoadingPayout(true);
+            try {
+              const { data, error } = await supabase.functions.invoke('request-payout', {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              });
+              if (error || data?.error) {
+                let msg = 'Impossible de lancer le virement.';
+                try { const b = await (error as any)?.context?.json?.(); if (b?.error) msg = b.error; } catch {}
+                if (data?.error) msg = data.error;
+                Alert.alert('Erreur', msg);
+              } else {
+                Alert.alert('Virement lancé', 'Vous recevrez vos fonds sous 1-2 jours ouvrés sur votre IBAN.');
+                loadData();
+              }
+            } finally {
+              setLoadingPayout(false);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <SafeAreaView style={styles.root}>
@@ -70,14 +111,38 @@ export function WalletScreen({ navigation }: Props) {
           <Text style={styles.subtitle}>Suivi de vos revenus</Text>
         </View>
 
-        {/* Solde principal */}
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Total gagné</Text>
-          <Text style={styles.balanceValue}>{stats.total.toFixed(2)} €</Text>
-          {!onboarded && (
+        {/* Solde Stripe */}
+        {onboarded ? (
+          <View style={styles.balanceCard}>
+            <Text style={styles.balanceLabel}>DISPONIBLE</Text>
+            <Text style={styles.balanceValue}>{(balance.available / 100).toFixed(2)} €</Text>
+            {balance.pending > 0 && (
+              <Text style={styles.balancePending}>{(balance.pending / 100).toFixed(2)} € en attente</Text>
+            )}
+            <TouchableOpacity
+              style={[styles.payoutBtn, (balance.available <= 0 || loadingPayout) && styles.payoutBtnDisabled]}
+              onPress={handlePayout}
+              disabled={balance.available <= 0 || loadingPayout}
+              activeOpacity={0.85}
+            >
+              {loadingPayout
+                ? <ActivityIndicator color={colors.background} size="small" />
+                : (
+                  <>
+                    <Ionicons name="arrow-down-circle-outline" size={18} color={colors.background} />
+                    <Text style={styles.payoutBtnText}>Virer sur mon compte</Text>
+                  </>
+                )
+              }
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.balanceCard}>
+            <Text style={styles.balanceLabel}>TOTAL GAGNÉ</Text>
+            <Text style={styles.balanceValue}>{stats.total.toFixed(2)} €</Text>
             <Text style={styles.balanceNote}>Configurez vos paiements pour recevoir des virements</Text>
-          )}
-        </View>
+          </View>
+        )}
 
         {/* Stats */}
         <View style={styles.statsRow}>
@@ -95,7 +160,7 @@ export function WalletScreen({ navigation }: Props) {
               <View style={{ flex: 1 }}>
                 <Text style={styles.onboardedTitle}>Compte Stripe actif</Text>
                 <Text style={styles.onboardedText}>
-                  Vous recevrez automatiquement vos paiements après chaque vente (3 % de commission Pépite).
+                  Vos paiements sont virés automatiquement sur votre IBAN (3 % de commission Pépite).
                 </Text>
               </View>
             </View>
@@ -116,14 +181,15 @@ export function WalletScreen({ navigation }: Props) {
           )}
         </View>
 
-        {/* Commission info */}
+        {/* Comment ça marche */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Comment ça marche</Text>
           <View style={styles.stepsCard}>
             {[
-              'Publiez votre objet via l\'onglet Scanner.',
+              "Publiez votre objet via l'onglet Scanner.",
               'Un acheteur paie directement dans l\'app.',
-              `Pépite prélève 3 % de commission, le reste vous est viré automatiquement.`,
+              'Pépite prélève 3 % de commission, le reste vous est disponible dans ce portefeuille.',
+              'Virez vos fonds sur votre compte bancaire en un clic.',
             ].map((text, i) => (
               <View key={i} style={styles.infoRow}>
                 <View style={styles.infoBullet}>
@@ -160,10 +226,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(245,184,46,0.2)',
+    gap: 8,
   },
-  balanceLabel: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textSecondary, letterSpacing: 1 },
-  balanceValue: { fontFamily: fonts.serif, fontSize: 48, color: colors.primary, marginVertical: 8 },
+  balanceLabel: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.textSecondary, letterSpacing: 2 },
+  balanceValue: { fontFamily: fonts.serif, fontSize: 48, color: colors.primary },
+  balancePending: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
   balanceNote: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, textAlign: 'center' },
+
+  payoutBtn: {
+    marginTop: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 50,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  payoutBtnDisabled: { opacity: 0.4 },
+  payoutBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.background },
 
   statsRow: {
     flexDirection: 'row',
@@ -172,82 +253,40 @@ const styles = StyleSheet.create({
     marginBottom: spacing.section,
   },
   statCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    alignItems: 'center',
-    gap: 6,
+    flex: 1, backgroundColor: colors.surface, borderRadius: 14,
+    padding: 14, alignItems: 'center', gap: 6,
   },
   statValue: { fontFamily: fonts.serif, fontSize: 20, color: colors.textPrimary },
   statLabel: { fontFamily: fonts.body, fontSize: 11, color: colors.textSecondary, textAlign: 'center' },
 
   section: { paddingHorizontal: spacing.section, marginBottom: spacing.section },
   sectionTitle: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.primaryDim,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 12,
+    fontFamily: fonts.mono, fontSize: 11, color: colors.primaryDim,
+    textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12,
   },
   infoCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, gap: 14 },
   stepsCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, gap: 16 },
   infoRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   infoBullet: {
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0, marginTop: 1,
+    width: 24, height: 24, borderRadius: 12, backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1,
   },
   infoBulletText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.background },
   infoText: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary, flex: 1, lineHeight: 21 },
 
   onboardedCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    gap: 14,
-    alignItems: 'flex-start',
-    borderWidth: 1,
-    borderColor: 'rgba(76,175,80,0.25)',
+    backgroundColor: colors.surface, borderRadius: 16, padding: 16,
+    flexDirection: 'row', gap: 14, alignItems: 'flex-start',
+    borderWidth: 1, borderColor: 'rgba(76,175,80,0.25)',
   },
   onboardedTitle: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary, marginBottom: 4 },
   onboardedText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
 
-  referralCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(245,184,46,0.2)',
-  },
-  referralCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  referralLabel: { fontFamily: fonts.mono, fontSize: 11, color: colors.textDisabled, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1.5 },
-  referralCode: { fontFamily: fonts.serif, fontSize: 26, color: colors.primary, letterSpacing: 3 },
-  shareBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 50,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  shareBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.background },
-  referralDivider: { height: 1, backgroundColor: colors.background, marginVertical: 14 },
-  referralStatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  referralStatText: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary },
-
   stripeBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 50,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    backgroundColor: colors.primary, borderRadius: 50, paddingVertical: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   stripeBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.background },
+
+  success: '#4CAF50',
 });
