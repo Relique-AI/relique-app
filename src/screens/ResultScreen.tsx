@@ -103,7 +103,7 @@ export function ResultScreen({ navigation, route }: Props) {
       );
       return;
     }
-    navigation.navigate('Sell', { analysis, photo: photos[0] });
+    navigation.navigate('Sell', { analysis, photos });
   };
 
   const handleRestart = () => {

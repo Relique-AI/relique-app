@@ -28,7 +28,7 @@ export type RootStackParamList = {
   Review: { photos: CapturedPhoto[] };
   Loading: { photos: CapturedPhoto[]; memory?: string };
   Result: { analysis: AnalysisResult; photos: CapturedPhoto[]; memory?: string };
-  Sell: { analysis: AnalysisResult; photo: CapturedPhoto };
+  Sell: { analysis: AnalysisResult; photos: CapturedPhoto[] };
 };
 
 // ─── Marketplace stack ───────────────────────────────────────────────────────

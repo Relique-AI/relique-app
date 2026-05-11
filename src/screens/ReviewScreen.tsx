@@ -97,30 +97,40 @@ export function ReviewScreen({ navigation, route }: Props) {
         showsVerticalScrollIndicator={false}
       >
         {/* Carrousel de photos */}
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          nestedScrollEnabled
-          onMomentumScrollEnd={(e) => {
-            const index = Math.round(e.nativeEvent.contentOffset.x / width);
-            setActiveIndex(index);
-          }}
-        >
-          {photos.map((photo, i) => (
-            <Image key={i} source={{ uri: photo.uri }} style={styles.photo} />
-          ))}
-        </ScrollView>
+        <View>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            nestedScrollEnabled
+            onMomentumScrollEnd={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / width);
+              setActiveIndex(index);
+            }}
+          >
+            {photos.map((photo, i) => (
+              <Image key={i} source={{ uri: photo.uri }} style={styles.photo} />
+            ))}
+          </ScrollView>
+
+          {photos.length > 1 && (
+            <View style={styles.counter}>
+              <Text style={styles.counterText}>{activeIndex + 1} / {photos.length}</Text>
+            </View>
+          )}
+        </View>
 
         {/* Indicateurs de page */}
-        <View style={styles.dots}>
-          {photos.map((_, i) => (
-            <View
-              key={i}
-              style={[styles.dot, i === activeIndex && styles.dotActive]}
-            />
-          ))}
-        </View>
+        {photos.length > 1 && (
+          <View style={styles.dots}>
+            {photos.map((_, i) => (
+              <View
+                key={i}
+                style={[styles.dot, i === activeIndex && styles.dotActive]}
+              />
+            ))}
+          </View>
+        )}
 
         {/* Ajouter une photo */}
         {photos.length < MAX_PHOTOS && (
@@ -193,12 +203,26 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.chipBackground,
+    backgroundColor: 'rgba(255,255,255,0.35)',
   },
   dotActive: {
     backgroundColor: colors.primary,
     width: 18,
     borderRadius: 3,
+  },
+  counter: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  counterText: {
+    color: '#fff',
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
   },
   addButton: {
     flexDirection: 'row',
