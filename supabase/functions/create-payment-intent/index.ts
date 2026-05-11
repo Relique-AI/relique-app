@@ -23,7 +23,7 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return json({ error: 'Non autorisé' }, 401);
 
-    const { listing_id, shipping_method = 'hand', delivery_address } = await req.json();
+    const { listing_id, shipping_method = 'hand', delivery_address, offer_id } = await req.json();
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -47,8 +47,18 @@ serve(async (req) => {
     const sellerAccountId = listing.profiles?.stripe_account_id;
     if (!sellerAccountId) return json({ error: 'Vendeur non configuré pour les paiements' }, 400);
 
+    let itemPrice = listing.price_final;
+    if (offer_id) {
+      const { data: offer } = await supabase.from('offers').select('*').eq('id', offer_id).single();
+      if (!offer) return json({ error: 'Offre introuvable' }, 404);
+      if (offer.status !== 'accepted') return json({ error: 'Offre non acceptée' }, 400);
+      if (offer.buyer_id !== user.id) return json({ error: 'Non autorisé' }, 403);
+      if (offer.listing_id !== listing_id) return json({ error: 'Offre invalide' }, 400);
+      itemPrice = offer.amount;
+    }
+
     const shippingCost = shipping_method === 'hand' ? 0 : (listing.shipping_price ?? 0);
-    const amount = Math.round((listing.price_final + shippingCost) * 100);
+    const amount = Math.round((itemPrice + shippingCost) * 100);
     const fee = Math.round(amount * 0.03);
 
     const paymentIntent = await stripe.paymentIntents.create({
@@ -62,6 +72,7 @@ serve(async (req) => {
         seller_id: listing.seller_id,
         shipping_method,
         ...(delivery_address ? { delivery_address } : {}),
+        ...(offer_id ? { offer_id } : {}),
       },
     });
 

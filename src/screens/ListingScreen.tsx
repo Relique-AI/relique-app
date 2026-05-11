@@ -440,13 +440,48 @@ export function ListingScreen({ navigation, route }: Props) {
 
   const sendOffer = async () => {
     if (!user || !listing || !offerAmount.trim()) return;
-    const text = `Je vous propose ${offerAmount.trim()} € pour "${listing.name}".`;
+    const amount = parseFloat(offerAmount.trim().replace(',', '.'));
+    if (isNaN(amount) || amount <= 0) return;
+
+    const { data: offer, error } = await supabase
+      .from('offers')
+      .insert({
+        listing_id: listing.id,
+        buyer_id: user.id,
+        seller_id: listing.seller_id,
+        amount,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (error || !offer) {
+      Alert.alert('Erreur', "Impossible d'envoyer l'offre.");
+      return;
+    }
+
     await supabase.from('messages').insert({
       listing_id: listing.id,
       sender_id: user.id,
       receiver_id: listing.seller_id,
-      content: text,
+      content: `Offre de ${amount} €`,
+      type: 'offer',
+      offer_id: offer.id,
     });
+
+    const { data: senderProfile } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+    supabase.functions.invoke('send-push', {
+      body: {
+        receiver_id: listing.seller_id,
+        sender_name: senderProfile?.username ?? 'Acheteur',
+        listing_name: listing.name,
+        message_preview: `Offre de ${amount} €`,
+        type: 'offer_received',
+        listing_id: listing.id,
+        sender_id: user.id,
+      },
+    }).catch(() => {});
+
     setShowOfferModal(false);
     setOfferAmount('');
     navigation.navigate('Chat', {
@@ -983,7 +1018,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: colors.background,
   },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.chipBackground },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.35)' },
   dotActive: { width: 18, backgroundColor: colors.primary },
 
   body: { paddingHorizontal: spacing.section, paddingTop: spacing.section },

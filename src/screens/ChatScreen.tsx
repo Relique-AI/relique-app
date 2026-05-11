@@ -10,14 +10,17 @@ import {
   ActivityIndicator,
   Image,
   Animated,
+  Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors, fonts, spacing } from '../theme';
-import { supabase, Message } from '../services/supabase';
+import { supabase, Message, Offer, Listing } from '../services/supabase';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useStripe } from '@stripe/stripe-react-native';
 
 type Props = {
   navigation: StackNavigationProp<any, any>;
@@ -25,7 +28,6 @@ type Props = {
 };
 
 function formatTime(dateStr: string): string {
-  // Ensure timestamp is parsed as UTC
   const iso = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z';
   const d = new Date(iso);
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
@@ -65,10 +67,18 @@ function TypingDots() {
   );
 }
 
+const SHIPPING_LABELS: Record<string, string> = {
+  hand: 'Remise en main propre',
+  relay: 'Mondial Relay',
+  colissimo: 'Colissimo',
+  chronopost: 'Chronopost',
+};
+
 export function ChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { listing_id, receiver_id, listing_name } = route.params;
   const { user } = useAuth();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -76,38 +86,88 @@ export function ChatScreen({ navigation, route }: Props) {
   const [sending, setSending] = useState(false);
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [listingImage, setListingImage] = useState<string | null>(null);
+  const [listing, setListing] = useState<Listing | null>(null);
+  const [offerDetails, setOfferDetails] = useState<Record<string, Offer>>({});
+  const [buying, setBuying] = useState(false);
+
+  // Counter-offer modal state
+  const [showCounterModal, setShowCounterModal] = useState(false);
+  const [counterTargetOfferId, setCounterTargetOfferId] = useState<string | null>(null);
+  const [counterAmount, setCounterAmount] = useState('');
+
+  // Shipping sheet for offer payment
+  const [showShippingSheet, setShowShippingSheet] = useState(false);
+  const [pendingPayOffer, setPendingPayOffer] = useState<Offer | null>(null);
+  const [selectedShipping, setSelectedShipping] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+
   const flatListRef = useRef<FlatList>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Charger l'image de l'annonce
+  const isBuyer = listing !== null && listing.seller_id !== user?.id;
+
+  // Load full listing data (needed for shipping options and seller_id)
   useEffect(() => {
-    supabase.from('listings').select('images').eq('id', listing_id).single()
-      .then(({ data }) => { if (data?.images?.[0]) setListingImage(data.images[0]); });
+    supabase
+      .from('listings')
+      .select('*')
+      .eq('id', listing_id)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setListing(data as Listing);
+          if (data.images?.[0]) setListingImage(data.images[0]);
+        }
+      });
   }, [listing_id]);
 
-  // Messages + temps réel
+  // Messages + real-time subscriptions
   useEffect(() => {
     loadMessages();
     markAsRead();
 
-    const channel = supabase
+    const msgChannel = supabase
       .channel(`chat-${listing_id}-${user?.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `listing_id=eq.${listing_id}` },
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `listing_id=eq.${listing_id}` },
         (payload) => {
           const msg = payload.new as Message;
           if (msg.sender_id === user?.id || msg.receiver_id === user?.id) {
             setMessages((prev) => [...prev, msg]);
             if (msg.receiver_id === user?.id) markAsRead();
+            if (msg.type === 'offer' && msg.offer_id) {
+              supabase.from('offers').select('*').eq('id', msg.offer_id).single()
+                .then(({ data }) => {
+                  if (data) setOfferDetails((prev) => ({ ...prev, [data.id]: data as Offer }));
+                });
+            }
           }
         },
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Real-time offer status updates (accept/decline/counter)
+    const offersChannel = supabase
+      .channel(`offers-${listing_id}-${user?.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'offers', filter: `listing_id=eq.${listing_id}` },
+        (payload) => {
+          const offer = payload.new as Offer;
+          setOfferDetails((prev) => ({ ...prev, [offer.id]: offer }));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(msgChannel);
+      supabase.removeChannel(offersChannel);
+    };
   }, [listing_id]);
 
-  // Canal indicateur de saisie
+  // Typing indicator channel
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -138,7 +198,19 @@ export function ChatScreen({ navigation, route }: Props) {
         `and(sender_id.eq.${receiver_id},receiver_id.eq.${user.id})`,
       )
       .order('created_at', { ascending: true });
-    if (data) setMessages(data as Message[]);
+
+    if (data) {
+      setMessages(data as Message[]);
+      const offerIds = (data as Message[])
+        .filter((m) => m.type === 'offer' && m.offer_id)
+        .map((m) => m.offer_id!);
+      if (offerIds.length > 0) {
+        const { data: offers } = await supabase.from('offers').select('*').in('id', offerIds);
+        if (offers) {
+          setOfferDetails(Object.fromEntries((offers as Offer[]).map((o) => [o.id, o])));
+        }
+      }
+    }
     setLoading(false);
   };
 
@@ -179,7 +251,287 @@ export function ChatScreen({ navigation, route }: Props) {
     setSending(false);
   };
 
+  // ── Offer actions ──────────────────────────────────────────────────────────
+
+  const handleAcceptOffer = async (offer: Offer) => {
+    await supabase.from('offers')
+      .update({ status: 'accepted', updated_at: new Date().toISOString() })
+      .eq('id', offer.id);
+    const { data: profile } = await supabase.from('profiles').select('username').eq('id', user!.id).single();
+    supabase.functions.invoke('send-push', {
+      body: {
+        receiver_id: offer.buyer_id,
+        sender_name: profile?.username ?? 'Vendeur',
+        listing_name,
+        message_preview: `Offre de ${offer.amount} € acceptée ✓`,
+        type: 'offer_accepted',
+        listing_id,
+        sender_id: user!.id,
+      },
+    }).catch(() => {});
+  };
+
+  const handleDeclineOffer = async (offer: Offer) => {
+    await supabase.from('offers')
+      .update({ status: 'declined', updated_at: new Date().toISOString() })
+      .eq('id', offer.id);
+    const { data: profile } = await supabase.from('profiles').select('username').eq('id', user!.id).single();
+    supabase.functions.invoke('send-push', {
+      body: {
+        receiver_id: offer.buyer_id,
+        sender_name: profile?.username ?? 'Vendeur',
+        listing_name,
+        message_preview: `Offre de ${offer.amount} € refusée`,
+        type: 'offer_declined',
+        listing_id,
+        sender_id: user!.id,
+      },
+    }).catch(() => {});
+  };
+
+  const openCounterModal = (offerId: string) => {
+    setCounterTargetOfferId(offerId);
+    setCounterAmount('');
+    setShowCounterModal(true);
+  };
+
+  const handleCounter = async () => {
+    if (!user || !counterTargetOfferId || !counterAmount.trim()) return;
+    const amount = parseFloat(counterAmount.trim().replace(',', '.'));
+    if (isNaN(amount) || amount <= 0) return;
+    const original = offerDetails[counterTargetOfferId];
+    if (!original) return;
+
+    setShowCounterModal(false);
+
+    // Mark original as countered
+    await supabase.from('offers')
+      .update({ status: 'countered', updated_at: new Date().toISOString() })
+      .eq('id', counterTargetOfferId);
+
+    // Create counter offer (buyer/seller roles stay the same as on the listing)
+    const { data: newOffer } = await supabase
+      .from('offers')
+      .insert({
+        listing_id,
+        buyer_id: original.buyer_id,
+        seller_id: original.seller_id,
+        amount,
+        status: 'pending',
+        parent_offer_id: counterTargetOfferId,
+      })
+      .select()
+      .single();
+
+    if (!newOffer) return;
+
+    const otherParty = user.id === original.seller_id ? original.buyer_id : original.seller_id;
+
+    await supabase.from('messages').insert({
+      listing_id,
+      sender_id: user.id,
+      receiver_id: otherParty,
+      content: `Contre-offre de ${amount} €`,
+      type: 'offer',
+      offer_id: newOffer.id,
+    });
+
+    const { data: profile } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+    supabase.functions.invoke('send-push', {
+      body: {
+        receiver_id: otherParty,
+        sender_name: profile?.username ?? 'Utilisateur',
+        listing_name,
+        message_preview: `Contre-offre de ${amount} €`,
+        type: 'offer_counter',
+        listing_id,
+        sender_id: user.id,
+      },
+    }).catch(() => {});
+
+    setCounterTargetOfferId(null);
+  };
+
+  // ── Payment ────────────────────────────────────────────────────────────────
+
+  const handlePayOffer = (offer: Offer) => {
+    const options = listing?.shipping_options ?? ['hand'];
+    const hasPostal = options.some((o) => o !== 'hand');
+    if (!hasPostal) {
+      processOfferPurchase(offer, 'hand', undefined);
+      return;
+    }
+    setPendingPayOffer(offer);
+    setSelectedShipping(options[0]);
+    setDeliveryAddress('');
+    setShowShippingSheet(true);
+  };
+
+  const processOfferPurchase = async (offer: Offer, shippingMethod: string, deliveryAddr: string | undefined) => {
+    setBuying(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+        body: {
+          listing_id,
+          offer_id: offer.id,
+          shipping_method: shippingMethod,
+          ...(deliveryAddr ? { delivery_address: deliveryAddr } : {}),
+        },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+
+      if (error) {
+        let errMsg = 'Impossible de lancer le paiement.';
+        try {
+          const ctx = (error as any).context;
+          const body = typeof ctx?.json === 'function' ? await ctx.json() : ctx;
+          if (body?.error) errMsg = body.error;
+        } catch {}
+        Alert.alert('Erreur', errMsg);
+        return;
+      }
+      if (!data?.clientSecret) throw new Error('Erreur paiement');
+
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'Pépite',
+        paymentIntentClientSecret: data.clientSecret,
+        defaultBillingDetails: { email: user?.email },
+      });
+      if (initError) throw new Error(initError.message);
+
+      const { error: presentError } = await presentPaymentSheet();
+      if (presentError) {
+        if (presentError.code !== 'Canceled') Alert.alert('Erreur', presentError.message);
+        return;
+      }
+
+      navigation.getParent()?.navigate('Profil', {
+        screen: 'Profile',
+        params: { initialTab: 'purchases' },
+      });
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message ?? 'Une erreur est survenue');
+    } finally {
+      setBuying(false);
+    }
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  const renderOfferBubble = (message: Message) => {
+    const isMine = message.sender_id === user?.id;
+    const offer = message.offer_id ? offerDetails[message.offer_id] : null;
+
+    if (!offer) {
+      return (
+        <View style={[styles.bubbleRow, isMine ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
+          <View style={[styles.offerBubble, isMine ? styles.offerBubbleMine : styles.offerBubbleTheirs]}>
+            <ActivityIndicator size="small" color={isMine ? colors.background : colors.primary} />
+          </View>
+        </View>
+      );
+    }
+
+    const isPending = offer.status === 'pending';
+    const isAccepted = offer.status === 'accepted';
+    const isDeclined = offer.status === 'declined';
+    const isCountered = offer.status === 'countered';
+    const canAct = !isMine && isPending;
+
+    return (
+      <View style={[styles.bubbleRow, isMine ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
+        <View style={[styles.offerBubble, isMine ? styles.offerBubbleMine : styles.offerBubbleTheirs]}>
+
+          <View style={styles.offerHeader}>
+            <Ionicons name="pricetag" size={12} color={isMine ? 'rgba(11,9,7,0.5)' : colors.primary} />
+            <Text style={[styles.offerLabel, isMine ? styles.offerLabelMine : styles.offerLabelTheirs]}>
+              {offer.parent_offer_id ? 'Contre-offre' : 'Offre'}
+            </Text>
+          </View>
+
+          <Text style={[styles.offerAmount, isMine ? styles.offerAmountMine : styles.offerAmountTheirs]}>
+            {offer.amount} €
+          </Text>
+
+          {isAccepted && (
+            <View style={styles.offerStatusRow}>
+              <Ionicons name="checkmark-circle" size={13} color={isMine ? 'rgba(11,9,7,0.5)' : colors.success} />
+              <Text style={[styles.offerStatusText, isMine ? styles.offerStatusOnPrimary : { color: colors.success }]}>
+                Acceptée
+              </Text>
+            </View>
+          )}
+          {isDeclined && (
+            <View style={styles.offerStatusRow}>
+              <Ionicons name="close-circle" size={13} color={isMine ? 'rgba(11,9,7,0.5)' : colors.danger} />
+              <Text style={[styles.offerStatusText, isMine ? styles.offerStatusOnPrimary : { color: colors.danger }]}>
+                Refusée
+              </Text>
+            </View>
+          )}
+          {isCountered && (
+            <View style={styles.offerStatusRow}>
+              <Ionicons name="arrow-redo" size={13} color={isMine ? 'rgba(11,9,7,0.5)' : colors.textSecondary} />
+              <Text style={[styles.offerStatusText, isMine ? styles.offerStatusOnPrimary : { color: colors.textSecondary }]}>
+                Contre-offre envoyée
+              </Text>
+            </View>
+          )}
+
+          {/* Action buttons — only for receiver of a pending offer */}
+          {canAct && (
+            <View style={styles.offerActions}>
+              <TouchableOpacity style={styles.offerAcceptBtn} onPress={() => handleAcceptOffer(offer)}>
+                <Ionicons name="checkmark" size={14} color={colors.background} />
+                <Text style={styles.offerAcceptText}>Accepter</Text>
+              </TouchableOpacity>
+              <View style={styles.offerSecondaryRow}>
+                <TouchableOpacity style={styles.offerSecondaryBtn} onPress={() => handleDeclineOffer(offer)}>
+                  <Text style={styles.offerSecondaryText}>Refuser</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.offerSecondaryBtn} onPress={() => openCounterModal(offer.id)}>
+                  <Text style={styles.offerSecondaryText}>Contre-offre</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Pay button — buyer only, when offer is accepted */}
+          {isAccepted && isBuyer && (
+            <TouchableOpacity
+              style={[
+                styles.offerPayBtn,
+                isMine ? styles.offerPayBtnOnPrimary : styles.offerPayBtnOnSurface,
+                buying && { opacity: 0.6 },
+              ]}
+              onPress={() => handlePayOffer(offer)}
+              disabled={buying}
+            >
+              {buying
+                ? <ActivityIndicator size="small" color={isMine ? colors.primary : colors.background} />
+                : (
+                  <>
+                    <Ionicons name="card-outline" size={14} color={isMine ? colors.primary : colors.background} />
+                    <Text style={[styles.offerPayText, isMine ? styles.offerPayTextOnPrimary : styles.offerPayTextOnSurface]}>
+                      Payer {offer.amount} €
+                    </Text>
+                  </>
+                )
+              }
+            </TouchableOpacity>
+          )}
+
+          <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeMine : styles.bubbleTimeTheirs]}>
+            {formatTime(message.created_at)}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   const renderMessage = ({ item }: { item: Message }) => {
+    if (item.type === 'offer') return renderOfferBubble(item);
     const isMine = item.sender_id === user?.id;
     return (
       <View style={[styles.bubbleRow, isMine ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
@@ -253,7 +605,7 @@ export function ChatScreen({ navigation, route }: Props) {
           />
         )}
 
-        {/* Saisie */}
+        {/* Text input bar */}
         <View style={[styles.inputBar, { paddingBottom: insets.bottom + 10 }]}>
           <TextInput
             style={styles.input}
@@ -276,12 +628,112 @@ export function ChatScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Counter-offer modal */}
+      {showCounterModal && (
+        <KeyboardAvoidingView behavior="padding" style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowCounterModal(false)} />
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>Contre-offre</Text>
+            <Text style={styles.modalSub}>Prix affiché : {listing?.price_final} €</Text>
+            <View style={styles.modalInputRow}>
+              <TextInput
+                style={styles.modalInput}
+                value={counterAmount}
+                onChangeText={setCounterAmount}
+                placeholder="Votre montant"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="numeric"
+                autoFocus
+                maxLength={8}
+              />
+              <Text style={styles.modalCurrency}>€</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.modalSendBtn, !counterAmount.trim() && { opacity: 0.4 }]}
+              onPress={handleCounter}
+              disabled={!counterAmount.trim()}
+            >
+              <Text style={styles.modalSendText}>Envoyer</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      )}
+
+      {/* Shipping sheet for offer payment */}
+      {showShippingSheet && pendingPayOffer && (
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowShippingSheet(false)} />
+          <View style={styles.shippingSheet}>
+            <Text style={styles.shippingSheetTitle}>Mode de livraison</Text>
+            {(listing?.shipping_options ?? []).map((opt) => {
+              const isSelected = selectedShipping === opt;
+              const shippingCost = opt === 'hand' ? 0 : (listing?.shipping_price ?? 0);
+              const total = pendingPayOffer.amount + shippingCost;
+              return (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.shippingSheetRow, isSelected && styles.shippingSheetRowActive]}
+                  onPress={() => setSelectedShipping(opt)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.shippingRadio, isSelected && styles.shippingRadioActive]}>
+                    {isSelected && <View style={styles.shippingRadioDot} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.shippingLabel, isSelected && { color: colors.textPrimary }]}>
+                      {SHIPPING_LABELS[opt] ?? opt}
+                    </Text>
+                    <Text style={styles.shippingPriceText}>
+                      {opt === 'hand' ? 'Gratuit' : `+ ${shippingCost} €`} · Total {total.toFixed(2)} €
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            {selectedShipping !== 'hand' && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={styles.shippingAddressLabel}>Adresse de livraison</Text>
+                <TextInput
+                  style={styles.shippingAddressInput}
+                  value={deliveryAddress}
+                  onChangeText={setDeliveryAddress}
+                  placeholder="Ex : 12 rue de la Paix, 75001 Paris"
+                  placeholderTextColor={colors.textSecondary}
+                  multiline
+                />
+              </View>
+            )}
+            <TouchableOpacity
+              style={[
+                styles.shippingConfirmBtn,
+                (buying || (selectedShipping !== 'hand' && !deliveryAddress.trim())) && { opacity: 0.4 },
+              ]}
+              disabled={buying || (selectedShipping !== 'hand' && !deliveryAddress.trim())}
+              onPress={() => {
+                setShowShippingSheet(false);
+                processOfferPurchase(
+                  pendingPayOffer,
+                  selectedShipping,
+                  selectedShipping !== 'hand' ? deliveryAddress.trim() : undefined,
+                );
+              }}
+            >
+              {buying
+                ? <ActivityIndicator color={colors.background} size="small" />
+                : <Text style={styles.shippingConfirmText}>Confirmer et payer</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -296,10 +748,13 @@ const styles = StyleSheet.create({
   headerSub: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary },
   headerThumb: { width: 42, height: 42, borderRadius: 10, overflow: 'hidden' },
   headerThumbImg: { width: 42, height: 42, resizeMode: 'cover' },
+
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   messageList: { padding: spacing.base, gap: 8, flexGrow: 1, justifyContent: 'flex-end' },
   empty: { alignItems: 'center', gap: 12, paddingTop: 60 },
   emptyText: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary },
+
+  // Regular chat bubbles
   bubbleRow: { flexDirection: 'row', marginVertical: 2 },
   bubbleRowRight: { justifyContent: 'flex-end' },
   bubbleRowLeft: { justifyContent: 'flex-start' },
@@ -310,8 +765,77 @@ const styles = StyleSheet.create({
   bubbleTextMine: { color: colors.background },
   bubbleTextTheirs: { color: colors.textPrimary },
   bubbleTime: { fontFamily: fonts.body, fontSize: 10, marginTop: 4 },
-  bubbleTimeMine: { color: 'rgba(26,10,11,0.6)', textAlign: 'right' },
+  bubbleTimeMine: { color: 'rgba(11,9,7,0.45)', textAlign: 'right' },
   bubbleTimeTheirs: { color: colors.textSecondary },
+
+  // Offer bubbles
+  offerBubble: {
+    maxWidth: '82%',
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
+    gap: 2,
+  },
+  offerBubbleMine: { backgroundColor: colors.primary, borderBottomRightRadius: 4 },
+  offerBubbleTheirs: { backgroundColor: colors.surface, borderBottomLeftRadius: 4 },
+  offerHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
+  offerLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  offerLabelMine: { color: 'rgba(11,9,7,0.5)' },
+  offerLabelTheirs: { color: colors.primary },
+  offerAmount: { fontFamily: fonts.serif, fontSize: 30, lineHeight: 36 },
+  offerAmountMine: { color: colors.background },
+  offerAmountTheirs: { color: colors.textPrimary },
+  offerStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  offerStatusText: { fontFamily: fonts.body, fontSize: 12 },
+  offerStatusOnPrimary: { color: 'rgba(11,9,7,0.5)' },
+
+  // Offer action buttons (on surface bubble)
+  offerActions: { marginTop: 12, gap: 8 },
+  offerAcceptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 50,
+    paddingVertical: 11,
+  },
+  offerAcceptText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.background },
+  offerSecondaryRow: { flexDirection: 'row', gap: 8 },
+  offerSecondaryBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderRadius: 50,
+    backgroundColor: colors.chipBackground,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  offerSecondaryText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
+
+  // Pay button (adapts to bubble background)
+  offerPayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 10,
+    borderRadius: 50,
+    paddingVertical: 11,
+  },
+  offerPayBtnOnPrimary: { backgroundColor: colors.background },
+  offerPayBtnOnSurface: { backgroundColor: colors.primary },
+  offerPayText: { fontFamily: fonts.bodySemiBold, fontSize: 14 },
+  offerPayTextOnPrimary: { color: colors.primary },
+  offerPayTextOnSurface: { color: colors.background },
+
+  // Text input bar
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -342,4 +866,91 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnDisabled: { opacity: 0.4 },
+
+  // Counter-offer modal
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    zIndex: 100,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  modalSheet: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 28,
+    paddingBottom: 40,
+    gap: 14,
+  },
+  modalTitle: { fontFamily: fonts.serif, fontSize: 22, color: colors.textPrimary },
+  modalSub: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
+  modalInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  modalInput: {
+    flex: 1,
+    fontFamily: fonts.serif,
+    fontSize: 28,
+    color: colors.primary,
+    paddingVertical: 14,
+  },
+  modalCurrency: { fontFamily: fonts.serif, fontSize: 24, color: colors.primary },
+  modalSendBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 50,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  modalSendText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
+
+  // Shipping sheet
+  shippingSheet: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    gap: 10,
+  },
+  shippingSheetTitle: { fontFamily: fonts.serif, fontSize: 22, color: colors.textPrimary, marginBottom: 4 },
+  shippingSheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  shippingSheetRowActive: { borderColor: colors.primary },
+  shippingRadio: {
+    width: 20, height: 20, borderRadius: 10,
+    borderWidth: 1.5, borderColor: colors.textSecondary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  shippingRadioActive: { borderColor: colors.primary },
+  shippingRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
+  shippingLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textSecondary },
+  shippingPriceText: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  shippingAddressLabel: {
+    fontFamily: fonts.mono, fontSize: 10, color: colors.textDisabled,
+    letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8,
+  },
+  shippingAddressInput: {
+    backgroundColor: colors.surface, borderRadius: 12, padding: 14,
+    fontFamily: fonts.body, fontSize: 14, color: colors.textPrimary,
+    borderWidth: 1, borderColor: colors.chipBackground, minHeight: 64,
+  },
+  shippingConfirmBtn: {
+    backgroundColor: colors.primary, borderRadius: 50,
+    paddingVertical: 16, alignItems: 'center', marginTop: 6,
+  },
+  shippingConfirmText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
 });

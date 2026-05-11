@@ -9,7 +9,10 @@ const supabase = createClient(
 const PREF_MAP: Record<string, string> = {
   message: 'new_message',
   question: 'question_asked',
-  offer: 'offer_received',
+  offer_received: 'offer_received',
+  offer_accepted: 'offer_received',
+  offer_declined: 'offer_received',
+  offer_counter: 'offer_received',
 };
 
 Deno.serve(async (req) => {

@@ -93,6 +93,20 @@ export interface Message {
   content: string;
   read: boolean;
   created_at: string;
+  type: 'text' | 'offer';
+  offer_id: string | null;
+}
+
+export interface Offer {
+  id: string;
+  listing_id: string;
+  buyer_id: string;
+  seller_id: string;
+  amount: number;
+  status: 'pending' | 'accepted' | 'declined' | 'countered';
+  parent_offer_id: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Favorite {
