@@ -11,7 +11,6 @@ import {
   Alert,
   Platform,
   Share,
-  TextInput,
   KeyboardAvoidingView,
   Modal,
 } from 'react-native';
@@ -32,6 +31,7 @@ import { useAuth } from '../context/AuthContext';
 import { ConditionBadge } from '../components/ConditionBadge';
 import { ReviewModal } from '../components/ReviewModal';
 import { AnalysisResult } from '../types';
+import { AppTextInput } from '../components/AppTextInput';
 
 type Props = {
   navigation: StackNavigationProp<any, any>;
@@ -711,12 +711,12 @@ export function ListingScreen({ navigation, route }: Props) {
               ) : isOwner ? (
                 answeringId === q.id ? (
                   <View style={styles.aInputRow}>
-                    <TextInput
+                    <AppTextInput
                       style={styles.aInput}
                       value={answerText}
                       onChangeText={setAnswerText}
                       placeholder="Votre réponse..."
-                      placeholderTextColor={colors.textSecondary}
+      
                       multiline
                       autoFocus
                     />
@@ -735,12 +735,12 @@ export function ListingScreen({ navigation, route }: Props) {
 
           {!isOwner && (
             <View style={styles.qInputRow}>
-              <TextInput
+              <AppTextInput
                 style={styles.qInput}
                 value={newQuestion}
                 onChangeText={setNewQuestion}
                 placeholder="Poser une question..."
-                placeholderTextColor={colors.textSecondary}
+
                 multiline
                 maxLength={300}
               />
@@ -799,12 +799,12 @@ export function ListingScreen({ navigation, route }: Props) {
             <Text style={styles.offerTitle}>Faire une offre</Text>
             <Text style={styles.offerSub}>Prix affiché : {listing?.price_final} €</Text>
             <View style={styles.offerInputRow}>
-              <TextInput
+              <AppTextInput
                 style={styles.offerInput}
                 value={offerAmount}
                 onChangeText={setOfferAmount}
                 placeholder="Votre offre"
-                placeholderTextColor={colors.textSecondary}
+
                 keyboardType="numeric"
                 autoFocus
                 maxLength={8}
@@ -882,12 +882,12 @@ export function ListingScreen({ navigation, route }: Props) {
             {selectedShipping !== 'hand' && (
               <View style={{ marginTop: 8 }}>
                 <Text style={styles.shippingAddressLabel}>Adresse de livraison</Text>
-                <TextInput
+                <AppTextInput
                   style={styles.shippingAddressInput}
                   value={deliveryAddress}
                   onChangeText={setDeliveryAddress}
                   placeholder="Ex : 12 rue de la Paix, 75001 Paris"
-                  placeholderTextColor={colors.textSecondary}
+  
                   multiline
                 />
               </View>

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   Image,
   ActivityIndicator,
@@ -17,6 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { ProfileStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Profile } from '../services/supabase';
+import { AppTextInput } from '../components/AppTextInput';
 import { useAuth } from '../context/AuthContext';
 
 type Props = {
@@ -191,12 +191,12 @@ export function EditProfileScreen({ navigation }: Props) {
         {/* Username */}
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Nom d'utilisateur</Text>
-          <TextInput
+          <AppTextInput
             style={styles.input}
             value={username}
             onChangeText={setUsername}
             placeholder="Votre nom affiché"
-            placeholderTextColor={colors.textSecondary}
+
             autoCapitalize="words"
             autoCorrect={false}
             maxLength={40}

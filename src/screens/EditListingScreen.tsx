@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   Image,
   ScrollView,
@@ -19,6 +18,7 @@ import { RouteProp } from '@react-navigation/native';
 import { ProfileStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Listing } from '../services/supabase';
+import { AppTextInput } from '../components/AppTextInput';
 
 type Props = {
   navigation: StackNavigationProp<ProfileStackParamList, 'EditListing'>;
@@ -151,13 +151,13 @@ export function EditListingScreen({ navigation, route }: Props) {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Prix de vente (€)</Text>
             <View style={styles.priceWrap}>
-              <TextInput
+              <AppTextInput
                 style={styles.priceInput}
                 value={price}
                 onChangeText={setPrice}
                 keyboardType="decimal-pad"
                 placeholder="0"
-                placeholderTextColor={colors.textSecondary}
+
               />
               <Text style={styles.priceSymbol}>€</Text>
             </View>
@@ -170,7 +170,7 @@ export function EditListingScreen({ navigation, route }: Props) {
           {/* Histoire */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Histoire de l'objet</Text>
-            <TextInput
+            <AppTextInput
               style={styles.textArea}
               value={story}
               onChangeText={setStory}
@@ -185,7 +185,7 @@ export function EditListingScreen({ navigation, route }: Props) {
           {/* Localisation */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Localisation (optionnel)</Text>
-            <TextInput
+            <AppTextInput
               style={styles.input}
               value={location}
               onChangeText={setLocation}
@@ -199,13 +199,13 @@ export function EditListingScreen({ navigation, route }: Props) {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Prix de livraison (€)</Text>
             <View style={styles.priceWrap}>
-              <TextInput
+              <AppTextInput
                 style={styles.priceInput}
                 value={shippingPrice}
                 onChangeText={setShippingPrice}
                 keyboardType="decimal-pad"
                 placeholder="0"
-                placeholderTextColor={colors.textSecondary}
+
               />
               <Text style={styles.priceSymbol}>€</Text>
             </View>

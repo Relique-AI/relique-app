@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
@@ -17,6 +16,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { MarketStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Listing } from '../services/supabase';
+import { AppTextInput } from '../components/AppTextInput';
 import { useAuth } from '../context/AuthContext';
 import { ListingCard } from '../components/ListingCard';
 
@@ -174,12 +174,12 @@ export function MarketScreen({ navigation }: Props) {
       <View style={styles.searchBar}>
         <View style={styles.searchInput}>
           <Ionicons name="search-outline" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
-          <TextInput
+          <AppTextInput
             style={styles.searchText}
             value={searchInput}
             onChangeText={handleSearchChange}
             placeholder="Rechercher un objet..."
-            placeholderTextColor={colors.textSecondary}
+
             returnKeyType="search"
           />
           {searchInput.length > 0 && (

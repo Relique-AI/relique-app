@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   ActivityIndicator,
@@ -21,6 +20,7 @@ import { supabase, Message, Offer, Listing } from '../services/supabase';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useStripe } from '@stripe/stripe-react-native';
+import { AppTextInput } from '../components/AppTextInput';
 
 type Props = {
   navigation: StackNavigationProp<any, any>;
@@ -607,12 +607,12 @@ export function ChatScreen({ navigation, route }: Props) {
 
         {/* Text input bar */}
         <View style={[styles.inputBar, { paddingBottom: insets.bottom + 10 }]}>
-          <TextInput
+          <AppTextInput
             style={styles.input}
             value={input}
             onChangeText={handleInputChange}
             placeholder="Votre message..."
-            placeholderTextColor={colors.textSecondary}
+
             multiline
             maxLength={500}
           />
@@ -637,12 +637,12 @@ export function ChatScreen({ navigation, route }: Props) {
             <Text style={styles.modalTitle}>Contre-offre</Text>
             <Text style={styles.modalSub}>Prix affiché : {listing?.price_final} €</Text>
             <View style={styles.modalInputRow}>
-              <TextInput
+              <AppTextInput
                 style={styles.modalInput}
                 value={counterAmount}
                 onChangeText={setCounterAmount}
                 placeholder="Votre montant"
-                placeholderTextColor={colors.textSecondary}
+    
                 keyboardType="numeric"
                 autoFocus
                 maxLength={8}
@@ -694,12 +694,12 @@ export function ChatScreen({ navigation, route }: Props) {
             {selectedShipping !== 'hand' && (
               <View style={{ marginTop: 8 }}>
                 <Text style={styles.shippingAddressLabel}>Adresse de livraison</Text>
-                <TextInput
+                <AppTextInput
                   style={styles.shippingAddressInput}
                   value={deliveryAddress}
                   onChangeText={setDeliveryAddress}
                   placeholder="Ex : 12 rue de la Paix, 75001 Paris"
-                  placeholderTextColor={colors.textSecondary}
+      
                   multiline
                 />
               </View>

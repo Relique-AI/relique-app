@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Switch,
   ActivityIndicator,
 } from 'react-native';
@@ -15,6 +14,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, fonts, spacing } from '../theme';
 import { supabase } from '../services/supabase';
+import { AppTextInput } from '../components/AppTextInput';
 import { useAuth } from '../context/AuthContext';
 import { ProfileStackParamList } from '../types';
 
@@ -162,12 +162,12 @@ export function AlertsScreen({ navigation }: Props) {
 
           {keywords.length < 10 ? (
             <View style={styles.kwInputRow}>
-              <TextInput
+              <AppTextInput
                 style={styles.kwInput}
                 value={newKeyword}
                 onChangeText={setNewKeyword}
                 placeholder="Ajouter un mot-clé..."
-                placeholderTextColor={colors.textSecondary}
+
                 returnKeyType="done"
                 onSubmitEditing={addKeyword}
                 maxLength={40}

@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing } from '../theme';
 import { supabase } from '../services/supabase';
+import { AppTextInput } from './AppTextInput';
 import { useAuth } from '../context/AuthContext';
 
 interface Props {
@@ -77,12 +77,12 @@ export function ReviewModal({ visible, sellerId, sellerName, listingId, onClose,
           )}
 
           {/* Commentaire */}
-          <TextInput
+          <AppTextInput
             style={styles.input}
             value={comment}
             onChangeText={setComment}
             placeholder="Un commentaire ? (optionnel)"
-            placeholderTextColor={colors.textSecondary}
+
             multiline
             numberOfLines={3}
             textAlignVertical="top"

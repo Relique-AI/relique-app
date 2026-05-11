@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Dimensions,
-  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +16,7 @@ import { RouteProp } from '@react-navigation/native';
 import { BrowseStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Listing } from '../services/supabase';
+import { AppTextInput } from '../components/AppTextInput';
 import { useAuth } from '../context/AuthContext';
 import { ListingCard } from '../components/ListingCard';
 
@@ -125,12 +125,12 @@ export function BrowseListingsScreen({ navigation, route }: Props) {
 
       <View style={styles.searchRow}>
         <Ionicons name="search-outline" size={16} color={colors.textSecondary} />
-        <TextInput
+        <AppTextInput
           style={styles.searchInput}
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Rechercher dans cette catégorie..."
-          placeholderTextColor={colors.textSecondary}
+
           returnKeyType="search"
           clearButtonMode="while-editing"
         />

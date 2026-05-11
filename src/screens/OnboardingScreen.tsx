@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts, spacing } from '../theme';
+import { AppTextInput } from '../components/AppTextInput';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -90,12 +90,12 @@ export function OnboardingScreen() {
           C'est le nom que verront les acheteurs sur tes annonces.{'\n'}Tu pourras le modifier plus tard.
         </Text>
 
-        <TextInput
+        <AppTextInput
           style={styles.input}
           value={username}
           onChangeText={(t) => { setUsername(t); setError(''); }}
           placeholder="ex : chineuse_paris, vintage_paul..."
-          placeholderTextColor={colors.textSecondary}
+
           autoCapitalize="none"
           autoCorrect={false}
           maxLength={30}
@@ -104,12 +104,12 @@ export function OnboardingScreen() {
 
         <Text style={styles.hint}>Lettres, chiffres, _ . - · 3 à 30 caractères</Text>
 
-        <TextInput
+        <AppTextInput
           style={[styles.input, { marginTop: 8 }]}
           value={referralCode}
           onChangeText={(t) => { setReferralCode(t); setError(''); }}
           placeholder="Code de parrainage (optionnel)"
-          placeholderTextColor={colors.textSecondary}
+
           autoCapitalize="characters"
           autoCorrect={false}
           maxLength={8}

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { colors, fonts, spacing } from '../theme';
+import { AppTextInput } from '../components/AppTextInput';
 
 type Tab = 'login' | 'signup' | 'forgot';
 
@@ -133,12 +133,12 @@ export function AuthScreen() {
           <View style={styles.form}>
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>{tab === 'login' ? 'Email ou pseudo' : 'Email'}</Text>
-              <TextInput
+              <AppTextInput
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
                 placeholder={tab === 'login' ? 'email ou pseudo' : 'votre@email.com'}
-                placeholderTextColor={colors.textSecondary}
+
                 keyboardType={tab === 'login' ? 'default' : 'email-address'}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -148,12 +148,12 @@ export function AuthScreen() {
             {tab === 'signup' && (
               <View style={styles.fieldGroup}>
                 <Text style={styles.label}>Pseudo</Text>
-                <TextInput
+                <AppTextInput
                   style={styles.input}
                   value={username}
                   onChangeText={setUsername}
                   placeholder="ex : chineuse_paris, vintage_paul"
-                  placeholderTextColor={colors.textSecondary}
+  
                   autoCapitalize="none"
                   autoCorrect={false}
                   maxLength={30}
@@ -165,12 +165,12 @@ export function AuthScreen() {
             {tab !== 'forgot' && (
               <View style={styles.fieldGroup}>
                 <Text style={styles.label}>Mot de passe</Text>
-                <TextInput
+                <AppTextInput
                   style={styles.input}
                   value={password}
                   onChangeText={setPassword}
                   placeholder="••••••••"
-                  placeholderTextColor={colors.textSecondary}
+  
                   secureTextEntry
                 />
                 {tab === 'login' && (
@@ -184,12 +184,12 @@ export function AuthScreen() {
             {tab === 'signup' && (
               <View style={styles.fieldGroup}>
                 <Text style={styles.label}>Confirmer le mot de passe</Text>
-                <TextInput
+                <AppTextInput
                   style={styles.input}
                   value={confirm}
                   onChangeText={setConfirm}
                   placeholder="••••••••"
-                  placeholderTextColor={colors.textSecondary}
+  
                   secureTextEntry
                 />
               </View>
@@ -198,12 +198,12 @@ export function AuthScreen() {
             {tab === 'signup' && (
               <View style={styles.fieldGroup}>
                 <Text style={styles.label}>Code de parrainage (optionnel)</Text>
-                <TextInput
+                <AppTextInput
                   style={styles.input}
                   value={referralCode}
                   onChangeText={setReferralCode}
                   placeholder="ex : ABC12345"
-                  placeholderTextColor={colors.textSecondary}
+  
                   autoCapitalize="characters"
                   autoCorrect={false}
                   maxLength={8}

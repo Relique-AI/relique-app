@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TextInput,
   TouchableOpacity,
   Image,
   ActivityIndicator,
@@ -13,6 +12,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { AppTextInput } from '../components/AppTextInput';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -91,7 +91,7 @@ async function uploadPhoto(
 
 export function SellScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { analysis, photo } = route.params;
+  const { analysis, photos } = route.params;
   const { user, session } = useAuth();
 
   const [name, setName] = useState(analysis.name);
@@ -126,7 +126,9 @@ export function SellScreen({ navigation, route }: Props) {
     setLoading(true);
     try {
       await supabase.rpc('ensure_profile');
-      const imageUrl = await uploadPhoto(photo.uri, user.id, session.access_token);
+      const imageUrls = await Promise.all(
+        photos.map(p => uploadPhoto(p.uri, user.id, session.access_token))
+      );
 
       const { error } = await supabase.from('listings').insert({
         seller_id: user.id,
@@ -142,7 +144,7 @@ export function SellScreen({ navigation, route }: Props) {
         price_suggested: analysis.priceSuggested,
         price_final: priceNum,
         selling_tips: analysis.sellingTips,
-        images: [imageUrl],
+        images: imageUrls,
         status: 'active',
         location: location.trim() || null,
         shipping_options: shippingOptions,
@@ -194,16 +196,16 @@ export function SellScreen({ navigation, route }: Props) {
           showsVerticalScrollIndicator={false}
         >
           {/* Aperçu photo */}
-          <Image source={{ uri: photo.uri }} style={styles.photoPreview} />
+          <Image source={{ uri: photos[0].uri }} style={styles.photoPreview} />
 
           {/* Nom */}
           <View style={styles.field}>
             <Text style={styles.label}>Nom de l'objet</Text>
-            <TextInput
+            <AppTextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholderTextColor={colors.textSecondary}
+
             />
           </View>
 
@@ -247,14 +249,14 @@ export function SellScreen({ navigation, route }: Props) {
           {/* Description */}
           <View style={styles.field}>
             <Text style={styles.label}>Description</Text>
-            <TextInput
+            <AppTextInput
               style={[styles.input, styles.inputMulti]}
               value={description}
               onChangeText={setDescription}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-              placeholderTextColor={colors.textSecondary}
+
             />
           </View>
 
@@ -264,24 +266,24 @@ export function SellScreen({ navigation, route }: Props) {
             <Text style={styles.priceGuide}>
               Estimation IA : {analysis.priceMin} € — {analysis.priceMax} €
             </Text>
-            <TextInput
+            <AppTextInput
               style={styles.input}
               value={price}
               onChangeText={setPrice}
               keyboardType="decimal-pad"
-              placeholderTextColor={colors.textSecondary}
+
             />
           </View>
 
           {/* Localisation */}
           <View style={styles.field}>
             <Text style={styles.label}>Localisation (optionnel)</Text>
-            <TextInput
+            <AppTextInput
               style={styles.input}
               value={location}
               onChangeText={setLocation}
               placeholder="Ex : Paris, Lyon..."
-              placeholderTextColor={colors.textSecondary}
+
             />
           </View>
 
@@ -315,13 +317,13 @@ export function SellScreen({ navigation, route }: Props) {
           <View style={styles.field}>
             <Text style={styles.label}>Prix de livraison (€)</Text>
             <Text style={styles.shippingSubtitle}>0 = livraison gratuite · frais à votre charge</Text>
-            <TextInput
+            <AppTextInput
               style={styles.input}
               value={shippingPrice}
               onChangeText={setShippingPrice}
               keyboardType="decimal-pad"
               placeholder="0"
-              placeholderTextColor={colors.textSecondary}
+
             />
           </View>
 

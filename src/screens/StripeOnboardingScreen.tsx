@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity,
+  View, Text, StyleSheet, TouchableOpacity,
   ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { colors, fonts, spacing } from '../theme';
 import { supabase } from '../services/supabase';
+import { AppTextInput } from '../components/AppTextInput';
 import { useAuth } from '../context/AuthContext';
 import { ProfileStackParamList } from '../types';
 
@@ -260,11 +261,11 @@ export function StripeOnboardingScreen({ navigation }: Props) {
               <Field label="Nom" value={lastName} onChange={setLastName} placeholder="Dupont" />
               <Text style={styles.fieldLabel}>Date de naissance</Text>
               <View style={styles.dobRow}>
-                <TextInput style={[styles.input, styles.dobInput]} placeholder="JJ" keyboardType="numeric"
+                <AppTextInput style={[styles.input, styles.dobInput]} placeholder="JJ" keyboardType="numeric"
                   maxLength={2} value={dobDay} onChangeText={setDobDay} placeholderTextColor={colors.textDisabled} />
-                <TextInput style={[styles.input, styles.dobInput]} placeholder="MM" keyboardType="numeric"
+                <AppTextInput style={[styles.input, styles.dobInput]} placeholder="MM" keyboardType="numeric"
                   maxLength={2} value={dobMonth} onChangeText={setDobMonth} placeholderTextColor={colors.textDisabled} />
-                <TextInput style={[styles.input, styles.dobInputYear]} placeholder="AAAA" keyboardType="numeric"
+                <AppTextInput style={[styles.input, styles.dobInputYear]} placeholder="AAAA" keyboardType="numeric"
                   maxLength={4} value={dobYear} onChangeText={setDobYear} placeholderTextColor={colors.textDisabled} />
               </View>
             </View>
@@ -300,11 +301,11 @@ export function StripeOnboardingScreen({ navigation }: Props) {
               <Field label="Nom" value={lastName} onChange={setLastName} placeholder="Dupont" />
               <Text style={styles.fieldLabel}>Date de naissance</Text>
               <View style={styles.dobRow}>
-                <TextInput style={[styles.input, styles.dobInput]} placeholder="JJ" keyboardType="numeric"
+                <AppTextInput style={[styles.input, styles.dobInput]} placeholder="JJ" keyboardType="numeric"
                   maxLength={2} value={dobDay} onChangeText={setDobDay} placeholderTextColor={colors.textDisabled} />
-                <TextInput style={[styles.input, styles.dobInput]} placeholder="MM" keyboardType="numeric"
+                <AppTextInput style={[styles.input, styles.dobInput]} placeholder="MM" keyboardType="numeric"
                   maxLength={2} value={dobMonth} onChangeText={setDobMonth} placeholderTextColor={colors.textDisabled} />
-                <TextInput style={[styles.input, styles.dobInputYear]} placeholder="AAAA" keyboardType="numeric"
+                <AppTextInput style={[styles.input, styles.dobInputYear]} placeholder="AAAA" keyboardType="numeric"
                   maxLength={4} value={dobYear} onChangeText={setDobYear} placeholderTextColor={colors.textDisabled} />
               </View>
               <Field label="Rue et numéro" value={addressLine1} onChange={setAddressLine1} placeholder="12 rue des Lilas" />
@@ -375,12 +376,12 @@ function Field({ label, value, onChange, placeholder, keyboardType, maxLength, a
   return (
     <View style={{ marginBottom: 16 }}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
+      <AppTextInput
         style={styles.input}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor={colors.textDisabled}
+
         keyboardType={keyboardType}
         maxLength={maxLength}
         autoCapitalize={autoCapitalize ?? 'words'}

@@ -13,7 +13,6 @@ import {
   Share,
   Modal,
   KeyboardAvoidingView,
-  TextInput,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +21,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Listing, Profile } from '../services/supabase';
+import { AppTextInput } from '../components/AppTextInput';
 import { useAuth } from '../context/AuthContext';
 import { ConditionBadge } from '../components/ConditionBadge';
 import { AnalysisResult, ProfileStackParamList } from '../types';
@@ -576,12 +576,12 @@ export function ProfileScreen({ navigation, route }: Props) {
               </View>
             )}
             <Text style={styles.trackingLabel}>Numéro de suivi (optionnel)</Text>
-            <TextInput
+            <AppTextInput
               style={styles.trackingInput}
               value={trackingInput}
               onChangeText={setTrackingInput}
               placeholder="Ex : 6A12345678901"
-              placeholderTextColor={colors.textSecondary}
+
               autoCapitalize="characters"
             />
             <TouchableOpacity style={styles.trackingConfirmBtn} onPress={markShipped}>
