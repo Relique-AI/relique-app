@@ -76,7 +76,7 @@ serve(async (req) => {
       },
     });
 
-    return json({ clientSecret: paymentIntent.client_secret, amount });
+    return json({ clientSecret: paymentIntent.client_secret, amount, paymentIntentId: paymentIntent.id });
   } catch (err: any) {
     const msg = err?.message ?? String(err);
     console.error('create-payment-intent error:', msg);

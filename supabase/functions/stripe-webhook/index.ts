@@ -56,18 +56,27 @@ serve(async (req) => {
         .update({ status: 'sold', buyer_id })
         .eq('id', listing_id);
 
-      await supabase.from('transactions').insert({
-        listing_id,
-        buyer_id,
-        seller_id,
-        amount: pi.amount,
-        fee: pi.application_fee_amount ?? 0,
-        stripe_payment_intent_id: pi.id,
-        status: 'completed',
-        shipping_method,
-        delivery_address,
-        shipping_status,
-      });
+      // Idempotent: skip if confirm-purchase already created this transaction
+      const { data: existing } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('stripe_payment_intent_id', pi.id)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase.from('transactions').insert({
+          listing_id,
+          buyer_id,
+          seller_id,
+          amount: pi.amount,
+          fee: pi.application_fee_amount ?? 0,
+          stripe_payment_intent_id: pi.id,
+          status: 'completed',
+          shipping_method,
+          delivery_address,
+          shipping_status,
+        });
+      }
 
       const sellerToken = (listing?.profiles as any)?.push_token;
       if (sellerToken && listing?.name) {
