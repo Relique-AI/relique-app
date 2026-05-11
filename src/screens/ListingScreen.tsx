@@ -951,6 +951,12 @@ export function ListingScreen({ navigation, route }: Props) {
               : <Text style={styles.btnSoldText}>Marquer comme vendu</Text>
             }
           </TouchableOpacity>
+        ) : listing.status === 'sold' ? (
+          <View style={[styles.btnSold, { opacity: 0.6 }]}>
+            <Text style={styles.btnSoldText}>
+              {listing.buyer_id === user?.id ? 'Votre achat' : 'Article vendu'}
+            </Text>
+          </View>
         ) : (
           <>
             <TouchableOpacity
