@@ -41,6 +41,10 @@ serve(async (req) => {
     const { listing_id, buyer_id, seller_id } = pi.metadata;
 
     if (listing_id && buyer_id && seller_id) {
+      const shipping_method = pi.metadata.shipping_method ?? 'hand';
+      const delivery_address = pi.metadata.delivery_address ?? null;
+      const shipping_status = shipping_method === 'hand' ? 'delivered' : 'to_ship';
+
       const { data: listing } = await supabase
         .from('listings')
         .select('name, profiles(push_token)')
@@ -60,17 +64,23 @@ serve(async (req) => {
         fee: pi.application_fee_amount ?? 0,
         stripe_payment_intent_id: pi.id,
         status: 'completed',
+        shipping_method,
+        delivery_address,
+        shipping_status,
       });
 
       const sellerToken = (listing?.profiles as any)?.push_token;
       if (sellerToken && listing?.name) {
+        const notifBody = shipping_method === 'hand'
+          ? `${listing.name} · Remise en main propre`
+          : `${listing.name} · À expédier à : ${delivery_address ?? 'adresse non renseignée'}`;
         await fetch('https://exp.host/--/api/v2/push/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: sellerToken,
             title: 'Votre article a été vendu !',
-            body: listing.name,
+            body: notifBody,
             sound: 'default',
             data: { type: 'sale', listing_id, buyer_id },
           }),

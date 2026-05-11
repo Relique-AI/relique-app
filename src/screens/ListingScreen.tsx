@@ -151,6 +151,9 @@ export function ListingScreen({ navigation, route }: Props) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [zoomVisible, setZoomVisible] = useState(false);
   const [zoomIndex, setZoomIndex] = useState(0);
+  const [showShippingSheet, setShowShippingSheet] = useState(false);
+  const [selectedShipping, setSelectedShipping] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
 
   type Question = { id: string; asker_id: string; question: string; answer: string | null; created_at: string; profiles: { username: string } | null };
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -366,13 +369,34 @@ export function ListingScreen({ navigation, route }: Props) {
     });
   };
 
-  const handleBuy = async () => {
+  const SHIPPING_LABELS: Record<string, string> = {
+    hand: 'Remise en main propre',
+    relay: 'Mondial Relay',
+    colissimo: 'Colissimo',
+    chronopost: 'Chronopost',
+  };
+
+  const handleBuy = () => {
+    if (!listing || !user) return;
+    const options = listing.shipping_options ?? ['hand'];
+    const hasPostal = options.some((o) => o !== 'hand');
+    if (!hasPostal) {
+      processPurchase('hand', undefined);
+      return;
+    }
+    setSelectedShipping(options[0]);
+    setDeliveryAddress('');
+    setShowShippingSheet(true);
+  };
+
+  const processPurchase = async (shippingMethod: string, deliveryAddr: string | undefined) => {
     if (!listing || !user) return;
     setBuying(true);
     try {
+      const session = (await supabase.auth.getSession()).data.session;
       const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-        body: { listing_id: listing.id },
-        headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
+        body: { listing_id: listing.id, shipping_method: shippingMethod, delivery_address: deliveryAddr },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       if (error) {
         let errMsg = 'Impossible de lancer le paiement.';
@@ -786,6 +810,73 @@ export function ListingScreen({ navigation, route }: Props) {
         </GestureHandlerRootView>
       </Modal>
 
+      {/* Shipping method sheet */}
+      {showShippingSheet && (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.offerOverlay}
+        >
+          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowShippingSheet(false)} />
+          <View style={styles.shippingSheet}>
+            <Text style={styles.shippingSheetTitle}>Mode de livraison</Text>
+            {(listing?.shipping_options ?? []).map((opt) => {
+              const isSelected = selectedShipping === opt;
+              const shippingCost = opt === 'hand' ? 0 : (listing?.shipping_price ?? 0);
+              const total = (listing?.price_final ?? 0) + shippingCost;
+              return (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.shippingSheetRow, isSelected && styles.shippingSheetRowActive]}
+                  onPress={() => setSelectedShipping(opt)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.shippingSheetRadio, isSelected && styles.shippingSheetRadioActive]}>
+                    {isSelected && <View style={styles.shippingSheetRadioDot} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.shippingSheetLabel, isSelected && { color: colors.textPrimary }]}>
+                      {SHIPPING_LABELS[opt] ?? opt}
+                    </Text>
+                    <Text style={styles.shippingSheetPriceText}>
+                      {opt === 'hand' ? 'Gratuit' : `+ ${shippingCost} €`}  ·  Total {total.toFixed(2)} €
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            {selectedShipping !== 'hand' && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={styles.shippingAddressLabel}>Adresse de livraison</Text>
+                <TextInput
+                  style={styles.shippingAddressInput}
+                  value={deliveryAddress}
+                  onChangeText={setDeliveryAddress}
+                  placeholder="Ex : 12 rue de la Paix, 75001 Paris"
+                  placeholderTextColor={colors.textSecondary}
+                  multiline
+                />
+              </View>
+            )}
+            <TouchableOpacity
+              style={[
+                styles.shippingConfirmBtn,
+                (buying || (selectedShipping !== 'hand' && !deliveryAddress.trim())) && { opacity: 0.4 },
+              ]}
+              disabled={buying || (selectedShipping !== 'hand' && !deliveryAddress.trim())}
+              onPress={() => {
+                setShowShippingSheet(false);
+                processPurchase(selectedShipping, selectedShipping !== 'hand' ? deliveryAddress.trim() : undefined);
+              }}
+            >
+              {buying
+                ? <ActivityIndicator color={colors.background} size="small" />
+                : <Text style={styles.shippingConfirmText}>Confirmer et payer</Text>
+              }
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      )}
+
       {listing && (
         <ReviewModal
           visible={showReviewModal}
@@ -1083,6 +1174,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   offerSendText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
+
+  // Shipping sheet
+  shippingSheet: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    gap: 10,
+  },
+  shippingSheetTitle: { fontFamily: fonts.serif, fontSize: 22, color: colors.textPrimary, marginBottom: 4 },
+  shippingSheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  shippingSheetRowActive: { borderColor: colors.primary },
+  shippingSheetRadio: {
+    width: 20, height: 20, borderRadius: 10,
+    borderWidth: 1.5, borderColor: colors.textSecondary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  shippingSheetRadioActive: { borderColor: colors.primary },
+  shippingSheetRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
+  shippingSheetLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textSecondary },
+  shippingSheetPriceText: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  shippingAddressLabel: {
+    fontFamily: fonts.mono, fontSize: 10, color: colors.textDisabled,
+    letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8,
+  },
+  shippingAddressInput: {
+    backgroundColor: colors.surface, borderRadius: 12, padding: 14,
+    fontFamily: fonts.body, fontSize: 14, color: colors.textPrimary,
+    borderWidth: 1, borderColor: colors.chipBackground, minHeight: 64,
+  },
+  shippingConfirmBtn: {
+    backgroundColor: colors.primary, borderRadius: 50,
+    paddingVertical: 16, alignItems: 'center', marginTop: 6,
+  },
+  shippingConfirmText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
 
   // Q&A
   qEmpty: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, marginBottom: 12 },

@@ -11,6 +11,10 @@ import {
   Alert,
   Dimensions,
   Share,
+  Modal,
+  KeyboardAvoidingView,
+  TextInput,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +38,10 @@ type Purchase = {
   amount: number;
   fee: number;
   status: string;
+  shipping_method: string | null;
+  delivery_address: string | null;
+  shipping_status: string | null;
+  tracking_number: string | null;
   created_at: string;
   listing_id: string;
   listings: { name: string; images: string[] } | null;
@@ -52,6 +60,9 @@ export function ProfileScreen({ navigation, route }: Props) {
   const [referralCode, setReferralCode] = useState('');
   const [referralCount, setReferralCount] = useState(0);
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
+  const [pendingShipments, setPendingShipments] = useState<Record<string, { transaction_id: string; delivery_address: string | null }>>({});
+  const [trackingModal, setTrackingModal] = useState<{ transactionId: string; deliveryAddress: string | null } | null>(null);
+  const [trackingInput, setTrackingInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -112,16 +123,32 @@ export function ProfileScreen({ navigation, route }: Props) {
     if (!user) return;
     const { data } = await supabase
       .from('transactions')
-      .select('id, amount, fee, status, created_at, listing_id, listings(name, images)')
+      .select('id, amount, fee, status, shipping_method, delivery_address, shipping_status, tracking_number, created_at, listing_id, listings(name, images)')
       .eq('buyer_id', user.id)
       .order('created_at', { ascending: false });
     if (data) setPurchases(data as unknown as Purchase[]);
   }, [user]);
 
+  const loadPendingShipments = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('transactions')
+      .select('id, listing_id, delivery_address')
+      .eq('seller_id', user.id)
+      .eq('shipping_status', 'to_ship');
+    if (data) {
+      const map: Record<string, { transaction_id: string; delivery_address: string | null }> = {};
+      for (const t of data as any[]) {
+        map[t.listing_id] = { transaction_id: t.id, delivery_address: t.delivery_address };
+      }
+      setPendingShipments(map);
+    }
+  }, [user]);
+
   const loadAll = useCallback(async () => {
-    await Promise.all([loadProfile(), loadMyListings(), loadFavorites(), loadPurchases(), loadQuestionCounts()]);
+    await Promise.all([loadProfile(), loadMyListings(), loadFavorites(), loadPurchases(), loadQuestionCounts(), loadPendingShipments()]);
     setLoading(false);
-  }, [loadProfile, loadMyListings, loadFavorites, loadPurchases, loadQuestionCounts]);
+  }, [loadProfile, loadMyListings, loadFavorites, loadPurchases, loadQuestionCounts, loadPendingShipments]);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -130,9 +157,10 @@ export function ProfileScreen({ navigation, route }: Props) {
     const unsubscribe = navigation.addListener('focus', () => {
       loadProfile();
       loadQuestionCounts();
+      loadPendingShipments();
     });
     return unsubscribe;
-  }, [navigation, loadProfile, loadQuestionCounts]);
+  }, [navigation, loadProfile, loadQuestionCounts, loadPendingShipments]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -177,6 +205,34 @@ export function ProfileScreen({ navigation, route }: Props) {
     );
   };
 
+  const confirmReceipt = (transactionId: string) => {
+    Alert.alert(
+      'Confirmer la réception',
+      'Confirmez-vous avoir reçu votre commande ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Confirmer',
+          onPress: async () => {
+            await supabase.from('transactions').update({ shipping_status: 'delivered' }).eq('id', transactionId);
+            loadPurchases();
+          },
+        },
+      ],
+    );
+  };
+
+  const markShipped = async () => {
+    if (!trackingModal) return;
+    await supabase
+      .from('transactions')
+      .update({ shipping_status: 'shipped', tracking_number: trackingInput.trim() || null })
+      .eq('id', trackingModal.transactionId);
+    setTrackingModal(null);
+    setTrackingInput('');
+    loadPendingShipments();
+  };
+
   const handleSignOut = () => {
     Alert.alert('Se déconnecter', 'Voulez-vous vous déconnecter ?', [
       { text: 'Annuler', style: 'cancel' },
@@ -197,9 +253,23 @@ export function ProfileScreen({ navigation, route }: Props) {
 
   // ─── Rendu carte "Mes annonces" ──────────────────────────────────────────────
 
+  const SHIPPING_METHOD_LABELS: Record<string, string> = {
+    hand: 'Remise en main propre',
+    relay: 'Mondial Relay',
+    colissimo: 'Colissimo',
+    chronopost: 'Chronopost',
+  };
+
+  const SHIPPING_STATUS_COLORS: Record<string, string> = {
+    to_ship: colors.primary,
+    shipped: '#2196F3',
+    delivered: colors.success,
+  };
+
   const renderMyListing = ({ item }: { item: Listing }) => {
     const isSold = item.status === 'sold';
     const unanswered = questionCounts[item.id] ?? 0;
+    const pendingShipment = pendingShipments[item.id];
     return (
       <TouchableOpacity
         style={styles.myCard}
@@ -229,6 +299,15 @@ export function ProfileScreen({ navigation, route }: Props) {
                 <Ionicons name="help-circle" size={12} color={colors.primary} />
                 <Text style={styles.questionBadgeText}>{unanswered} question{unanswered > 1 ? 's' : ''}</Text>
               </View>
+            )}
+            {pendingShipment && (
+              <TouchableOpacity
+                style={styles.shipBadge}
+                onPress={() => { setTrackingModal({ transactionId: pendingShipment.transaction_id, deliveryAddress: pendingShipment.delivery_address }); setTrackingInput(''); }}
+              >
+                <Ionicons name="send-outline" size={11} color={colors.background} />
+                <Text style={styles.shipBadgeText}>Expédier</Text>
+              </TouchableOpacity>
             )}
           </View>
         </View>
@@ -280,6 +359,8 @@ export function ProfileScreen({ navigation, route }: Props) {
     const net = (item.amount / 100).toFixed(2);
     const date = new Date(item.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
     const isPending = item.status === 'pending';
+    const isPostal = item.shipping_method && item.shipping_method !== 'hand';
+    const shippingStatus = item.shipping_status;
     return (
       <TouchableOpacity
         style={styles.myCard}
@@ -295,7 +376,7 @@ export function ProfileScreen({ navigation, route }: Props) {
             </View>
           )}
         </View>
-        <View style={styles.myCardBody}>
+        <View style={[styles.myCardBody, { flex: 1 }]}>
           <Text style={styles.myCardName} numberOfLines={2}>{item.listings?.name ?? 'Annonce supprimée'}</Text>
           <Text style={styles.myCardPrice}>{net} €</Text>
           <View style={styles.myCardRow}>
@@ -304,7 +385,34 @@ export function ProfileScreen({ navigation, route }: Props) {
                 {isPending ? 'En cours' : 'Payé'}
               </Text>
             </View>
+            {isPostal && shippingStatus === 'to_ship' && (
+              <View style={[styles.statusBadge, { backgroundColor: 'rgba(255,152,0,0.15)' }]}>
+                <Text style={[styles.statusText, { color: '#FF9800' }]}>À expédier</Text>
+              </View>
+            )}
+            {isPostal && shippingStatus === 'shipped' && (
+              <View style={[styles.statusBadge, { backgroundColor: 'rgba(33,150,243,0.12)' }]}>
+                <Text style={[styles.statusText, { color: '#2196F3' }]}>En livraison</Text>
+              </View>
+            )}
+            {isPostal && shippingStatus === 'delivered' && (
+              <View style={[styles.statusBadge, styles.statusActive]}>
+                <Text style={[styles.statusText, styles.statusTextActive]}>Livré</Text>
+              </View>
+            )}
           </View>
+          {item.tracking_number && (
+            <Text style={styles.trackingText}>Suivi : {item.tracking_number}</Text>
+          )}
+          {isPostal && shippingStatus === 'shipped' && (
+            <TouchableOpacity
+              style={styles.confirmReceiptBtn}
+              onPress={() => confirmReceipt(item.id)}
+            >
+              <Ionicons name="checkmark-circle-outline" size={13} color={colors.background} />
+              <Text style={styles.confirmReceiptText}>Confirmer réception</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <Text style={styles.purchaseDate}>{date}</Text>
       </TouchableOpacity>
@@ -451,6 +559,39 @@ export function ProfileScreen({ navigation, route }: Props) {
           </View>
         }
       />
+
+      {/* Tracking number modal */}
+      <Modal visible={!!trackingModal} transparent animationType="slide" onRequestClose={() => setTrackingModal(null)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setTrackingModal(null)} />
+          <View style={styles.trackingSheet}>
+            <Text style={styles.trackingSheetTitle}>Marquer comme expédié</Text>
+            {trackingModal?.deliveryAddress && (
+              <View style={styles.addressBox}>
+                <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+                <Text style={styles.addressBoxText}>{trackingModal.deliveryAddress}</Text>
+              </View>
+            )}
+            <Text style={styles.trackingLabel}>Numéro de suivi (optionnel)</Text>
+            <TextInput
+              style={styles.trackingInput}
+              value={trackingInput}
+              onChangeText={setTrackingInput}
+              placeholder="Ex : 6A12345678901"
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="characters"
+            />
+            <TouchableOpacity style={styles.trackingConfirmBtn} onPress={markShipped}>
+              <Ionicons name="send-outline" size={16} color={colors.background} />
+              <Text style={styles.trackingConfirmText}>Confirmer l'expédition</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -538,7 +679,7 @@ const styles = StyleSheet.create({
   myCardBody: { flex: 1, paddingVertical: 10 },
   myCardName: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, lineHeight: 19 },
   myCardPrice: { fontFamily: fonts.serif, fontSize: 18, color: colors.primary, marginTop: 2 },
-  myCardRow: { flexDirection: 'row', marginTop: 6 },
+  myCardRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, gap: 4 },
   statusBadge: { borderRadius: 20, paddingVertical: 3, paddingHorizontal: 10 },
   statusActive: { backgroundColor: 'rgba(181,212,121,0.15)' },
   statusSold: { backgroundColor: 'rgba(169,150,128,0.12)' },
@@ -555,7 +696,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 3,
     paddingHorizontal: 8,
-    marginLeft: 6,
   },
   questionBadgeText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.primary },
   purchaseDate: { fontFamily: fonts.body, fontSize: 11, color: colors.textSecondary, paddingRight: 4 },
@@ -631,4 +771,71 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: 12, paddingTop: 60, paddingHorizontal: spacing.section },
   emptyTitle: { fontFamily: fonts.serif, fontSize: 20, color: colors.textPrimary },
   emptyText: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 21 },
+
+  // Shipping / livraison
+  shipBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginLeft: 6,
+  },
+  shipBadgeText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.background },
+  trackingText: { fontFamily: fonts.body, fontSize: 11, color: colors.textSecondary, marginTop: 4 },
+  confirmReceiptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.success,
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  confirmReceiptText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.background },
+
+  // Tracking modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  trackingSheet: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 28,
+    paddingBottom: 48,
+    gap: 14,
+  },
+  trackingSheetTitle: { fontFamily: fonts.serif, fontSize: 22, color: colors.textPrimary },
+  addressBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 12,
+  },
+  addressBoxText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, flex: 1, lineHeight: 20 },
+  trackingLabel: {
+    fontFamily: fonts.mono, fontSize: 10, color: colors.textDisabled,
+    letterSpacing: 1.5, textTransform: 'uppercase',
+  },
+  trackingInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 12, padding: 14,
+    fontFamily: fonts.body, fontSize: 15, color: colors.textPrimary,
+    borderWidth: 1, borderColor: colors.chipBackground,
+  },
+  trackingConfirmBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 50, paddingVertical: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  trackingConfirmText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
 });

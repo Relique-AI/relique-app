@@ -23,7 +23,7 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return json({ error: 'Non autorisé' }, 401);
 
-    const { listing_id } = await req.json();
+    const { listing_id, shipping_method = 'hand', delivery_address } = await req.json();
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -47,7 +47,8 @@ serve(async (req) => {
     const sellerAccountId = listing.profiles?.stripe_account_id;
     if (!sellerAccountId) return json({ error: 'Vendeur non configuré pour les paiements' }, 400);
 
-    const amount = Math.round((listing.price_final + (listing.shipping_price ?? 0)) * 100);
+    const shippingCost = shipping_method === 'hand' ? 0 : (listing.shipping_price ?? 0);
+    const amount = Math.round((listing.price_final + shippingCost) * 100);
     const fee = Math.round(amount * 0.03);
 
     const paymentIntent = await stripe.paymentIntents.create({
@@ -55,7 +56,13 @@ serve(async (req) => {
       currency: 'eur',
       application_fee_amount: fee,
       transfer_data: { destination: sellerAccountId },
-      metadata: { listing_id, buyer_id: user.id, seller_id: listing.seller_id },
+      metadata: {
+        listing_id,
+        buyer_id: user.id,
+        seller_id: listing.seller_id,
+        shipping_method,
+        ...(delivery_address ? { delivery_address } : {}),
+      },
     });
 
     return json({ clientSecret: paymentIntent.client_secret, amount });
