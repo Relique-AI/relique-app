@@ -258,6 +258,7 @@ export function ChatScreen({ navigation, route }: Props) {
   // ── Offer actions ──────────────────────────────────────────────────────────
 
   const handleAcceptOffer = async (offer: Offer) => {
+    setOfferDetails((prev) => ({ ...prev, [offer.id]: { ...offer, status: 'accepted' } }));
     await supabase.from('offers')
       .update({ status: 'accepted', updated_at: new Date().toISOString() })
       .eq('id', offer.id);
@@ -276,6 +277,7 @@ export function ChatScreen({ navigation, route }: Props) {
   };
 
   const handleDeclineOffer = async (offer: Offer) => {
+    setOfferDetails((prev) => ({ ...prev, [offer.id]: { ...offer, status: 'declined' } }));
     await supabase.from('offers')
       .update({ status: 'declined', updated_at: new Date().toISOString() })
       .eq('id', offer.id);
@@ -307,6 +309,9 @@ export function ChatScreen({ navigation, route }: Props) {
     if (!original) return;
 
     setShowCounterModal(false);
+
+    // Optimistic: disable actions on the original offer immediately
+    setOfferDetails((prev) => ({ ...prev, [counterTargetOfferId]: { ...original, status: 'countered' } }));
 
     // Mark original as countered
     await supabase.from('offers')
@@ -442,15 +447,20 @@ export function ChatScreen({ navigation, route }: Props) {
     const isDeclined = offer.status === 'declined';
     const isCountered = offer.status === 'countered';
     const canAct = !isMine && isPending;
+    const isCounter = !!offer.parent_offer_id;
+
+    const labelText = isMine
+      ? (isCounter ? 'Votre contre-offre' : 'Votre offre')
+      : (isCounter ? 'Contre-offre reçue' : 'Offre reçue');
 
     return (
-      <View style={[styles.bubbleRow, isMine ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
+      <View style={styles.offerBubbleRow}>
         <View style={[styles.offerBubble, isMine ? styles.offerBubbleMine : styles.offerBubbleTheirs]}>
 
           <View style={styles.offerHeader}>
             <Ionicons name="pricetag" size={12} color={isMine ? 'rgba(11,9,7,0.5)' : colors.primary} />
             <Text style={[styles.offerLabel, isMine ? styles.offerLabelMine : styles.offerLabelTheirs]}>
-              {offer.parent_offer_id ? 'Contre-offre' : 'Offre'}
+              {labelText}
             </Text>
           </View>
 
@@ -478,7 +488,7 @@ export function ChatScreen({ navigation, route }: Props) {
             <View style={styles.offerStatusRow}>
               <Ionicons name="arrow-redo" size={13} color={isMine ? 'rgba(11,9,7,0.5)' : colors.textSecondary} />
               <Text style={[styles.offerStatusText, isMine ? styles.offerStatusOnPrimary : { color: colors.textSecondary }]}>
-                Contre-offre envoyée
+                {isMine ? 'Contre-offre reçue' : 'Contre-offre envoyée'}
               </Text>
             </View>
           )}
@@ -486,12 +496,36 @@ export function ChatScreen({ navigation, route }: Props) {
           {/* Action buttons — only for receiver of a pending offer */}
           {canAct && (
             <View style={styles.offerActions}>
-              <TouchableOpacity style={styles.offerAcceptBtn} onPress={() => handleAcceptOffer(offer)}>
+              <TouchableOpacity
+                style={styles.offerAcceptBtn}
+                onPress={() =>
+                  Alert.alert(
+                    'Accepter cette offre ?',
+                    `Vous confirmez l'acceptation de l'offre à ${offer.amount} €.`,
+                    [
+                      { text: 'Annuler', style: 'cancel' },
+                      { text: 'Accepter', onPress: () => handleAcceptOffer(offer) },
+                    ],
+                  )
+                }
+              >
                 <Ionicons name="checkmark" size={14} color={colors.background} />
                 <Text style={styles.offerAcceptText}>Accepter</Text>
               </TouchableOpacity>
               <View style={styles.offerSecondaryRow}>
-                <TouchableOpacity style={styles.offerSecondaryBtn} onPress={() => handleDeclineOffer(offer)}>
+                <TouchableOpacity
+                  style={styles.offerSecondaryBtn}
+                  onPress={() =>
+                    Alert.alert(
+                      'Refuser cette offre ?',
+                      `L'acheteur sera informé du refus de son offre à ${offer.amount} €.`,
+                      [
+                        { text: 'Annuler', style: 'cancel' },
+                        { text: 'Refuser', style: 'destructive', onPress: () => handleDeclineOffer(offer) },
+                      ],
+                    )
+                  }
+                >
                   <Text style={styles.offerSecondaryText}>Refuser</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.offerSecondaryBtn} onPress={() => openCounterModal(offer.id)}>
@@ -773,8 +807,12 @@ const styles = StyleSheet.create({
   bubbleTimeTheirs: { color: colors.textSecondary },
 
   // Offer bubbles
+  offerBubbleRow: {
+    flexDirection: 'row',
+    marginVertical: 2,
+  },
   offerBubble: {
-    maxWidth: '82%',
+    flex: 1,
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingTop: 14,
