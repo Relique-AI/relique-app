@@ -127,8 +127,12 @@ export function ChatScreen({ navigation, route }: Props) {
     loadMessages();
     markAsRead();
 
+    // Use a unique suffix per mount so Supabase never returns a cached
+    // already-subscribed channel when navigating back to this screen.
+    const ts = Date.now();
+
     const msgChannel = supabase
-      .channel(`chat-${listing_id}-${user?.id}`)
+      .channel(`chat-${listing_id}-${ts}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `listing_id=eq.${listing_id}` },
@@ -150,7 +154,7 @@ export function ChatScreen({ navigation, route }: Props) {
 
     // Real-time offer status updates (accept/decline/counter)
     const offersChannel = supabase
-      .channel(`offers-${listing_id}-${user?.id}`)
+      .channel(`offers-${listing_id}-${ts}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'offers', filter: `listing_id=eq.${listing_id}` },
