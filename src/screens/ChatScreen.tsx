@@ -402,8 +402,6 @@ export function ChatScreen({ navigation, route }: Props) {
       }
       if (!data?.clientSecret) throw new Error('Erreur paiement');
 
-      const paymentIntentId: string = data.paymentIntentId;
-
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: 'Pépite',
         paymentIntentClientSecret: data.clientSecret,
@@ -416,12 +414,6 @@ export function ChatScreen({ navigation, route }: Props) {
         if (presentError.code !== 'Canceled') Alert.alert('Erreur', presentError.message);
         return;
       }
-
-      // Finalise la vente côté app — ne dépend pas du webhook Stripe
-      await supabase.functions.invoke('confirm-purchase', {
-        body: { payment_intent_id: paymentIntentId },
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
 
       navigation.getParent()?.navigate('Profil', {
         screen: 'Profile',
