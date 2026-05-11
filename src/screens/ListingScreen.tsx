@@ -952,11 +952,11 @@ export function ListingScreen({ navigation, route }: Props) {
             }
           </TouchableOpacity>
         ) : listing.status === 'sold' ? (
-          <View style={[styles.btnSold, { opacity: 0.6 }]}>
-            <Text style={styles.btnSoldText}>
-              {listing.buyer_id === user?.id ? 'Votre achat' : 'Article vendu'}
-            </Text>
-          </View>
+          listing.buyer_id !== user?.id ? (
+            <View style={[styles.btnSold, { opacity: 0.6 }]}>
+              <Text style={styles.btnSoldText}>Article vendu</Text>
+            </View>
+          ) : null
         ) : (
           <>
             <TouchableOpacity
