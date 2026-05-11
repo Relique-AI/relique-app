@@ -54,6 +54,11 @@ export function ProfileScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [tab, setTab] = useState<Tab>(route.params?.initialTab ?? 'listings');
+
+  // Sync tab when navigating here with initialTab param (screen already mounted)
+  useEffect(() => {
+    if (route.params?.initialTab) setTab(route.params.initialTab);
+  }, [route.params?.initialTab]);
   const [myListings, setMyListings] = useState<Listing[]>([]);
   const [favorites, setFavorites] = useState<Listing[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -152,7 +157,7 @@ export function ProfileScreen({ navigation, route }: Props) {
 
   useEffect(() => { loadAll(); }, []);
 
-  // Reload profile + question counts when returning from a sub-screen
+  // Reload data when returning to this screen
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadProfile();
@@ -160,6 +165,9 @@ export function ProfileScreen({ navigation, route }: Props) {
       loadPurchases();
       loadQuestionCounts();
       loadPendingShipments();
+      // Second pass after 4s to catch webhook-created transactions (Stripe webhook latency)
+      const t = setTimeout(() => { loadPurchases(); loadMyListings(); }, 4000);
+      return () => clearTimeout(t);
     });
     return unsubscribe;
   }, [navigation, loadProfile, loadMyListings, loadPurchases, loadQuestionCounts, loadPendingShipments]);
