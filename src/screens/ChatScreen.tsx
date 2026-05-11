@@ -468,6 +468,15 @@ export function ChatScreen({ navigation, route }: Props) {
             {offer.amount} €
           </Text>
 
+          {isPending && isMine && (
+            <View style={styles.offerStatusRow}>
+              <Ionicons name="time-outline" size={13} color="rgba(11,9,7,0.5)" />
+              <Text style={[styles.offerStatusText, styles.offerStatusOnPrimary]}>
+                En attente de réponse
+              </Text>
+            </View>
+          )}
+
           {isAccepted && (
             <View style={styles.offerStatusRow}>
               <Ionicons name="checkmark-circle" size={13} color={isMine ? 'rgba(11,9,7,0.5)' : colors.success} />

@@ -156,11 +156,13 @@ export function ProfileScreen({ navigation, route }: Props) {
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadProfile();
+      loadMyListings();
+      loadPurchases();
       loadQuestionCounts();
       loadPendingShipments();
     });
     return unsubscribe;
-  }, [navigation, loadProfile, loadQuestionCounts, loadPendingShipments]);
+  }, [navigation, loadProfile, loadMyListings, loadPurchases, loadQuestionCounts, loadPendingShipments]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
