@@ -139,6 +139,11 @@ export function SettingsScreen({ navigation }: Props) {
             label="Mentions légales & CGU"
             onPress={() => navigation.navigate('Legal')}
           />
+          <SettingsRow
+            icon="shield-checkmark-outline"
+            label="Politique de confidentialité"
+            onPress={() => navigation.navigate('PrivacyPolicy')}
+          />
         </View>
 
         {/* Zone danger */}

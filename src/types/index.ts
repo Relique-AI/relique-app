@@ -59,6 +59,7 @@ export type ProfileStackParamList = {
   Wallet: undefined;
   Settings: undefined;
   Legal: undefined;
+  PrivacyPolicy: undefined;
   Admin: undefined;
   Alerts: undefined;
   Purchases: undefined;

@@ -33,6 +33,7 @@ import { BrowseListingsScreen } from '../screens/BrowseListingsScreen';
 import { WalletScreen } from '../screens/WalletScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { LegalScreen } from '../screens/LegalScreen';
+import { PrivacyPolicyScreen } from '../screens/PrivacyPolicyScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { EditListingScreen } from '../screens/EditListingScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
@@ -181,6 +182,11 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="Legal"
         component={LegalScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <ProfileStack.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
       <ProfileStack.Screen
