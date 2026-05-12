@@ -602,6 +602,11 @@ export function ChatScreen({ navigation, route }: Props) {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       }).catch(() => {});
 
+      supabase.functions.invoke('generate-label', {
+        body: { payment_intent_id: paymentIntentId },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      }).catch(() => {});
+
       navigation.getParent()?.navigate('Profil', {
         screen: 'Profile',
         params: { initialTab: 'purchases' },

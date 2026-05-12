@@ -49,6 +49,13 @@ const SHIPPING_OPTIONS = [
   { id: 'chronopost', label: 'Chronopost', detail: 'À partir de 12,00 €' },
 ];
 
+const PARCEL_SIZES = [
+  { id: 'xs', label: 'Petit',      detail: 'Jusqu\'à 1 kg · bijoux, accessoires' },
+  { id: 's',  label: 'Moyen',      detail: 'Jusqu\'à 3 kg · vêtements, livres' },
+  { id: 'm',  label: 'Grand',      detail: 'Jusqu\'à 5 kg · objets décoratifs' },
+  { id: 'l',  label: 'Très grand', detail: 'Jusqu\'à 10 kg · mobilier léger' },
+];
+
 async function compressPhoto(uri: string): Promise<string> {
   const result = await ImageManipulator.manipulateAsync(
     uri,
@@ -112,6 +119,9 @@ export function SellScreen({ navigation, route }: Props) {
   const [location, setLocation] = useState('');
   const [shippingOptions, setShippingOptions] = useState<string[]>(['hand']);
   const [shippingPrice, setShippingPrice] = useState('0');
+  const [parcelSize, setParcelSize] = useState('s');
+
+  const hasPostal = shippingOptions.some(o => o !== 'hand');
   const [tipsOpen, setTipsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -180,6 +190,7 @@ export function SellScreen({ navigation, route }: Props) {
         location: location.trim() || null,
         shipping_options: shippingOptions,
         shipping_price: parseFloat(shippingPrice.replace(',', '.')) || 0,
+        parcel_size: hasPostal ? parcelSize : null,
       });
 
       if (error) throw error;
@@ -365,6 +376,34 @@ export function SellScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Format du colis */}
+          {hasPostal && (
+            <View style={styles.field}>
+              <Text style={styles.label}>Format du colis</Text>
+              <Text style={styles.shippingSubtitle}>Choisissez la tranche correspondant à votre colis</Text>
+              {PARCEL_SIZES.map((size) => (
+                <TouchableOpacity
+                  key={size.id}
+                  style={[styles.shippingRow, parcelSize === size.id && styles.shippingRowActive]}
+                  onPress={() => setParcelSize(size.id)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.shippingCheck, parcelSize === size.id && styles.shippingCheckActive]}>
+                    {parcelSize === size.id && (
+                      <Ionicons name="checkmark" size={13} color={colors.background} />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.shippingLabel, parcelSize === size.id && styles.shippingLabelActive]}>
+                      {size.label}
+                    </Text>
+                    <Text style={styles.shippingDetail}>{size.detail}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           {/* Prix de livraison */}
           <View style={styles.field}>

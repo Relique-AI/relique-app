@@ -14,6 +14,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -65,7 +66,7 @@ export function ProfileScreen({ navigation, route }: Props) {
   const [referralCode, setReferralCode] = useState('');
   const [referralCount, setReferralCount] = useState(0);
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
-  const [pendingShipments, setPendingShipments] = useState<Record<string, { transaction_id: string; delivery_address: string | null }>>({});
+  const [pendingShipments, setPendingShipments] = useState<Record<string, { transaction_id: string; delivery_address: string | null; label_url: string | null }>>({});
   const [trackingModal, setTrackingModal] = useState<{ transactionId: string; deliveryAddress: string | null } | null>(null);
   const [trackingInput, setTrackingInput] = useState('');
   const [savedEstimations, setSavedEstimations] = useState<SavedEstimation[]>([]);
@@ -149,13 +150,13 @@ export function ProfileScreen({ navigation, route }: Props) {
     if (!user) return;
     const { data } = await supabase
       .from('transactions')
-      .select('id, listing_id, delivery_address')
+      .select('id, listing_id, delivery_address, label_url')
       .eq('seller_id', user.id)
       .eq('shipping_status', 'to_ship');
     if (data) {
-      const map: Record<string, { transaction_id: string; delivery_address: string | null }> = {};
+      const map: Record<string, { transaction_id: string; delivery_address: string | null; label_url: string | null }> = {};
       for (const t of data as any[]) {
-        map[t.listing_id] = { transaction_id: t.id, delivery_address: t.delivery_address };
+        map[t.listing_id] = { transaction_id: t.id, delivery_address: t.delivery_address, label_url: t.label_url ?? null };
       }
       setPendingShipments(map);
     }
@@ -354,6 +355,15 @@ export function ProfileScreen({ navigation, route }: Props) {
               >
                 <Ionicons name="send-outline" size={11} color={colors.background} />
                 <Text style={styles.shipBadgeText}>Expédier</Text>
+              </TouchableOpacity>
+            )}
+            {pendingShipment?.label_url && (
+              <TouchableOpacity
+                style={styles.labelBadge}
+                onPress={() => Linking.openURL(pendingShipment.label_url!)}
+              >
+                <Ionicons name="download-outline" size={11} color={colors.primary} />
+                <Text style={styles.labelBadgeText}>Étiquette</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -888,6 +898,18 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   shipBadgeText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.background },
+  labelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245,184,46,0.12)',
+    borderRadius: 20,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  labelBadgeText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.primary },
   trackingText: { fontFamily: fonts.body, fontSize: 11, color: colors.textSecondary, marginTop: 4 },
   confirmReceiptBtn: {
     flexDirection: 'row',

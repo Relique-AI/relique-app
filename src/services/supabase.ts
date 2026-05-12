@@ -81,6 +81,7 @@ export interface Listing {
   location: string | null;
   shipping_options: string[] | null;
   shipping_price: number | null;
+  parcel_size: string | null;
   created_at: string;
   profiles?: Profile;
 }
