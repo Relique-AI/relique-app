@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   KeyboardAvoidingView,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppTextInput } from '../components/AppTextInput';
@@ -17,11 +18,13 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList, AnalysisResult } from '../types';
+import { RootStackParamList, AnalysisResult, CapturedPhoto } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { ConditionBadge } from '../components/ConditionBadge';
+
+const { width } = Dimensions.get('window');
 
 type Props = {
   navigation: StackNavigationProp<RootStackParamList, 'Sell'>;
@@ -91,9 +94,16 @@ async function uploadPhoto(
 
 export function SellScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { analysis, photos } = route.params;
+  const { analysis, photos: initialPhotos, preUploadedPhotoUrls } = route.params;
   const { user, session } = useAuth();
 
+  const isPreUploaded = !!(preUploadedPhotoUrls?.length);
+  const [photos, setPhotos] = useState<CapturedPhoto[]>(
+    isPreUploaded
+      ? preUploadedPhotoUrls!.map(url => ({ uri: url, base64: '' }))
+      : initialPhotos,
+  );
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [name, setName] = useState(analysis.name);
   const [category, setCategory] = useState(analysis.category);
   const [condition, setCondition] = useState<AnalysisResult['condition']>(analysis.condition);
@@ -111,6 +121,27 @@ export function SellScreen({ navigation, route }: Props) {
     );
   };
 
+  const deletePhoto = () => {
+    if (photos.length <= 1) {
+      Alert.alert('Photo requise', 'Vous devez conserver au moins une photo.');
+      return;
+    }
+    Alert.alert('Supprimer cette photo ?', '', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: () => {
+          setPhotos((prev) => {
+            const next = prev.filter((_, i) => i !== activePhotoIndex);
+            setActivePhotoIndex((idx) => Math.min(idx, next.length - 1));
+            return next;
+          });
+        },
+      },
+    ]);
+  };
+
   const handlePublish = async () => {
     if (!name.trim()) {
       Alert.alert('Champ requis', 'Veuillez saisir un nom pour l\'objet.');
@@ -126,9 +157,9 @@ export function SellScreen({ navigation, route }: Props) {
     setLoading(true);
     try {
       await supabase.rpc('ensure_profile');
-      const imageUrls = await Promise.all(
-        photos.map(p => uploadPhoto(p.uri, user.id, session.access_token))
-      );
+      const imageUrls = isPreUploaded
+        ? photos.map(p => p.uri)
+        : await Promise.all(photos.map(p => uploadPhoto(p.uri, user.id, session.access_token)));
 
       const { error } = await supabase.from('listings').insert({
         seller_id: user.id,
@@ -195,8 +226,30 @@ export function SellScreen({ navigation, route }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Aperçu photo */}
-          <Image source={{ uri: photos[0].uri }} style={styles.photoPreview} />
+          {/* Aperçu photos */}
+          <View>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+                setActivePhotoIndex(idx);
+              }}
+            >
+              {photos.map((photo, i) => (
+                <Image key={i} source={{ uri: photo.uri }} style={styles.photoPreview} />
+              ))}
+            </ScrollView>
+            {photos.length > 1 && (
+              <View style={styles.photoCounter}>
+                <Text style={styles.photoCounterText}>{activePhotoIndex + 1} / {photos.length}</Text>
+              </View>
+            )}
+            <TouchableOpacity style={styles.deletePhotoBtn} onPress={deletePhoto}>
+              <Ionicons name="trash-outline" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
 
           {/* Nom */}
           <View style={styles.field}>
@@ -393,9 +446,31 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: fonts.bodySemiBold, fontSize: 17, color: colors.textPrimary },
   content: { paddingBottom: 16 },
   photoPreview: {
-    width: '100%',
+    width,
     height: 220,
     resizeMode: 'cover',
+  },
+  photoCounter: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  photoCounterText: {
+    color: '#fff',
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+  },
+  deletePhotoBtn: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 20,
+    padding: 8,
   },
   field: { paddingHorizontal: spacing.section, paddingTop: spacing.base },
   label: {

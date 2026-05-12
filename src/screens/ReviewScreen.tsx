@@ -73,6 +73,27 @@ export function ReviewScreen({ navigation, route }: Props) {
     );
   };
 
+  const deletePhoto = () => {
+    if (photos.length <= 1) {
+      Alert.alert('Photo requise', 'Vous devez conserver au moins une photo.');
+      return;
+    }
+    Alert.alert('Supprimer cette photo ?', '', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: () => {
+          setPhotos((prev) => {
+            const next = prev.filter((_, i) => i !== activeIndex);
+            setActiveIndex((idx) => Math.min(idx, next.length - 1));
+            return next;
+          });
+        },
+      },
+    ]);
+  };
+
   const handleAnalyse = () => {
     navigation.navigate('Loading', { photos });
   };
@@ -118,6 +139,9 @@ export function ReviewScreen({ navigation, route }: Props) {
               <Text style={styles.counterText}>{activeIndex + 1} / {photos.length}</Text>
             </View>
           )}
+          <TouchableOpacity style={styles.deletePhotoBtn} onPress={deletePhoto}>
+            <Ionicons name="trash-outline" size={18} color="#fff" />
+          </TouchableOpacity>
         </View>
 
         {/* Indicateurs de page */}
@@ -218,6 +242,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 4,
+  },
+  deletePhotoBtn: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 20,
+    padding: 8,
   },
   counterText: {
     color: '#fff',

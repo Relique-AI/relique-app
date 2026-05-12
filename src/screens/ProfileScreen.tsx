@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors, fonts, spacing } from '../theme';
-import { supabase, Listing, Profile } from '../services/supabase';
+import { supabase, Listing, Profile, SavedEstimation } from '../services/supabase';
 import { AppTextInput } from '../components/AppTextInput';
 import { useAuth } from '../context/AuthContext';
 import { ConditionBadge } from '../components/ConditionBadge';
@@ -68,6 +68,7 @@ export function ProfileScreen({ navigation, route }: Props) {
   const [pendingShipments, setPendingShipments] = useState<Record<string, { transaction_id: string; delivery_address: string | null }>>({});
   const [trackingModal, setTrackingModal] = useState<{ transactionId: string; deliveryAddress: string | null } | null>(null);
   const [trackingInput, setTrackingInput] = useState('');
+  const [savedEstimations, setSavedEstimations] = useState<SavedEstimation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -134,6 +135,16 @@ export function ProfileScreen({ navigation, route }: Props) {
     if (data) setPurchases(data as unknown as Purchase[]);
   }, [user]);
 
+  const loadSavedEstimations = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('saved_estimations')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (data) setSavedEstimations(data as SavedEstimation[]);
+  }, [user]);
+
   const loadPendingShipments = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
@@ -151,9 +162,9 @@ export function ProfileScreen({ navigation, route }: Props) {
   }, [user]);
 
   const loadAll = useCallback(async () => {
-    await Promise.all([loadProfile(), loadMyListings(), loadFavorites(), loadPurchases(), loadQuestionCounts(), loadPendingShipments()]);
+    await Promise.all([loadProfile(), loadMyListings(), loadFavorites(), loadPurchases(), loadQuestionCounts(), loadPendingShipments(), loadSavedEstimations()]);
     setLoading(false);
-  }, [loadProfile, loadMyListings, loadFavorites, loadPurchases, loadQuestionCounts, loadPendingShipments]);
+  }, [loadProfile, loadMyListings, loadFavorites, loadPurchases, loadQuestionCounts, loadPendingShipments, loadSavedEstimations]);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -165,6 +176,7 @@ export function ProfileScreen({ navigation, route }: Props) {
       loadPurchases();
       loadQuestionCounts();
       loadPendingShipments();
+      loadSavedEstimations();
       // Second pass after 4s to catch webhook-created transactions (Stripe webhook latency)
       const t = setTimeout(() => { loadPurchases(); loadMyListings(); }, 4000);
       return () => clearTimeout(t);
@@ -176,6 +188,31 @@ export function ProfileScreen({ navigation, route }: Props) {
     setRefreshing(true);
     await loadAll();
     setRefreshing(false);
+  };
+
+  const sellDraft = (draft: SavedEstimation) => {
+    navigation.getParent()?.navigate('Scanner', {
+      screen: 'Sell',
+      params: {
+        analysis: draft.analysis,
+        photos: [],
+        preUploadedPhotoUrls: draft.photo_urls,
+      },
+    });
+  };
+
+  const deleteDraft = (id: string) => {
+    Alert.alert('Supprimer ce brouillon ?', 'Cette estimation sera définitivement supprimée.', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.from('saved_estimations').delete().eq('id', id);
+          setSavedEstimations(prev => prev.filter(d => d.id !== id));
+        },
+      },
+    ]);
   };
 
   const deleteListing = (id: string) => {
@@ -521,6 +558,52 @@ export function ProfileScreen({ navigation, route }: Props) {
             colors={[colors.primary]}
           />
         }
+        ListHeaderComponent={
+          tab === 'listings' && savedEstimations.length > 0 ? (
+            <View style={styles.draftSection}>
+              <Text style={styles.draftSectionLabel}>Brouillons</Text>
+              {savedEstimations.map((draft) => {
+                const date = new Date(draft.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                return (
+                  <TouchableOpacity
+                    key={draft.id}
+                    style={[styles.myCard, { marginBottom: 10 }]}
+                    activeOpacity={0.75}
+                    onPress={() => sellDraft(draft)}
+                  >
+                    <View style={styles.myCardLeft}>
+                      {draft.photo_urls[0] ? (
+                        <Image source={{ uri: draft.photo_urls[0] }} style={styles.myCardImg} />
+                      ) : (
+                        <View style={[styles.myCardImg, styles.myCardImgPlaceholder]}>
+                          <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.myCardBody}>
+                      <Text style={styles.myCardName} numberOfLines={2}>{draft.analysis.name}</Text>
+                      <Text style={styles.myCardPrice}>{draft.analysis.priceMin} — {draft.analysis.priceMax} €</Text>
+                      <View style={styles.myCardRow}>
+                        <View style={[styles.statusBadge, { backgroundColor: 'rgba(245,184,46,0.12)' }]}>
+                          <Text style={[styles.statusText, { color: colors.primary }]}>Brouillon · {date}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.myCardActions}>
+                      <TouchableOpacity style={styles.actionBtn} onPress={() => sellDraft(draft)}>
+                        <Ionicons name="bag-add-outline" size={22} color={colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.actionBtn} onPress={() => deleteDraft(draft.id)}>
+                        <Ionicons name="trash-outline" size={22} color={colors.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+              {myListings.length > 0 && <Text style={[styles.draftSectionLabel, { marginTop: 16 }]}>Mes annonces</Text>}
+            </View>
+          ) : null
+        }
         ItemSeparatorComponent={tab === 'listings' ? () => <View style={styles.separator} /> : undefined}
         ListFooterComponent={
           <View style={styles.footer}>
@@ -671,6 +754,17 @@ const styles = StyleSheet.create({
   tabItemActive: { backgroundColor: colors.primary },
   tabText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textSecondary },
   tabTextActive: { color: colors.background },
+
+  // Brouillons
+  draftSection: { paddingHorizontal: spacing.section, paddingTop: spacing.base },
+  draftSectionLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.primaryDim,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
 
   // Mes annonces
   myList: { paddingHorizontal: spacing.section, paddingBottom: 24 },

@@ -9,6 +9,7 @@ import {
   Animated,
   Dimensions,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList, AnalysisResult } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../services/supabase';
 
 const { height } = Dimensions.get('window');
 const SECTION_COUNT = 5;
@@ -58,8 +60,9 @@ const chipStyles = StyleSheet.create({
 export function ResultScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { analysis, photos, memory } = route.params;
-  const { isGuest, exitGuestMode } = useAuth();
+  const { isGuest, exitGuestMode, user, session } = useAuth();
   const [tipsOpen, setTipsOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Animation de glissement vers le haut
   const slideAnim = useRef(new Animated.Value(height * 0.6)).current;
@@ -90,6 +93,57 @@ export function ResultScreen({ navigation, route }: Props) {
     );
     Animated.parallel(fadeSequence).start();
   }, []);
+
+  const handleSave = async () => {
+    if (isGuest) {
+      Alert.alert(
+        'Compte requis',
+        'Créez un compte gratuit pour sauvegarder vos estimations.',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: "S'inscrire", onPress: exitGuestMode },
+        ],
+      );
+      return;
+    }
+    if (!user || !session || saving) return;
+    setSaving(true);
+    try {
+      const photoUrls = await Promise.all(
+        photos.map(async (photo, i) => {
+          const fileName = `drafts/${user.id}/${Date.now()}_${i}.jpg`;
+          const formData = new FormData();
+          formData.append('file', { uri: photo.uri, type: 'image/jpeg', name: `photo_${i}.jpg` } as any);
+          const url = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/listing-images/${fileName}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
+            },
+            body: formData,
+          });
+          if (!res.ok) throw new Error('Upload photo échoué');
+          const { data } = supabase.storage.from('listing-images').getPublicUrl(fileName);
+          return data.publicUrl;
+        }),
+      );
+      const { error } = await supabase.from('saved_estimations').insert({
+        user_id: user.id,
+        analysis,
+        photo_urls: photoUrls,
+      });
+      if (error) throw error;
+      Alert.alert(
+        'Estimation sauvegardée !',
+        'Retrouvez-la dans votre profil sous "Brouillons" pour la mettre en vente quand vous le souhaitez.',
+      );
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message ?? 'Impossible de sauvegarder l\'estimation.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSell = () => {
     if (isGuest) {
@@ -281,19 +335,36 @@ export function ResultScreen({ navigation, route }: Props) {
       {/* Barre d'actions fixe */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
         <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={handleRestart}
+          style={[styles.saveButton, saving && { opacity: 0.6 }]}
+          onPress={handleSave}
           activeOpacity={0.75}
+          disabled={saving}
         >
-          <Text style={styles.secondaryText}>Recommencer</Text>
+          {saving ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <>
+              <Ionicons name="bookmark-outline" size={16} color={colors.primary} />
+              <Text style={styles.saveText}>Sauvegarder</Text>
+            </>
+          )}
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={handleSell}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.primaryText}>Mettre en vente</Text>
-        </TouchableOpacity>
+        <View style={styles.bottomRow}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleRestart}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.secondaryText}>Recommencer</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleSell}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.primaryText}>Mettre en vente</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -519,14 +590,33 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    gap: 10,
+    flexDirection: 'column',
+    gap: 8,
     paddingHorizontal: spacing.section,
     paddingTop: 12,
     paddingBottom: 0,
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.surface,
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 50,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  saveText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 15,
+    color: colors.primary,
   },
   secondaryButton: {
     flex: 1,

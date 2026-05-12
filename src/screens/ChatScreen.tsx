@@ -11,8 +11,13 @@ import {
   Animated,
   Alert,
   Platform,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import Reanimated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors, fonts, spacing } from '../theme';
@@ -67,6 +72,94 @@ function TypingDots() {
   );
 }
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+function ImageViewerModal({ uri, onClose }: { uri: string; onClose: () => void }) {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const offsetX = useSharedValue(0);
+  const offsetY = useSharedValue(0);
+  const savedX = useSharedValue(0);
+  const savedY = useSharedValue(0);
+
+  const pinch = Gesture.Pinch()
+    .onUpdate((e) => {
+      scale.value = Math.max(1, Math.min(savedScale.value * e.scale, 5));
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+    });
+
+  const pan = Gesture.Pan()
+    .onUpdate((e) => {
+      offsetX.value = savedX.value + e.translationX;
+      offsetY.value = savedY.value + e.translationY;
+    })
+    .onEnd(() => {
+      savedX.value = offsetX.value;
+      savedY.value = offsetY.value;
+    });
+
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      scale.value = withSpring(1);
+      savedScale.value = 1;
+      offsetX.value = withSpring(0);
+      offsetY.value = withSpring(0);
+      savedX.value = 0;
+      savedY.value = 0;
+    });
+
+  const gestures = Gesture.Simultaneous(doubleTap, Gesture.Simultaneous(pinch, pan));
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: offsetX.value },
+      { translateY: offsetY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  return (
+    <Modal transparent statusBarTranslucent animationType="fade" onRequestClose={onClose}>
+      <View style={ivStyles.overlay}>
+        <GestureDetector gesture={gestures}>
+          <Reanimated.Image
+            source={{ uri }}
+            style={[ivStyles.image, animStyle]}
+            resizeMode="contain"
+          />
+        </GestureDetector>
+        <TouchableOpacity style={ivStyles.closeBtn} onPress={onClose}>
+          <Ionicons name="close" size={22} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    </Modal>
+  );
+}
+
+const ivStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  image: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: 52,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+});
+
 const SHIPPING_LABELS: Record<string, string> = {
   hand: 'Remise en main propre',
   relay: 'Mondial Relay',
@@ -94,6 +187,9 @@ export function ChatScreen({ navigation, route }: Props) {
   const [showCounterModal, setShowCounterModal] = useState(false);
   const [counterTargetOfferId, setCounterTargetOfferId] = useState<string | null>(null);
   const [counterAmount, setCounterAmount] = useState('');
+
+  const [sendingImage, setSendingImage] = useState(false);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   // Shipping sheet for offer payment
   const [showShippingSheet, setShowShippingSheet] = useState(false);
@@ -253,6 +349,90 @@ export function ChatScreen({ navigation, route }: Props) {
     }).catch(() => {});
 
     setSending(false);
+  };
+
+  const pickAndSendImage = async (source: 'camera' | 'library') => {
+    if (!user || sendingImage) return;
+
+    let result: ImagePicker.ImagePickerResult;
+    if (source === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', 'L\'accès à la caméra est nécessaire.');
+        return;
+      }
+      result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', 'L\'accès à la galerie est nécessaire.');
+        return;
+      }
+      result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
+    }
+
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+
+    const uri = result.assets[0].uri;
+    setSendingImage(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session?.access_token) throw new Error('Non authentifié');
+
+      const fileName = `chat/${user.id}/${Date.now()}.jpg`;
+      const formData = new FormData();
+      formData.append('file', { uri, type: 'image/jpeg', name: `${Date.now()}.jpg` } as any);
+
+      const uploadUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/listing-images/${fileName}`;
+      const res = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
+        },
+        body: formData,
+      });
+      if (!res.ok) throw new Error(`Upload échoué : ${await res.text().catch(() => '')}`);
+
+      const { data: urlData } = supabase.storage.from('listing-images').getPublicUrl(fileName);
+
+      await supabase.from('messages').insert({
+        listing_id,
+        sender_id: user.id,
+        receiver_id,
+        content: urlData.publicUrl,
+        type: 'image',
+      });
+
+      const { data: senderProfile } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+      supabase.functions.invoke('send-push', {
+        body: {
+          receiver_id,
+          sender_name: senderProfile?.username ?? 'Quelqu\'un',
+          listing_name,
+          message_preview: '📷 Photo',
+          type: 'message',
+          listing_id,
+          sender_id: user.id,
+        },
+      }).catch(() => {});
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message ?? 'Impossible d\'envoyer la photo');
+    } finally {
+      setSendingImage(false);
+    }
+  };
+
+  const handlePhotoPress = () => {
+    Alert.alert(
+      'Envoyer une photo',
+      undefined,
+      [
+        { text: 'Prendre une photo', onPress: () => pickAndSendImage('camera') },
+        { text: 'Choisir depuis la galerie', onPress: () => pickAndSendImage('library') },
+        { text: 'Annuler', style: 'cancel' },
+      ],
+    );
   };
 
   // ── Offer actions ──────────────────────────────────────────────────────────
@@ -587,6 +767,18 @@ export function ChatScreen({ navigation, route }: Props) {
   const renderMessage = ({ item }: { item: Message }) => {
     if (item.type === 'offer') return renderOfferBubble(item);
     const isMine = item.sender_id === user?.id;
+    if (item.type === 'image') {
+      return (
+        <View style={[styles.bubbleRow, isMine ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
+          <TouchableOpacity activeOpacity={0.9} onPress={() => setViewingImage(item.content)}>
+            <Image source={{ uri: item.content }} style={styles.imageBubble} resizeMode="cover" />
+            <Text style={[styles.bubbleTime, isMine ? styles.bubbleTimeMine : styles.bubbleTimeTheirs, { paddingHorizontal: 4 }]}>
+              {formatTime(item.created_at)}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
     return (
       <View style={[styles.bubbleRow, isMine ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
         <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
@@ -661,6 +853,12 @@ export function ChatScreen({ navigation, route }: Props) {
 
         {/* Text input bar */}
         <View style={[styles.inputBar, { paddingBottom: insets.bottom + 10 }]}>
+          <TouchableOpacity style={styles.photoBtn} onPress={handlePhotoPress} disabled={sendingImage}>
+            {sendingImage
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Ionicons name="camera-outline" size={22} color={colors.textSecondary} />
+            }
+          </TouchableOpacity>
           <AppTextInput
             style={styles.input}
             value={input}
@@ -780,6 +978,9 @@ export function ChatScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+      )}
+      {viewingImage && (
+        <ImageViewerModal uri={viewingImage} onClose={() => setViewingImage(null)} />
       )}
     </SafeAreaView>
   );
@@ -918,12 +1119,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.chipBackground,
   },
+  photoBtn: {
+    width: 44, height: 44,
+    alignItems: 'center', justifyContent: 'center',
+  },
   sendBtn: {
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnDisabled: { opacity: 0.4 },
+  imageBubble: {
+    width: 220, height: 180, borderRadius: 16,
+  },
 
   // Counter-offer modal
   modalOverlay: {

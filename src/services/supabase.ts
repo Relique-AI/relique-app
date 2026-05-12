@@ -93,7 +93,7 @@ export interface Message {
   content: string;
   read: boolean;
   created_at: string;
-  type: 'text' | 'offer';
+  type: 'text' | 'offer' | 'image';
   offer_id: string | null;
 }
 
@@ -113,5 +113,13 @@ export interface Favorite {
   id: string;
   user_id: string;
   listing_id: string;
+  created_at: string;
+}
+
+export interface SavedEstimation {
+  id: string;
+  user_id: string;
+  analysis: import('../types').AnalysisResult;
+  photo_urls: string[];
   created_at: string;
 }
