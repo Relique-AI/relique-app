@@ -36,7 +36,7 @@ export function AuthScreen() {
       if (!email.trim()) { setError('Veuillez saisir votre email.'); return; }
       setLoading(true);
       const { error: err } = await import('../services/supabase').then(m =>
-        m.supabase.auth.resetPasswordForEmail(email.trim())
+        m.supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: 'pepite://auth/callback' })
       );
       setLoading(false);
       if (err) setError(translateError(err.message));

@@ -1,19 +1,17 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
-// Sendcloud tracking status → shipping_status dans la DB
 const STATUS_MAP: Record<number, string | null> = {
-  1:  'to_ship',    // En attente
-  11: 'to_ship',    // En attente de dépôt
-  12: 'shipped',    // Remis au transporteur
-  13: 'shipped',    // En transit
-  14: 'shipped',    // En transit
-  15: 'shipped',    // En cours de livraison
-  93: 'delivered',  // Livré
-  92: 'delivered',  // Livré au point relais
+  1:  'to_ship',
+  11: 'to_ship',
+  12: 'shipped',
+  13: 'shipped',
+  14: 'shipped',
+  15: 'shipped',
+  93: 'delivered',
+  92: 'delivered',
 };
 
-serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: {
@@ -26,7 +24,6 @@ serve(async (req) => {
   try {
     const payload = await req.json();
 
-    // Sendcloud envoie un tableau de parcels
     const parcels: any[] = payload.parcel ? [payload.parcel] : (payload.parcels ?? []);
     if (parcels.length === 0) return new Response('ok', { status: 200 });
 
@@ -45,7 +42,6 @@ serve(async (req) => {
       const newStatus = STATUS_MAP[statusCode] ?? null;
       if (!newStatus) continue;
 
-      // order_number = transaction.id (défini dans generate-label)
       const update: Record<string, string> = { shipping_status: newStatus };
       if (trackingNumber) update.tracking_number = trackingNumber;
 

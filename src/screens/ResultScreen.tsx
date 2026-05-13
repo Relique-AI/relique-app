@@ -10,6 +10,9 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,6 +66,7 @@ export function ResultScreen({ navigation, route }: Props) {
   const { isGuest, exitGuestMode, user, session } = useAuth();
   const [tipsOpen, setTipsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [clarifyContext, setClarifyContext] = useState('');
 
   // Animation de glissement vers le haut
   const slideAnim = useRef(new Animated.Value(height * 0.6)).current;
@@ -143,6 +147,10 @@ export function ResultScreen({ navigation, route }: Props) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleReanalyse = () => {
+    navigation.navigate('Loading', { photos, memory: clarifyContext.trim() });
   };
 
   const handleSell = () => {
@@ -236,17 +244,6 @@ export function ResultScreen({ navigation, route }: Props) {
           <Animated.View style={[styles.section, { opacity: fadeAnims[2] }]}>
             <Text style={styles.sectionLabel}>Son histoire</Text>
             <Text style={styles.storyText}>{analysis.story}</Text>
-            {!!memory && (
-              <View style={styles.memoryBlock}>
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={16}
-                  color={colors.primary}
-                  style={{ marginTop: 2 }}
-                />
-                <Text style={styles.memoryText}>{memory}</Text>
-              </View>
-            )}
           </Animated.View>
 
           <View style={styles.divider} />
@@ -312,18 +309,36 @@ export function ResultScreen({ navigation, route }: Props) {
           {/* Questions de clarification */}
           {(analysis.clarifyingQuestions ?? []).length > 0 && (
             <Animated.View style={[styles.section, { opacity: fadeAnims[4] }]}>
-              <View style={styles.clarifyCard}>
-                <View style={styles.clarifyHeader}>
-                  <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
-                  <Text style={styles.clarifyTitle}>Pour affiner l'estimation</Text>
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'position' : undefined}>
+                <View style={styles.clarifyCard}>
+                  <View style={styles.clarifyHeader}>
+                    <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
+                    <Text style={styles.clarifyTitle}>Pour affiner l'estimation</Text>
+                  </View>
+                  {analysis.clarifyingQuestions!.map((q, i) => (
+                    <Text key={i} style={styles.clarifyQ}>• {q}</Text>
+                  ))}
+                  <Text style={styles.clarifyInputLabel}>Vos réponses</Text>
+                  <TextInput
+                    style={styles.clarifyInput}
+                    value={clarifyContext}
+                    onChangeText={setClarifyContext}
+                    placeholder="Ex : marque Hermès, acheté en 1985 à Paris, héritage familial..."
+                    placeholderTextColor={colors.textSecondary}
+                    multiline
+                    textAlignVertical="top"
+                  />
+                  <TouchableOpacity
+                    style={[styles.clarifyBtn, !clarifyContext.trim() && { opacity: 0.4 }]}
+                    onPress={handleReanalyse}
+                    disabled={!clarifyContext.trim()}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="refresh" size={14} color={colors.background} />
+                    <Text style={styles.clarifyBtnText}>Relancer l'analyse</Text>
+                  </TouchableOpacity>
                 </View>
-                {analysis.clarifyingQuestions!.map((q, i) => (
-                  <Text key={i} style={styles.clarifyQ}>• {q}</Text>
-                ))}
-                <Text style={styles.clarifyHint}>
-                  Renseignez ces informations dans le champ "souvenir" et relancez l'analyse.
-                </Text>
-              </View>
+              </KeyboardAvoidingView>
             </Animated.View>
           )}
 
@@ -423,25 +438,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
     lineHeight: 26,
-  },
-  memoryBlock: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginTop: 18,
-    padding: 14,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  memoryText: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.textSecondary,
-    flex: 1,
-    lineHeight: 21,
-    fontStyle: 'italic',
   },
   conditionBadge: {
     alignSelf: 'flex-start',
@@ -583,7 +579,36 @@ const styles = StyleSheet.create({
   clarifyHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   clarifyTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.primary },
   clarifyQ: { fontFamily: fonts.body, fontSize: 13, color: colors.textPrimary, lineHeight: 20 },
-  clarifyHint: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, lineHeight: 17, marginTop: 4 },
+  clarifyInputLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textDisabled,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    marginTop: 6,
+  },
+  clarifyInput: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 12,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.textPrimary,
+    minHeight: 80,
+    borderWidth: 1,
+    borderColor: 'rgba(245,184,46,0.25)',
+  },
+  clarifyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 50,
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  clarifyBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.background },
 
   bottomBar: {
     position: 'absolute',

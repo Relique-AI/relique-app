@@ -17,7 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Reanimated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { colors, fonts, spacing } from '../theme';
@@ -123,18 +123,20 @@ function ImageViewerModal({ uri, onClose }: { uri: string; onClose: () => void }
 
   return (
     <Modal transparent statusBarTranslucent animationType="fade" onRequestClose={onClose}>
-      <View style={ivStyles.overlay}>
-        <GestureDetector gesture={gestures}>
-          <Reanimated.Image
-            source={{ uri }}
-            style={[ivStyles.image, animStyle]}
-            resizeMode="contain"
-          />
-        </GestureDetector>
-        <TouchableOpacity style={ivStyles.closeBtn} onPress={onClose}>
-          <Ionicons name="close" size={22} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={ivStyles.overlay}>
+          <GestureDetector gesture={gestures}>
+            <Reanimated.Image
+              source={{ uri }}
+              style={[ivStyles.image, animStyle]}
+              resizeMode="contain"
+            />
+          </GestureDetector>
+          <TouchableOpacity style={ivStyles.closeBtn} onPress={onClose}>
+            <Ionicons name="close" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -200,8 +202,17 @@ export function ChatScreen({ navigation, route }: Props) {
   const flatListRef = useRef<FlatList>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const initialScrolled = useRef(false);
 
   const isBuyer = listing !== null && listing.seller_id !== user?.id;
+
+  // Scroll to bottom once after initial load
+  useEffect(() => {
+    if (!loading && messages.length > 0 && !initialScrolled.current) {
+      initialScrolled.current = true;
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 80);
+    }
+  }, [loading, messages.length]);
 
   // Load full listing data (needed for shipping options and seller_id)
   useEffect(() => {
@@ -824,7 +835,7 @@ export function ChatScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {loading ? (
           <View style={styles.loader}>
             <ActivityIndicator color={colors.primary} />
@@ -836,8 +847,9 @@ export function ChatScreen({ navigation, route }: Props) {
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
             contentContainerStyle={styles.messageList}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+            onContentSizeChange={() => {
+              if (initialScrolled.current) flatListRef.current?.scrollToEnd({ animated: true });
+            }}
             ListEmptyComponent={
               <View style={styles.empty}>
                 <Ionicons name="chatbubbles-outline" size={40} color={colors.textSecondary} />

@@ -101,7 +101,7 @@ export function LoadingScreen({ navigation, route }: Props) {
       }, TIMEOUT_MS);
 
       try {
-        const analysis = await analyzeObject(photos, controller.signal);
+        const analysis = await analyzeObject(photos, controller.signal, memory);
         clearTimeout(timeout);
         if (!cancelled) navigation.replace('Result', { analysis, photos, memory });
       } catch (err: unknown) {

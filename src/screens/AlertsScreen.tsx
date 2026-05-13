@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Switch,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,10 +33,18 @@ const CATEGORIES = [
   { name: 'Horlogerie', icon: 'time-outline' },
   { name: 'Tableaux & Gravures', icon: 'image-outline' },
   { name: 'Livres & BD', icon: 'book-outline' },
-  { name: 'Jouets & Jeux', icon: 'game-controller-outline' },
+  { name: 'Jouets & Jeux', icon: 'dice-outline' },
   { name: 'Vintage & Mode', icon: 'shirt-outline' },
   { name: 'Appareils photo', icon: 'camera-outline' },
   { name: 'Vinyles & Musique', icon: 'musical-notes-outline' },
+  { name: 'Informatique & Électronique', icon: 'laptop-outline' },
+  { name: 'Téléphones & Tablettes', icon: 'phone-portrait-outline' },
+  { name: 'Consoles & Jeux vidéo', icon: 'game-controller-outline' },
+  { name: 'Électroménager', icon: 'flash-outline' },
+  { name: 'Sport & Loisirs', icon: 'bicycle-outline' },
+  { name: 'Instruments de musique', icon: 'musical-note-outline' },
+  { name: 'Véhicules & Accessoires', icon: 'car-outline' },
+  { name: 'Divers', icon: 'apps-outline' },
 ] as const;
 
 type Prefs = {
@@ -133,6 +143,7 @@ export function AlertsScreen({ navigation }: Props) {
         <View style={{ width: 48 }} />
       </View>
 
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
@@ -232,6 +243,7 @@ export function AlertsScreen({ navigation }: Props) {
         </View>
 
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

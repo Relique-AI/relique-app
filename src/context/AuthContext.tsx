@@ -10,6 +10,8 @@ interface AuthContextValue {
   hasUsername: boolean;
   isAdmin: boolean;
   isGuest: boolean;
+  isRecovery: boolean;
+  clearRecovery: () => void;
   enterGuestMode: () => void;
   exitGuestMode: () => void;
   refreshProfile: () => Promise<void>;
@@ -28,8 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hasUsername, setHasUsername] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
+  const [isRecovery, setIsRecovery] = useState(false);
   const enterGuestMode = () => setIsGuest(true);
   const exitGuestMode = () => setIsGuest(false);
+  const clearRecovery = () => setIsRecovery(false);
 
   const refreshProfile = async () => {
     const { data: { user: u } } = await supabase.auth.getUser();
@@ -63,7 +67,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }).catch(() => setLoading(false));
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, s) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, s) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setSession(s);
+        setUser(s?.user ?? null);
+        setIsRecovery(true);
+        return;
+      }
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
@@ -145,7 +155,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: Object.keys(meta).length > 0 ? { data: meta } : undefined,
+      options: {
+        ...(Object.keys(meta).length > 0 ? { data: meta } : {}),
+        emailRedirectTo: 'pepite://auth/callback',
+      },
     });
     return error?.message ?? null;
   };
@@ -155,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, profileLoading, hasUsername, isAdmin, isGuest, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, profileLoading, hasUsername, isAdmin, isGuest, isRecovery, clearRecovery, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

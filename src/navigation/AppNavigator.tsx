@@ -40,6 +40,7 @@ import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { AdminScreen } from '../screens/AdminScreen';
 import { AlertsScreen } from '../screens/AlertsScreen';
 import { StripeOnboardingScreen } from '../screens/StripeOnboardingScreen';
+import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 
 // ─── Stacks ──────────────────────────────────────────────────────────────────
 
@@ -342,7 +343,7 @@ function MainTabs() {
 
 const Root = createStackNavigator();
 export function AppNavigator() {
-  const { user, loading, profileLoading, hasUsername, isGuest } = useAuth();
+  const { user, loading, profileLoading, hasUsername, isGuest, isRecovery } = useAuth();
 
   if (loading || profileLoading) {
     return (
@@ -354,7 +355,9 @@ export function AppNavigator() {
 
   return (
     <Root.Navigator screenOptions={{ headerShown: false, animationEnabled: false }}>
-      {!user && !isGuest ? (
+      {isRecovery ? (
+        <Root.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      ) : !user && !isGuest ? (
         <Root.Screen name="Auth" component={AuthScreen} />
       ) : user && !hasUsername ? (
         <Root.Screen name="Onboarding" component={OnboardingScreen} />

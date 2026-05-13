@@ -39,7 +39,10 @@ const CATEGORIES = [
   'Mobilier', 'Arts décoratifs', 'Bijoux', 'Argenterie',
   'Céramique & Porcelaine', 'Horlogerie', 'Tableaux & Gravures',
   'Livres & BD', 'Jouets & Jeux', 'Vintage & Mode',
-  'Appareils photo', 'Vinyles & Musique', 'Autre',
+  'Appareils photo', 'Vinyles & Musique',
+  'Informatique & Électronique', 'Téléphones & Tablettes',
+  'Consoles & Jeux vidéo', 'Électroménager', 'Sport & Loisirs',
+  'Instruments de musique', 'Véhicules & Accessoires', 'Divers',
 ];
 
 const SHIPPING_OPTIONS = [

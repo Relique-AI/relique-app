@@ -1,5 +1,4 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -9,7 +8,6 @@ const cors = {
 const json = (body: object, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: cors });
 
-// kg par tranche de colis
 const PARCEL_WEIGHTS: Record<string, string> = {
   xs: '0.800',
   s:  '2.500',
@@ -18,12 +16,11 @@ const PARCEL_WEIGHTS: Record<string, string> = {
 };
 
 function parseAddress(addr: string) {
-  // Format attendu : "12 rue de la Paix, 75001 Paris" ou "..., France"
   const match = addr.match(/^(.+),\s*(\d{5})\s+(.+?)(?:,\s*\w+)?$/);
   if (match) {
     return { address: match[1].trim(), postal_code: match[2], city: match[3].trim(), country: 'FR' };
   }
-  const parts = addr.split(',').map(p => p.trim());
+  const parts = addr.split(',').map((p: string) => p.trim());
   return { address: parts[0] || addr, postal_code: '75000', city: parts[1] || 'Paris', country: 'FR' };
 }
 
@@ -42,14 +39,14 @@ async function getShipmentId(carrier: string, apiAuth: string): Promise<number> 
       chronopost: ['chronopost'],
     };
     const kws = keywords[carrier.toLowerCase()] ?? [carrier.toLowerCase()];
-    const found = methods.find(m => kws.some(kw => m.name.toLowerCase().includes(kw)));
-    return found?.id ?? 8; // 8 = Colissimo standard, fallback
-  } catch {
+    const found = methods.find((m: any) => kws.some((kw: string) => m.name.toLowerCase().includes(kw)));
+    return found?.id ?? 8;
+  } catch (_e) {
     return 8;
   }
 }
 
-serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
@@ -83,7 +80,6 @@ serve(async (req) => {
     if (tx.shipping_method === 'hand') return json({ skipped: true });
     if (!tx.delivery_address) return json({ error: 'Adresse de livraison manquante' }, 400);
 
-    // Idempotent : étiquette déjà générée
     if (tx.label_url) return json({ label_url: tx.label_url });
 
     const SENDCLOUD_API_KEY = Deno.env.get('SENDCLOUD_API_KEY');
@@ -142,7 +138,6 @@ serve(async (req) => {
       .update({ label_url: labelUrl, tracking_number: trackingNumber ?? undefined })
       .eq('id', tx.id);
 
-    // Notification push au vendeur
     const { data: seller } = await admin
       .from('profiles')
       .select('push_token')

@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   Share,
+  Linking,
   KeyboardAvoidingView,
   Modal,
 } from 'react-native';
@@ -24,6 +25,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
+import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'; // nécessite un rebuild du dev client
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Listing } from '../services/supabase';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
@@ -154,6 +156,9 @@ export function ListingScreen({ navigation, route }: Props) {
   const [showShippingSheet, setShowShippingSheet] = useState(false);
   const [selectedShipping, setSelectedShipping] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [similarListings, setSimilarListings] = useState<Listing[]>([]);
+  const [locationCoords, setLocationCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [mapModalVisible, setMapModalVisible] = useState(false);
 
   type Question = { id: string; asker_id: string; question: string; answer: string | null; created_at: string; profiles: { username: string } | null };
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -168,6 +173,9 @@ export function ListingScreen({ navigation, route }: Props) {
     setLoading(true);
     setPhotoIndex(0);
     setSellerListings([]);
+    setSimilarListings([]);
+    setLocationCoords(null);
+    setMapModalVisible(false);
     setQuestions([]);
     loadListing();
     loadFavorite();
@@ -184,8 +192,43 @@ export function ListingScreen({ navigation, route }: Props) {
       setListing(data as Listing);
       loadSellerListings(data.seller_id);
       loadSellerRating(data.seller_id);
+      loadSimilarListings(data.category, data.seller_id);
+      if (data.location) geocodeLocation(data.location);
     }
     setLoading(false);
+  };
+
+  const geocodeLocation = async (location: string) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
+        { headers: { 'User-Agent': 'Pepite-App/1.0' } },
+      );
+      const json = await res.json();
+      if (json?.[0]?.lat) {
+        setLocationCoords({ lat: parseFloat(json[0].lat), lon: parseFloat(json[0].lon) });
+      }
+    } catch {}
+  };
+
+  const loadSimilarListings = async (category: string, sellerId: string) => {
+    const { data } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('category', category)
+      .eq('status', 'active')
+      .neq('id', id)
+      .neq('seller_id', sellerId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (data) setSimilarListings(data as Listing[]);
+  };
+
+  const openMaps = () => {
+    if (!listing?.location) return;
+    const q = encodeURIComponent(listing.location);
+    const url = Platform.OS === 'ios' ? `maps://?q=${q}` : `geo:0,0?q=${q}`;
+    Linking.openURL(url).catch(() => Linking.openURL(`https://maps.google.com/?q=${q}`));
   };
 
   const loadSellerRating = async (sellerId: string) => {
@@ -668,6 +711,30 @@ export function ListingScreen({ navigation, route }: Props) {
             </>
           )}
 
+          {/* Localisation */}
+          {!!listing.location && (
+            <>
+              <Text style={styles.sectionLabel}>Localisation</Text>
+              <TouchableOpacity
+                style={styles.mapCard}
+                onPress={() => locationCoords ? setMapModalVisible(true) : openMaps()}
+                activeOpacity={0.85}
+              >
+                <View style={styles.mapPlaceholder}>
+                  <Ionicons name="map-outline" size={32} color={colors.textSecondary} />
+                </View>
+                <View style={styles.mapFooter}>
+                  <Ionicons name="location" size={14} color={colors.primary} />
+                  <Text style={styles.mapLocationText} numberOfLines={1}>{listing.location}</Text>
+                  <View style={{ flex: 1 }} />
+                  <Text style={styles.mapOpenText}>Voir sur la carte</Text>
+                  <Ionicons name="chevron-forward" size={13} color={colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+              <View style={styles.divider} />
+            </>
+          )}
+
           {/* Vendeur */}
           <View style={styles.sellerRow}>
             <View style={styles.sellerAvatar}>
@@ -797,13 +864,41 @@ export function ListingScreen({ navigation, route }: Props) {
             </>
           )}
 
+          {/* Objets similaires */}
+          {similarListings.length > 0 && (
+            <>
+              <View style={styles.divider} />
+              <Text style={styles.sectionLabel}>Objets similaires</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sellerListingsScroll}>
+                {similarListings.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.sellerCard}
+                    activeOpacity={0.75}
+                    onPress={() => navigation.push('Listing', { id: item.id })}
+                  >
+                    {item.images?.[0] ? (
+                      <Image source={{ uri: item.images[0] }} style={styles.sellerCardImg} />
+                    ) : (
+                      <View style={[styles.sellerCardImg, styles.sellerCardImgPlaceholder]}>
+                        <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
+                      </View>
+                    )}
+                    <Text style={styles.sellerCardName} numberOfLines={2}>{item.name}</Text>
+                    <Text style={styles.sellerCardPrice}>{item.price_final} €</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </>
+          )}
+
         </View>
       </ScrollView>
 
       {/* Modal offre */}
       {showOfferModal && (
         <KeyboardAvoidingView
-          behavior="padding"
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.offerOverlay}
         >
           <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowOfferModal(false)} />
@@ -833,6 +928,30 @@ export function ListingScreen({ navigation, route }: Props) {
           </View>
         </KeyboardAvoidingView>
       )}
+
+      {/* Modal carte plein écran */}
+      <Modal visible={mapModalVisible} animationType="slide" onRequestClose={() => setMapModalVisible(false)}>
+        <SafeAreaView style={styles.mapModalRoot}>
+          <View style={styles.mapModalHeader}>
+            <TouchableOpacity style={styles.mapModalCloseBtn} onPress={() => setMapModalVisible(false)}>
+              <Ionicons name="close" size={22} color={colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.mapModalTitle} numberOfLines={1}>{listing?.location}</Text>
+            <TouchableOpacity style={styles.mapModalOpenBtn} onPress={openMaps}>
+              <Ionicons name="open-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          {locationCoords && (
+            <MapView
+              style={{ flex: 1 }}
+              provider={PROVIDER_DEFAULT}
+              initialRegion={{ latitude: locationCoords.lat, longitude: locationCoords.lon, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
+            >
+              <Marker coordinate={{ latitude: locationCoords.lat, longitude: locationCoords.lon }} />
+            </MapView>
+          )}
+        </SafeAreaView>
+      </Modal>
 
       {/* Modal zoom photo */}
       <Modal visible={zoomVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setZoomVisible(false)}>
@@ -1097,6 +1216,63 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   reviewBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.primary },
+
+  // Localisation
+  mapCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.chipBackground,
+  },
+  mapPreview: { width: '100%', height: 160 },
+  mapPlaceholder: {
+    height: 120,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    backgroundColor: colors.surface,
+  },
+  mapLocationText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.textPrimary,
+    flexShrink: 1,
+  },
+  mapOpenText: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary },
+  mapModalRoot: { flex: 1, backgroundColor: colors.background },
+  mapModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surface,
+    gap: 12,
+  },
+  mapModalCloseBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.surface,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  mapModalTitle: {
+    flex: 1,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  mapModalOpenBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.surface,
+    alignItems: 'center', justifyContent: 'center',
+  },
 
   // Autres annonces du vendeur
   sellerListingsScroll: { marginHorizontal: -spacing.section, paddingHorizontal: spacing.section },

@@ -117,7 +117,15 @@ export function WalletScreen({ navigation }: Props) {
             <Text style={styles.balanceLabel}>DISPONIBLE</Text>
             <Text style={styles.balanceValue}>{(balance.available / 100).toFixed(2)} €</Text>
             {balance.pending > 0 && (
-              <Text style={styles.balancePending}>{(balance.pending / 100).toFixed(2)} € en attente</Text>
+              <View style={styles.pendingBlock}>
+                <View style={styles.pendingRow}>
+                  <Ionicons name="time-outline" size={15} color={colors.textSecondary} />
+                  <Text style={styles.pendingAmount}>{(balance.pending / 100).toFixed(2)} € en cours de traitement</Text>
+                </View>
+                <Text style={styles.pendingExplain}>
+                  Stripe retient les fonds 7 jours après chaque vente (délai de sécurité standard). Ils rejoindront automatiquement votre solde disponible passé ce délai.
+                </Text>
+              </View>
             )}
             <TouchableOpacity
               style={[styles.payoutBtn, (balance.available <= 0 || loadingPayout) && styles.payoutBtnDisabled]}
@@ -230,7 +238,18 @@ const styles = StyleSheet.create({
   },
   balanceLabel: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.textSecondary, letterSpacing: 2 },
   balanceValue: { fontFamily: fonts.serif, fontSize: 48, color: colors.primary },
-  balancePending: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
+  pendingBlock: {
+    backgroundColor: 'rgba(245,184,46,0.07)',
+    borderRadius: 12,
+    padding: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(245,184,46,0.15)',
+    width: '100%',
+  },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pendingAmount: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textSecondary },
+  pendingExplain: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, lineHeight: 18 },
   balanceNote: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, textAlign: 'center' },
 
   payoutBtn: {

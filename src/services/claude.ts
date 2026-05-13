@@ -8,7 +8,9 @@ const VALID_CATEGORIES = [
   'Mobilier', 'Arts décoratifs', 'Bijoux', 'Argenterie',
   'Céramique & Porcelaine', 'Horlogerie', 'Tableaux & Gravures',
   'Livres & BD', 'Jouets & Jeux', 'Vintage & Mode', 'Appareils photo',
-  'Vinyles & Musique',
+  'Vinyles & Musique', 'Informatique & Électronique', 'Téléphones & Tablettes',
+  'Consoles & Jeux vidéo', 'Électroménager', 'Sport & Loisirs',
+  'Instruments de musique', 'Véhicules & Accessoires', 'Divers',
 ];
 
 const SYSTEM_PROMPT =
@@ -65,6 +67,7 @@ async function callAPI(
   photos: CapturedPhoto[],
   signal?: AbortSignal,
   retryHint = false,
+  memory?: string,
 ): Promise<string> {
   // Construction des parties : images en premier, puis le prompt texte
   const imageParts = photos.map((photo) => ({
@@ -74,9 +77,21 @@ async function callAPI(
     },
   }));
 
-  const prompt = retryHint
-    ? USER_PROMPT + '\nRéponds UNIQUEMENT avec du JSON valide, sans aucun texte autour.'
-    : USER_PROMPT;
+  let prompt = USER_PROMPT;
+  if (memory?.trim()) {
+    prompt =
+      `L'utilisateur a fourni les précisions suivantes sur l'objet : "${memory.trim()}"\n\n` +
+      `INSTRUCTIONS OBLIGATOIRES pour cette ré-estimation :\n` +
+      `- Utilise ces informations pour identifier précisément l'objet (modèle exact, référence, année)\n` +
+      `- Recherche dans tes connaissances les caractéristiques techniques, la fiche produit et la cote de cet objet exact\n` +
+      `- Affine l'estimation de prix en conséquence\n` +
+      `- NE pose JAMAIS de question sur une information que l'utilisateur vient de fournir\n` +
+      `- Si toutes les infos nécessaires sont présentes, renvoie clarifyingQuestions vide\n\n` +
+      prompt;
+  }
+  if (retryHint) {
+    prompt += '\nRéponds UNIQUEMENT avec du JSON valide, sans aucun texte autour.';
+  }
 
   const response = await fetch(`${API_URL}?key=${API_KEY}`, {
     method: 'POST',
@@ -132,14 +147,14 @@ function extractJSON(text: string): string {
 export async function analyzeObject(
   photos: CapturedPhoto[],
   signal?: AbortSignal,
+  memory?: string,
 ): Promise<AnalysisResult> {
-  const text = await callAPI(photos, signal);
+  const text = await callAPI(photos, signal, false, memory);
 
   try {
     return JSON.parse(extractJSON(text)) as AnalysisResult;
   } catch {
-    // Réessayer une fois avec instruction renforcée si le JSON est invalide
-    const retryText = await callAPI(photos, signal, true);
+    const retryText = await callAPI(photos, signal, true, memory);
     try {
       return JSON.parse(extractJSON(retryText)) as AnalysisResult;
     } catch {

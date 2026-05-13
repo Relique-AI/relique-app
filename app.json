@@ -26,6 +26,12 @@
       "buildNumber": "4"
     },
     "android": {
+      "softwareKeyboardLayoutMode": "pan",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAc9hk5_ZdAJ46rBjh4VnBiNcVUjcQM2g8"
+        }
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B0907"
