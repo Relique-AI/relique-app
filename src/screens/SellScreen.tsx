@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -120,6 +120,9 @@ export function SellScreen({ navigation, route }: Props) {
   const [description, setDescription] = useState(analysis.story);
   const [price, setPrice] = useState(String(analysis.priceSuggested));
   const [location, setLocation] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<Array<{ label: string; value: string }>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const locationSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [shippingOptions, setShippingOptions] = useState<string[]>(['hand']);
   const [shippingPrice, setShippingPrice] = useState('0');
   const [parcelSize, setParcelSize] = useState('s');
@@ -127,6 +130,41 @@ export function SellScreen({ navigation, route }: Props) {
   const hasPostal = shippingOptions.some(o => o !== 'hand');
   const [tipsOpen, setTipsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const handleLocationChange = (text: string) => {
+    setLocation(text);
+    if (locationSearchTimeout.current) clearTimeout(locationSearchTimeout.current);
+    if (text.length < 2) { setLocationSuggestions([]); setShowSuggestions(false); return; }
+    locationSearchTimeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&limit=6&addressdetails=1&countrycodes=fr`,
+          { headers: { 'User-Agent': 'Pepite-App/1.0' } },
+        );
+        const json = await res.json();
+        const seen = new Set<string>();
+        const suggestions = (json as any[])
+          .map((r) => {
+            const city = r.address?.city || r.address?.town || r.address?.village || r.address?.municipality || r.address?.hamlet || '';
+            const postcode = r.address?.postcode ?? '';
+            if (!city) return null;
+            const value = postcode ? `${city} (${postcode})` : city;
+            if (seen.has(value)) return null;
+            seen.add(value);
+            return { label: value, value };
+          })
+          .filter(Boolean) as Array<{ label: string; value: string }>;
+        setLocationSuggestions(suggestions);
+        setShowSuggestions(suggestions.length > 0);
+      } catch {}
+    }, 350);
+  };
+
+  const selectSuggestion = (s: { label: string; value: string }) => {
+    setLocation(s.value);
+    setLocationSuggestions([]);
+    setShowSuggestions(false);
+  };
 
   const toggleShipping = (id: string) => {
     setShippingOptions((prev) =>
@@ -343,15 +381,33 @@ export function SellScreen({ navigation, route }: Props) {
           </View>
 
           {/* Localisation */}
-          <View style={styles.field}>
+          <View style={[styles.field, { zIndex: 100 }]}>
             <Text style={styles.label}>Localisation (optionnel)</Text>
-            <AppTextInput
-              style={styles.input}
-              value={location}
-              onChangeText={setLocation}
-              placeholder="Ex : Paris, Lyon..."
-
-            />
+            <View>
+              <AppTextInput
+                style={styles.input}
+                value={location}
+                onChangeText={handleLocationChange}
+                placeholder="Ex : Paris, Lyon..."
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                onFocus={() => locationSuggestions.length > 0 && setShowSuggestions(true)}
+              />
+              {showSuggestions && (
+                <View style={styles.suggestionsBox}>
+                  {locationSuggestions.map((s, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={[styles.suggestionRow, i < locationSuggestions.length - 1 && styles.suggestionRowBorder]}
+                      onPress={() => selectSuggestion(s)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="location-outline" size={14} color={colors.primary} />
+                      <Text style={styles.suggestionText}>{s.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
           </View>
 
           {/* Livraison */}
@@ -597,6 +653,30 @@ const styles = StyleSheet.create({
   categoryChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   categoryChipText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
   categoryChipTextActive: { color: colors.background, fontFamily: fonts.bodySemiBold },
+
+  suggestionsBox: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: 4,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245,184,46,0.3)',
+    zIndex: 200,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  suggestionRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.background },
+  suggestionText: { fontFamily: fonts.body, fontSize: 14, color: colors.textPrimary, flex: 1 },
 
   shippingSubtitle: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, marginBottom: 10 },
   shippingRow: {

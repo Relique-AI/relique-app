@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +20,24 @@ type Tab = 'login' | 'signup' | 'forgot';
 export function AuthScreen() {
   const { signIn, signUp, enterGuestMode } = useAuth();
   const [tab, setTab] = useState<Tab>('login');
+
+  const glowAnim = useRef(new Animated.Value(0.5)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 0.5, duration: 2000, useNativeDriver: true }),
+      ]),
+    ).start();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: -8, duration: 2400, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 2400, useNativeDriver: true }),
+      ]),
+    ).start();
+  }, []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -96,11 +115,14 @@ export function AuthScreen() {
         >
           {/* Logo */}
           <View style={styles.header}>
-            <View style={styles.logoRow}>
-              <Text style={styles.logoGem}>✦</Text>
-              <Text style={styles.brand}>Pépite</Text>
-            </View>
-            <Text style={styles.subtitle}>Vends ce que tu possèdes,{'\n'}en quelques minutes.</Text>
+            <Animated.View style={[styles.logoWrap, { transform: [{ translateY: floatAnim }] }]}>
+              <Animated.View style={[styles.logoGlow, { opacity: glowAnim }]} />
+              <View style={styles.logoGem}>
+                <Text style={styles.logoGemText}>✦</Text>
+              </View>
+            </Animated.View>
+            <Text style={styles.brand}>Pépite</Text>
+            <Text style={styles.subtitle}>Tes objets valent plus{'\n'}que tu ne crois.</Text>
           </View>
 
           {/* Tabs */}
@@ -268,30 +290,49 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 36,
   },
-  logoRow: {
-    flexDirection: 'row',
+  logoWrap: {
+    width: 90,
+    height: 90,
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
+    justifyContent: 'center',
+    marginBottom: 22,
+  },
+  logoGlow: {
+    position: 'absolute',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: colors.primary,
   },
   logoGem: {
-    fontSize: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoGemText: {
+    fontSize: 26,
     color: colors.primary,
   },
   brand: {
     fontFamily: fonts.serif,
-    fontSize: 46,
+    fontSize: 52,
     color: colors.primary,
-    letterSpacing: 2,
+    letterSpacing: -1,
+    marginBottom: 10,
   },
   subtitle: {
-    fontFamily: fonts.serifRegular,
-    fontSize: 16,
+    fontFamily: fonts.serifItalic,
+    fontSize: 17,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 26,
   },
   tabs: {
     flexDirection: 'row',

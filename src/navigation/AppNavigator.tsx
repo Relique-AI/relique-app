@@ -103,6 +103,11 @@ function BrowseNavigator() {
         component={ListingScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
+      <BrowseStack.Screen
+        name="EditListing"
+        component={EditListingScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
     </BrowseStack.Navigator>
   );
 }
@@ -115,6 +120,11 @@ function MarketNavigator() {
       <MarketStack.Screen
         name="Listing"
         component={ListingScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <MarketStack.Screen
+        name="EditListing"
+        component={EditListingScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
       <MarketStack.Screen
@@ -144,6 +154,11 @@ function MessagesNavigator() {
       <MessagesStack.Screen
         name="Listing"
         component={ListingScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <MessagesStack.Screen
+        name="EditListing"
+        component={EditListingScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
     </MessagesStack.Navigator>

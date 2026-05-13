@@ -81,7 +81,7 @@ export function InboxScreen({ navigation }: Props) {
         listing_image: listing?.images?.[0] ?? null,
         other_user_id: otherUserId,
         other_username: otherProfile?.username ?? 'Utilisateur supprimé',
-        last_message: msg.content,
+        last_message: msg.content?.startsWith('https://') ? '🖼️ Photo' : msg.content,
         last_message_at: msg.created_at,
         unread_count: unreadRes.count ?? 0,
       });

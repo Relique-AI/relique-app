@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, Component } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'; // nécessite un rebuild du dev client
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Listing } from '../services/supabase';
@@ -47,6 +47,18 @@ const REASON_LABELS: Record<string, string> = {
   scam: 'Arnaque / Fraude',
   prohibited: 'Objet interdit',
 };
+
+class MapErrorBoundary extends Component<{ children: any; fallback?: any }, { hasError: boolean }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) return this.props.fallback ?? null;
+    return this.props.children;
+  }
+}
 
 function InfoChip({ label, onPress }: { label: string; onPress?: () => void }) {
   if (onPress) {
@@ -169,18 +181,20 @@ export function ListingScreen({ navigation, route }: Props) {
 
   const isOwner = listing?.seller_id === user?.id;
 
-  useEffect(() => {
-    setLoading(true);
-    setPhotoIndex(0);
-    setSellerListings([]);
-    setSimilarListings([]);
-    setLocationCoords(null);
-    setMapModalVisible(false);
-    setQuestions([]);
-    loadListing();
-    loadFavorite();
-    loadQuestions();
-  }, [id]);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      setPhotoIndex(0);
+      setSellerListings([]);
+      setSimilarListings([]);
+      setLocationCoords(null);
+      setMapModalVisible(false);
+      setQuestions([]);
+      loadListing();
+      loadFavorite();
+      loadQuestions();
+    }, [id]),
+  );
 
   const loadListing = async () => {
     const { data } = await supabase
@@ -720,9 +734,31 @@ export function ListingScreen({ navigation, route }: Props) {
                 onPress={() => locationCoords ? setMapModalVisible(true) : openMaps()}
                 activeOpacity={0.85}
               >
-                <View style={styles.mapPlaceholder}>
-                  <Ionicons name="map-outline" size={32} color={colors.textSecondary} />
-                </View>
+                {locationCoords ? (
+                  <MapErrorBoundary fallback={<View style={styles.mapPlaceholder}><Ionicons name="map-outline" size={32} color={colors.textSecondary} /></View>}>
+                    <MapView
+                      style={styles.mapPreview}
+                      provider={PROVIDER_DEFAULT}
+                      initialRegion={{
+                        latitude: locationCoords.lat,
+                        longitude: locationCoords.lon,
+                        latitudeDelta: 0.02,
+                        longitudeDelta: 0.02,
+                      }}
+                      scrollEnabled={false}
+                      zoomEnabled={false}
+                      pitchEnabled={false}
+                      rotateEnabled={false}
+                      pointerEvents="none"
+                    >
+                      <Marker coordinate={{ latitude: locationCoords.lat, longitude: locationCoords.lon }} />
+                    </MapView>
+                  </MapErrorBoundary>
+                ) : (
+                  <View style={styles.mapPlaceholder}>
+                    <Ionicons name="map-outline" size={32} color={colors.textSecondary} />
+                  </View>
+                )}
                 <View style={styles.mapFooter}>
                   <Ionicons name="location" size={14} color={colors.primary} />
                   <Text style={styles.mapLocationText} numberOfLines={1}>{listing.location}</Text>
@@ -942,13 +978,15 @@ export function ListingScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
           {locationCoords && (
-            <MapView
-              style={{ flex: 1 }}
-              provider={PROVIDER_DEFAULT}
-              initialRegion={{ latitude: locationCoords.lat, longitude: locationCoords.lon, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
-            >
-              <Marker coordinate={{ latitude: locationCoords.lat, longitude: locationCoords.lon }} />
-            </MapView>
+            <MapErrorBoundary fallback={null}>
+              <MapView
+                style={{ flex: 1 }}
+                provider={PROVIDER_DEFAULT}
+                initialRegion={{ latitude: locationCoords.lat, longitude: locationCoords.lon, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
+              >
+                <Marker coordinate={{ latitude: locationCoords.lat, longitude: locationCoords.lon }} />
+              </MapView>
+            </MapErrorBoundary>
           )}
         </SafeAreaView>
       </Modal>
@@ -1065,16 +1103,25 @@ export function ListingScreen({ navigation, route }: Props) {
             <Text style={styles.btnSoldText}>Article vendu</Text>
           </View>
         ) : isOwner ? (
-          <TouchableOpacity
-            style={[styles.btnSold, markingAsSold && { opacity: 0.6 }]}
-            onPress={markAsSold}
-            disabled={markingAsSold}
-          >
-            {markingAsSold
-              ? <ActivityIndicator color={colors.background} />
-              : <Text style={styles.btnSoldText}>Marquer comme vendu</Text>
-            }
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={styles.btnEdit}
+              onPress={() => (navigation as any).push('EditListing', { id })}
+            >
+              <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+              <Text style={styles.btnEditText}>Modifier</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btnSold, markingAsSold && { opacity: 0.6 }]}
+              onPress={markAsSold}
+              disabled={markingAsSold}
+            >
+              {markingAsSold
+                ? <ActivityIndicator color={colors.background} />
+                : <Text style={styles.btnSoldText}>Marquer comme vendu</Text>
+              }
+            </TouchableOpacity>
+          </>
         ) : listing.status === 'sold' ? (
           listing.buyer_id !== user?.id ? (
             <View style={[styles.btnSold, { opacity: 0.6 }]}>
@@ -1352,6 +1399,19 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   btnBuyText: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.background },
+  btnEdit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderRadius: 50,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  btnEditText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.primary },
   btnSold: {
     flex: 1,
     paddingVertical: 16,
