@@ -10,6 +10,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +34,10 @@ export function EditProfileScreen({ navigation }: Props) {
   const [username, setUsername] = useState('');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [referrerUsername, setReferrerUsername] = useState<string | null>(null);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referralCredits, setReferralCredits] = useState(0);
+  const [totalFilleuls, setTotalFilleuls] = useState(0);
+  const [activeFilleuls, setActiveFilleuls] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -52,6 +57,8 @@ export function EditProfileScreen({ navigation }: Props) {
       setProfile(data as Profile);
       setUsername(data.username ?? '');
       setAvatarUri(data.avatar_url ?? null);
+      setReferralCode((data as any).referral_code ?? null);
+      setReferralCredits((data as any).referral_credits ?? 0);
       if ((data as any).referred_by) {
         const { data: referrer } = await supabase
           .from('profiles')
@@ -60,6 +67,19 @@ export function EditProfileScreen({ navigation }: Props) {
           .single();
         setReferrerUsername(referrer?.username ?? null);
       }
+      const [{ count: total }, { count: active }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('referred_by', (data as any).id),
+        supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('referred_by', (data as any).id)
+          .eq('referral_first_purchase_done', true),
+      ]);
+      setTotalFilleuls(total ?? 0);
+      setActiveFilleuls(active ?? 0);
     }
     setLoading(false);
   };
@@ -225,6 +245,56 @@ export function EditProfileScreen({ navigation }: Props) {
             </View>
           </View>
         )}
+
+        {/* Parrainage */}
+        {referralCode && (
+          <View style={styles.referralCard}>
+            <Text style={styles.referralTitle}>Parrainage</Text>
+
+            {/* Code de parrainage */}
+            <View style={styles.referralRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.referralLabel}>Votre code</Text>
+                <Text style={styles.referralCode}>{referralCode}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.shareBtn}
+                onPress={() =>
+                  Share.share({
+                    message: `Rejoins Pépite avec mon code de parrainage : ${referralCode} — Tu bénéficieras de 3 achats à −50% de frais de service !`,
+                  })
+                }
+              >
+                <Ionicons name="share-outline" size={18} color={colors.primary} />
+                <Text style={styles.shareBtnText}>Partager</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Filleuls */}
+            <View style={styles.referralStat}>
+              <Ionicons name="people-outline" size={16} color={colors.textSecondary} />
+              <Text style={styles.referralStatText}>
+                {totalFilleuls === 0
+                  ? 'Aucun filleul pour le moment'
+                  : `${totalFilleuls} filleul${totalFilleuls > 1 ? 's' : ''} inscrit${totalFilleuls > 1 ? 's' : ''}${activeFilleuls > 0 ? ` · ${activeFilleuls} premier${activeFilleuls > 1 ? 's' : ''} achat${activeFilleuls > 1 ? 's' : ''} effectué${activeFilleuls > 1 ? 's' : ''}` : ''}`}
+              </Text>
+            </View>
+
+            {/* Crédits restants */}
+            <View style={[styles.referralStat, referralCredits > 0 && styles.referralStatHighlight]}>
+              <Ionicons
+                name="gift-outline"
+                size={16}
+                color={referralCredits > 0 ? colors.primary : colors.textSecondary}
+              />
+              <Text style={[styles.referralStatText, referralCredits > 0 && { color: colors.primary, fontFamily: fonts.bodySemiBold }]}>
+                {referralCredits > 0
+                  ? `${referralCredits} achat${referralCredits > 1 ? 's' : ''} à −50% de frais restant${referralCredits > 1 ? 's' : ''}`
+                  : 'Aucun crédit parrainage actif'}
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -300,4 +370,68 @@ const styles = StyleSheet.create({
   },
   inputDisabledText: { fontFamily: fonts.body, fontSize: 15, color: colors.textSecondary },
   fieldHint: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary },
+
+  referralCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: colors.chipBackground,
+  },
+  referralTitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  referralRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  referralLabel: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 2,
+  },
+  referralCode: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 22,
+    color: colors.textPrimary,
+    letterSpacing: 3,
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  shareBtnText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.primary,
+  },
+  referralStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: colors.chipBackground,
+    borderRadius: 10,
+  },
+  referralStatHighlight: {
+    backgroundColor: `${colors.primary}15`,
+  },
+  referralStatText: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.textSecondary,
+    flex: 1,
+  },
 });

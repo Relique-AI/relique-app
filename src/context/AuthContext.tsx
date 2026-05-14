@@ -96,14 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const code = (meta.referral_code as string).toUpperCase();
               const { data: referrer } = await supabase.from('profiles').select('id').eq('referral_code', code).neq('id', userId).single();
               if (referrer) {
-                await supabase.from('profiles').update({ referred_by: referrer.id }).eq('id', userId);
+                await supabase.from('profiles').update({ referred_by: referrer.id, referral_credits: 3 }).eq('id', userId);
                 await supabase.from('referrals').insert({ referrer_id: referrer.id, referred_id: userId });
                 const newUsername = profile?.username || (meta.username as string | undefined) || 'Un nouvel utilisateur';
                 supabase.functions.invoke('send-push', {
                   body: {
                     receiver_id: referrer.id,
                     sender_name: '✦ Nouveau filleul !',
-                    message_preview: `${newUsername} vient de rejoindre Pépite avec ton code de parrainage.`,
+                    message_preview: `${newUsername} vient de rejoindre Pépite avec ton code. Tu seras crédité de 3 achats à -50% dès son premier achat !`,
                     type: 'referral',
                   },
                 });

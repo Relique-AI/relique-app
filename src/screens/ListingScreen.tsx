@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Component } from 'react';
+import { useState, useEffect, useCallback, useRef, Component } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,9 @@ import { ConditionBadge } from '../components/ConditionBadge';
 import { ReviewModal } from '../components/ReviewModal';
 import { AnalysisResult } from '../types';
 import { AppTextInput } from '../components/AppTextInput';
+import { getShippingCost } from '../utils/shippingRates';
+
+const COMMISSION_RATE = 0.08;
 
 type Props = {
   navigation: StackNavigationProp<any, any>;
@@ -167,7 +170,27 @@ export function ListingScreen({ navigation, route }: Props) {
   const [zoomIndex, setZoomIndex] = useState(0);
   const [showShippingSheet, setShowShippingSheet] = useState(false);
   const [selectedShipping, setSelectedShipping] = useState('');
+  const [deliveryFirstName, setDeliveryFirstName] = useState('');
+  const [deliveryLastName, setDeliveryLastName] = useState('');
+  const [deliveryCompany, setDeliveryCompany] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [showRecapModal, setShowRecapModal] = useState(false);
+  const [pendingShipping, setPendingShipping] = useState('');
+  const [pendingRecipient, setPendingRecipient] = useState<string | undefined>(undefined);
+  const [pendingAddress, setPendingAddress] = useState<string | undefined>(undefined);
+  const [transaction, setTransaction] = useState<{
+    id: string;
+    buyer_id: string;
+    shipping_status: string | null;
+    shipping_method: string | null;
+    delivery_address: string | null;
+    tracking_number: string | null;
+  } | null>(null);
+  const [showShipModal, setShowShipModal] = useState(false);
+  const [shipTrackingInput, setShipTrackingInput] = useState('');
+  const [shipping, setShipping] = useState(false);
+  const [confirmingReception, setConfirmingReception] = useState(false);
+  const [referralCredits, setReferralCredits] = useState(0);
   const [similarListings, setSimilarListings] = useState<Listing[]>([]);
   const [locationCoords, setLocationCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [mapModalVisible, setMapModalVisible] = useState(false);
@@ -180,16 +203,20 @@ export function ListingScreen({ navigation, route }: Props) {
   const [answerText, setAnswerText] = useState('');
 
   const isOwner = listing?.seller_id === user?.id;
+  const lastLoadedId = useRef<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      setPhotoIndex(0);
-      setSellerListings([]);
-      setSimilarListings([]);
-      setLocationCoords(null);
-      setMapModalVisible(false);
-      setQuestions([]);
+      if (lastLoadedId.current !== id) {
+        lastLoadedId.current = id;
+        setLoading(true);
+        setPhotoIndex(0);
+        setSellerListings([]);
+        setSimilarListings([]);
+        setLocationCoords(null);
+        setMapModalVisible(false);
+        setQuestions([]);
+      }
       loadListing();
       loadFavorite();
       loadQuestions();
@@ -208,8 +235,78 @@ export function ListingScreen({ navigation, route }: Props) {
       loadSellerRating(data.seller_id);
       loadSimilarListings(data.category, data.seller_id);
       if (data.location) geocodeLocation(data.location);
+      if (data.status === 'sold') loadTransaction(data.id);
+      if (user && data.seller_id !== user.id) loadReferralCredits();
     }
     setLoading(false);
+  };
+
+  const loadReferralCredits = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('referral_credits')
+      .eq('id', user.id)
+      .single();
+    setReferralCredits(data?.referral_credits ?? 0);
+  };
+
+  const loadTransaction = async (listingId: string) => {
+    const { data } = await supabase
+      .from('transactions')
+      .select('id, buyer_id, shipping_status, shipping_method, delivery_address, tracking_number')
+      .eq('listing_id', listingId)
+      .maybeSingle();
+    setTransaction(data ?? null);
+  };
+
+  const confirmReceptionFromListing = () => {
+    if (!transaction) return;
+    Alert.alert(
+      'Confirmer la réception',
+      'Confirmez-vous avoir reçu votre commande ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Confirmer',
+          onPress: async () => {
+            setConfirmingReception(true);
+            try {
+              const session = (await supabase.auth.getSession()).data.session;
+              const { error } = await supabase.functions.invoke('confirm-reception', {
+                body: { transaction_id: transaction.id },
+                headers: { Authorization: `Bearer ${session?.access_token}` },
+              });
+              if (error) throw new Error('Erreur lors de la confirmation');
+              setTransaction((prev) => prev ? { ...prev, shipping_status: 'delivered' } : prev);
+            } catch (e: any) {
+              Alert.alert('Erreur', e.message ?? 'Une erreur est survenue');
+            } finally {
+              setConfirmingReception(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const markShippedFromListing = async () => {
+    if (!transaction) return;
+    setShipping(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      const { error } = await supabase.functions.invoke('mark-shipped', {
+        body: { transaction_id: transaction.id, tracking_number: shipTrackingInput.trim() || null },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw new Error('Erreur lors de la confirmation');
+      setShowShipModal(false);
+      setTransaction((prev) => prev ? { ...prev, shipping_status: 'shipped', tracking_number: shipTrackingInput.trim() || null } : prev);
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message ?? 'Une erreur est survenue');
+    } finally {
+      setShipping(false);
+    }
   };
 
   const geocodeLocation = async (location: string) => {
@@ -428,20 +525,27 @@ export function ListingScreen({ navigation, route }: Props) {
 
   const SHIPPING_LABELS: Record<string, string> = {
     hand: 'Remise en main propre',
-    relay: 'Mondial Relay',
     colissimo: 'Colissimo',
     chronopost: 'Chronopost',
   };
 
   const handleBuy = () => {
     if (!listing || !user) return;
-    const options = listing.shipping_options ?? ['hand'];
-    const hasPostal = options.some((o) => o !== 'hand');
-    if (!hasPostal) {
-      processPurchase('hand', undefined);
+    const options = (listing.shipping_options ?? []).length > 0
+      ? listing.shipping_options!
+      : ['hand'];
+    const hasPostalOpts = options.some((o) => o !== 'hand');
+    if (!hasPostalOpts) {
+      setPendingShipping('hand');
+      setPendingRecipient(undefined);
+      setPendingAddress(undefined);
+      setShowRecapModal(true);
       return;
     }
     setSelectedShipping(options[0]);
+    setDeliveryFirstName('');
+    setDeliveryLastName('');
+    setDeliveryCompany('');
     setDeliveryAddress('');
     setShowShippingSheet(true);
   };
@@ -483,6 +587,13 @@ export function ListingScreen({ navigation, route }: Props) {
       const { error: presentError } = await presentPaymentSheet();
       if (presentError) {
         if (presentError.code !== 'Canceled') Alert.alert('Erreur', presentError.message);
+        // Restore referral credit if it was consumed and payment didn't go through
+        if (data.referralCreditUsed) {
+          supabase.functions.invoke('restore-referral-credit', {
+            body: { payment_intent_id: paymentIntentId },
+            headers: { Authorization: `Bearer ${session?.access_token}` },
+          }).then(() => setReferralCredits((c) => c + 1)).catch(() => {});
+        }
         return;
       }
 
@@ -496,10 +607,28 @@ export function ListingScreen({ navigation, route }: Props) {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       }).catch(() => {});
 
-      navigation.getParent()?.navigate('Profil', {
-        screen: 'Profile',
-        params: { initialTab: 'purchases' },
-      });
+      if (shippingMethod === 'hand') {
+        try {
+          await supabase.from('messages').insert({
+            listing_id: listing.id,
+            sender_id: user.id,
+            receiver_id: listing.seller_id,
+            type: 'message',
+            content: JSON.stringify({ __pepite_type: 'purchase', listing_name: listing.name }),
+          });
+        } catch {}
+
+        navigation.navigate('Chat', {
+          listing_id: listing.id,
+          receiver_id: listing.seller_id,
+          listing_name: listing.name,
+        });
+      } else {
+        navigation.getParent()?.navigate('Profil', {
+          screen: 'Profile',
+          params: { initialTab: 'purchases' },
+        });
+      }
     } catch (e: any) {
       Alert.alert('Erreur', e.message ?? 'Une erreur est survenue');
     } finally {
@@ -615,6 +744,18 @@ export function ListingScreen({ navigation, route }: Props) {
   const condition = listing.condition as AnalysisResult['condition'];
   const tips = listing.selling_tips ?? [];
 
+  const listingShippingOpts = (listing.shipping_options ?? []).length > 0
+    ? listing.shipping_options!
+    : ['hand'];
+  const hasPostal = listingShippingOpts.some(o => o !== 'hand');
+  const isOversized = listing.parcel_size === 'xl';
+  const cheapestPostalCost = hasPostal && !isOversized
+    ? Math.min(...listingShippingOpts.filter(o => o !== 'hand').map(o => getShippingCost(o, listing.parcel_size)))
+    : 0;
+  const baseDisplayPrice = listing.price_final + cheapestPostalCost;
+  const grandTotal = Math.round(listing.price_final * (1 + COMMISSION_RATE) * 100) / 100;
+  const grandTotalWithShipping = Math.round(baseDisplayPrice * (1 + COMMISSION_RATE) * 100) / 100;
+
   return (
     <View style={styles.root}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
@@ -672,18 +813,56 @@ export function ListingScreen({ navigation, route }: Props) {
           </SafeAreaView>
         </View>
 
+        {/* Bannière statut acheteur */}
+        {listing.status === 'sold' && transaction != null && transaction.buyer_id === user?.id && (() => {
+          const ss = transaction.shipping_status;
+          if (ss === 'delivered') return null;
+          const isHand = transaction.shipping_method === 'hand';
+          const isShipped = ss === 'shipped';
+          const bannerStyle = isShipped ? styles.statusBannerShipped : styles.statusBannerPending;
+          const bannerColor = isShipped ? '#1a6b3a' : '#7a5200';
+          const icon = isShipped ? 'checkmark-circle-outline' : 'time-outline';
+          const title = isHand
+            ? 'Remise en main propre à convenir'
+            : isShipped ? 'Expédié' : 'En attente d\'expédition';
+          const sub = isHand
+            ? 'Contactez le vendeur pour organiser la remise'
+            : isShipped && transaction.tracking_number
+              ? `Suivi : ${transaction.tracking_number}`
+              : !isShipped ? 'Le vendeur prépare votre colis' : null;
+          return (
+            <View style={[styles.statusBanner, bannerStyle]}>
+              <Ionicons name={icon} size={18} color={bannerColor} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.statusBannerTitle, { color: bannerColor }]}>{title}</Text>
+                {sub ? <Text style={[styles.statusBannerSub, { color: bannerColor }]}>{sub}</Text> : null}
+              </View>
+            </View>
+          );
+        })()}
+
         {/* Corps */}
         <View style={styles.body}>
 
           {/* Nom + prix */}
           <Text style={styles.name}>{listing.name}</Text>
           <Text style={styles.price}>{listing.price_final} €</Text>
-          {(listing.shipping_price ?? 0) > 0 ? (
+          {hasPostal && isOversized ? (
             <Text style={styles.shippingLine}>
-              + {listing.shipping_price} € de livraison · Total {(listing.price_final + listing.shipping_price!).toFixed(2)} €
+              Expédition hors gabarit · frais à convenir avec l'acheteur
+            </Text>
+          ) : hasPostal && cheapestPostalCost > 0 ? (
+            <Text style={styles.shippingLine}>
+              À partir de {cheapestPostalCost.toFixed(2)} € de livraison · Total dès {grandTotalWithShipping.toFixed(2)} € (frais inclus)
+            </Text>
+          ) : hasPostal ? (
+            <Text style={styles.shippingLine}>
+              Livraison offerte · Total {grandTotalWithShipping.toFixed(2)} € (frais Pépite inclus)
             </Text>
           ) : (
-            <Text style={styles.shippingLine}>Livraison gratuite</Text>
+            <Text style={styles.shippingLine}>
+              Livraison en main propre · Total {grandTotal.toFixed(2)} € (frais Pépite inclus)
+            </Text>
           )}
 
           {/* Chips infos */}
@@ -1023,10 +1202,27 @@ export function ListingScreen({ navigation, route }: Props) {
           <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowShippingSheet(false)} />
           <View style={styles.shippingSheet}>
             <Text style={styles.shippingSheetTitle}>Mode de livraison</Text>
+
+            {/* Récap de la vente */}
+            <View style={styles.shippingRecap}>
+              <View style={styles.shippingRecapRow}>
+                <Text style={styles.shippingRecapLabel} numberOfLines={1}>{listing?.name}</Text>
+                <Text style={styles.shippingRecapValue}>{listing?.price_final?.toFixed(2)} €</Text>
+              </View>
+              {sellerName ? (
+                <View style={styles.shippingRecapRow}>
+                  <Text style={styles.shippingRecapMeta}>Vendu par {sellerName}</Text>
+                </View>
+              ) : null}
+              <View style={styles.shippingRecapDivider} />
+            </View>
+
             {(listing?.shipping_options ?? []).map((opt) => {
               const isSelected = selectedShipping === opt;
-              const shippingCost = opt === 'hand' ? 0 : (listing?.shipping_price ?? 0);
-              const total = (listing?.price_final ?? 0) + shippingCost;
+              const shippingCostForOpt = getShippingCost(opt, listing?.parcel_size);
+              const baseForOpt = (listing?.price_final ?? 0) + shippingCostForOpt;
+              const total = Math.round(baseForOpt * (1 + COMMISSION_RATE) * 100) / 100;
+              const xlCarrier = opt !== 'hand' && listing?.parcel_size === 'xl';
               return (
                 <TouchableOpacity
                   key={opt}
@@ -1042,44 +1238,326 @@ export function ListingScreen({ navigation, route }: Props) {
                       {SHIPPING_LABELS[opt] ?? opt}
                     </Text>
                     <Text style={styles.shippingSheetPriceText}>
-                      {opt === 'hand' ? 'Gratuit' : `+ ${shippingCost} €`}  ·  Total {total.toFixed(2)} €
+                      {opt === 'hand'
+                        ? `Gratuit  ·  Total ${total.toFixed(2)} €`
+                        : xlCarrier
+                          ? "Frais à convenir avec l'acheteur"
+                          : `+ ${shippingCostForOpt.toFixed(2)} €  ·  Total ${total.toFixed(2)} €`}
                     </Text>
                   </View>
                 </TouchableOpacity>
               );
             })}
             {selectedShipping !== 'hand' && (
-              <View style={{ marginTop: 8 }}>
+              <View style={{ marginTop: 8, gap: 10 }}>
+                <Text style={styles.shippingAddressLabel}>Destinataire</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <AppTextInput
+                    style={[styles.shippingAddressInput, { flex: 1 }]}
+                    value={deliveryFirstName}
+                    onChangeText={setDeliveryFirstName}
+                    placeholder="Prénom"
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                  <AppTextInput
+                    style={[styles.shippingAddressInput, { flex: 1 }]}
+                    value={deliveryLastName}
+                    onChangeText={setDeliveryLastName}
+                    placeholder="Nom"
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                </View>
+                <AppTextInput
+                  style={styles.shippingAddressInput}
+                  value={deliveryCompany}
+                  onChangeText={setDeliveryCompany}
+                  placeholder="Entreprise (optionnel)"
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                />
                 <Text style={styles.shippingAddressLabel}>Adresse de livraison</Text>
                 <AppTextInput
                   style={styles.shippingAddressInput}
                   value={deliveryAddress}
                   onChangeText={setDeliveryAddress}
                   placeholder="Ex : 12 rue de la Paix, 75001 Paris"
-  
                   multiline
                 />
               </View>
             )}
-            <TouchableOpacity
-              style={[
-                styles.shippingConfirmBtn,
-                (buying || (selectedShipping !== 'hand' && !deliveryAddress.trim())) && { opacity: 0.4 },
-              ]}
-              disabled={buying || (selectedShipping !== 'hand' && !deliveryAddress.trim())}
-              onPress={() => {
-                setShowShippingSheet(false);
-                processPurchase(selectedShipping, selectedShipping !== 'hand' ? deliveryAddress.trim() : undefined);
-              }}
-            >
-              {buying
-                ? <ActivityIndicator color={colors.background} size="small" />
-                : <Text style={styles.shippingConfirmText}>Confirmer et payer</Text>
-              }
-            </TouchableOpacity>
+            {(() => {
+              const xlSelected = selectedShipping !== 'hand' && listing?.parcel_size === 'xl';
+              const confirmShippingCost = getShippingCost(selectedShipping, listing?.parcel_size);
+              const confirmBase = (listing?.price_final ?? 0) + confirmShippingCost;
+              const confirmTotal = Math.round(confirmBase * (1 + COMMISSION_RATE) * 100) / 100;
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.shippingConfirmBtn,
+                    (buying || (selectedShipping !== 'hand' && (!deliveryFirstName.trim() || !deliveryLastName.trim() || !deliveryAddress.trim()))) && { opacity: 0.4 },
+                  ]}
+                  disabled={buying || (selectedShipping !== 'hand' && (!deliveryFirstName.trim() || !deliveryLastName.trim() || !deliveryAddress.trim()))}
+                  onPress={() => {
+                    const addr = selectedShipping !== 'hand' ? deliveryAddress.trim() : undefined;
+                    const recipient = selectedShipping !== 'hand'
+                      ? [deliveryFirstName.trim() + ' ' + deliveryLastName.trim(), deliveryCompany.trim()].filter(Boolean).join('\n')
+                      : undefined;
+                    setPendingShipping(selectedShipping);
+                    setPendingRecipient(recipient);
+                    setPendingAddress(addr);
+                    setShowShippingSheet(false);
+                    setShowRecapModal(true);
+                  }}
+                >
+                  {buying
+                    ? <ActivityIndicator color={colors.background} size="small" />
+                    : <Text style={styles.shippingConfirmText}>
+                        {xlSelected
+                          ? `Confirmer · ${confirmTotal.toFixed(2)} € + livraison à convenir`
+                          : `Confirmer et payer · ${confirmTotal.toFixed(2)} €`}
+                      </Text>
+                  }
+                </TouchableOpacity>
+              );
+            })()}
           </View>
         </KeyboardAvoidingView>
       )}
+
+      {/* Récap avant paiement */}
+      {showRecapModal && listing && (() => {
+        const recapShippingCost = getShippingCost(pendingShipping, listing.parcel_size);
+        const recapBase = listing.price_final + recapShippingCost;
+        const hasReferralDiscount = referralCredits > 0;
+        const effectiveRate = hasReferralDiscount ? COMMISSION_RATE * 0.5 : COMMISSION_RATE;
+        const recapFee = Math.round(recapBase * effectiveRate * 100) / 100;
+        const recapTotal = Math.round(recapBase * (1 + effectiveRate) * 100) / 100;
+        const xlShipping = pendingShipping !== 'hand' && listing.parcel_size === 'xl';
+        const thumb = images[0];
+        return (
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.offerOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowRecapModal(false)} />
+            <View style={styles.recapSheet}>
+              <Text style={styles.recapTitle}>Récapitulatif</Text>
+
+              {/* Produit */}
+              <View style={styles.recapProduct}>
+                {thumb ? (
+                  <Image source={{ uri: thumb }} style={styles.recapThumb} />
+                ) : (
+                  <View style={[styles.recapThumb, styles.recapThumbPlaceholder]}>
+                    <Ionicons name="image-outline" size={24} color={colors.textDisabled} />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.recapProductName} numberOfLines={2}>{listing.name}</Text>
+                  {listing.category ? <Text style={styles.recapProductMeta}>{listing.category}</Text> : null}
+                  {sellerName ? <Text style={styles.recapProductMeta}>Vendu par {sellerName}</Text> : null}
+                </View>
+              </View>
+
+              <View style={styles.recapDivider} />
+
+              {/* Prix */}
+              <View style={styles.recapPriceRows}>
+                <View style={styles.recapPriceRow}>
+                  <Text style={styles.recapPriceLabel}>Prix de l'objet</Text>
+                  <Text style={styles.recapPriceValue}>{listing.price_final.toFixed(2)} €</Text>
+                </View>
+                {pendingShipping === 'hand' ? (
+                  <View style={styles.recapPriceRow}>
+                    <Text style={styles.recapPriceLabel}>Remise en main propre</Text>
+                  </View>
+                ) : (
+                  <View style={styles.recapPriceRow}>
+                    <Text style={styles.recapPriceLabel}>Livraison ({SHIPPING_LABELS[pendingShipping] ?? pendingShipping})</Text>
+                    <Text style={styles.recapPriceValue}>
+                      {xlShipping ? 'À convenir' : `${recapShippingCost.toFixed(2)} €`}
+                    </Text>
+                  </View>
+                )}
+                {hasReferralDiscount ? (
+                  <>
+                    <View style={styles.recapPriceRow}>
+                      <Text style={styles.recapPriceLabel}>Frais de service Pépite (8%)</Text>
+                      <Text style={styles.recapPriceValue}>
+                        {Math.round(recapBase * COMMISSION_RATE * 100) / 100} €
+                      </Text>
+                    </View>
+                    <View style={styles.recapPriceRow}>
+                      <Text style={[styles.recapPriceLabel, { color: colors.success }]}>
+                        ✦ Réduction parrainage −50% ({referralCredits} crédit{referralCredits > 1 ? 's' : ''} restant{referralCredits > 1 ? 's' : ''})
+                      </Text>
+                      <Text style={[styles.recapPriceValue, { color: colors.success }]}>
+                        −{(Math.round(recapBase * COMMISSION_RATE * 100) / 100 - recapFee).toFixed(2)} €
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={styles.recapPriceRow}>
+                    <Text style={styles.recapPriceLabel}>Frais de service Pépite (8%)</Text>
+                    <Text style={styles.recapPriceValue}>{recapFee.toFixed(2)} €</Text>
+                  </View>
+                )}
+                <View style={[styles.recapPriceRow, styles.recapPriceTotal]}>
+                  <Text style={styles.recapTotalLabel}>Total</Text>
+                  <Text style={styles.recapTotalValue}>
+                    {xlShipping ? `${Math.round(listing.price_final * (1 + COMMISSION_RATE) * 100) / 100} € + livraison` : `${recapTotal.toFixed(2)} €`}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Destinataire + Adresse */}
+              {(pendingRecipient || pendingAddress) ? (
+                <>
+                  <View style={styles.recapDivider} />
+                  {pendingRecipient && (
+                    <View style={styles.recapAddressRow}>
+                      <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.recapAddressLabel}>Destinataire</Text>
+                        <Text style={styles.recapAddressText}>{pendingRecipient}</Text>
+                      </View>
+                    </View>
+                  )}
+                  {pendingAddress && (
+                    <View style={[styles.recapAddressRow, pendingRecipient && { marginTop: 8 }]}>
+                      <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.recapAddressLabel}>Adresse de livraison</Text>
+                        <Text style={styles.recapAddressText}>{pendingAddress}</Text>
+                      </View>
+                    </View>
+                  )}
+                </>
+              ) : null}
+
+              {/* Bouton payer */}
+              <TouchableOpacity
+                style={[styles.recapPayBtn, buying && { opacity: 0.5 }]}
+                disabled={buying}
+                onPress={() => {
+                  setShowRecapModal(false);
+                  const fullDeliveryAddress = pendingRecipient && pendingAddress
+                    ? `${pendingRecipient}\n${pendingAddress}`
+                    : pendingAddress;
+                  processPurchase(pendingShipping, fullDeliveryAddress);
+                }}
+              >
+                {buying
+                  ? <ActivityIndicator color={colors.background} size="small" />
+                  : <Text style={styles.recapPayText}>
+                      {xlShipping
+                        ? `Payer · ${(Math.round(listing.price_final * (1 + COMMISSION_RATE) * 100) / 100).toFixed(2)} €`
+                        : `Payer · ${recapTotal.toFixed(2)} €`}
+                    </Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        );
+      })()}
+
+      {/* Modal expédition vendeur */}
+      {showShipModal && listing && (() => {
+        const carrier = transaction?.shipping_method ?? null;
+        const carrierLabel = carrier ? (SHIPPING_LABELS[carrier] ?? carrier) : null;
+        const carrierUrl = carrier === 'colissimo' ? 'https://www.colissimo.fr'
+          : carrier === 'chronopost' ? 'https://www.chronopost.fr'
+          : null;
+        const addr = transaction?.delivery_address;
+        return (
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.offerOverlay}>
+            <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowShipModal(false)} />
+            <View style={styles.recapSheet}>
+              <Text style={styles.recapTitle}>Expédier l'article</Text>
+
+              {/* Adresse de livraison */}
+              {addr ? (
+                <View style={styles.shipAddressBox}>
+                  <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.recapAddressLabel}>Adresse de l'acheteur</Text>
+                    <Text style={styles.recapAddressText}>{addr}</Text>
+                  </View>
+                </View>
+              ) : null}
+
+              <View style={styles.recapDivider} />
+
+              {/* Étapes */}
+              <View style={styles.shipSteps}>
+                <View style={styles.shipStep}>
+                  <View style={styles.shipStepNum}><Text style={styles.shipStepNumText}>1</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.shipStepTitle}>Préparer le colis</Text>
+                    <Text style={styles.shipStepDesc}>Emballez soigneusement l'article (papier bulle, boîte adaptée). Protégez les éléments fragiles.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.shipStep}>
+                  <View style={styles.shipStepNum}><Text style={styles.shipStepNumText}>2</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.shipStepTitle}>
+                      Créer l'étiquette{carrierLabel ? ` ${carrierLabel}` : ''}
+                    </Text>
+                    <Text style={styles.shipStepDesc}>
+                      {carrierUrl
+                        ? `Rendez-vous sur le site du transporteur pour générer votre étiquette.`
+                        : 'Utilisez le site de votre transporteur pour créer l\'étiquette d\'expédition.'}
+                    </Text>
+                    {carrierUrl ? (
+                      <TouchableOpacity onPress={() => Linking.openURL(carrierUrl)} style={styles.shipLinkBtn}>
+                        <Ionicons name="open-outline" size={14} color={colors.primary} />
+                        <Text style={styles.shipLinkText}>Ouvrir {carrierLabel}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.shipStep}>
+                  <View style={styles.shipStepNum}><Text style={styles.shipStepNumText}>3</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.shipStepTitle}>Déposer le colis</Text>
+                    <Text style={styles.shipStepDesc}>Apportez le colis étiqueté dans un bureau de poste ou point de dépôt agréé.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.shipStep}>
+                  <View style={styles.shipStepNum}><Text style={styles.shipStepNumText}>4</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.shipStepTitle}>Confirmer l'expédition</Text>
+                    <Text style={styles.shipStepDesc}>Entrez le numéro de suivi (optionnel) pour notifier l'acheteur.</Text>
+                    <AppTextInput
+                      style={styles.shipTrackingInput}
+                      value={shipTrackingInput}
+                      onChangeText={setShipTrackingInput}
+                      placeholder="Ex : 6X123456789FR"
+                      autoCapitalize="characters"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.recapPayBtn, shipping && { opacity: 0.5 }]}
+                disabled={shipping}
+                onPress={markShippedFromListing}
+              >
+                {shipping
+                  ? <ActivityIndicator color={colors.background} size="small" />
+                  : <>
+                      <Ionicons name="send-outline" size={16} color={colors.background} style={{ marginRight: 8 }} />
+                      <Text style={styles.recapPayText}>Confirmer l'expédition</Text>
+                    </>
+                }
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        );
+      })()}
 
       {listing && (
         <ReviewModal
@@ -1097,11 +1575,32 @@ export function ListingScreen({ navigation, route }: Props) {
       )}
 
       {/* Barre d'actions */}
-      <SafeAreaView style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
         {isOwner && listing.status === 'sold' ? (
-          <View style={[styles.btnSold, { opacity: 0.6 }]}>
-            <Text style={styles.btnSoldText}>Article vendu</Text>
-          </View>
+          transaction?.shipping_status === 'delivered' ? (
+            <View style={[styles.btnSold, { opacity: 0.6 }]}>
+              <Ionicons name="checkmark-circle-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
+              <Text style={styles.btnSoldText}>Livré · Réception confirmée</Text>
+            </View>
+          ) : transaction?.shipping_status === 'shipped' ? (
+            <View style={[styles.btnSold, { opacity: 0.6 }]}>
+              <Ionicons name="checkmark-circle-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
+              <Text style={styles.btnSoldText}>Expédié · En attente de réception</Text>
+            </View>
+          ) : transaction?.shipping_status === 'to_hand' ? (
+            <View style={[styles.btnSold, { opacity: 0.6 }]}>
+              <Ionicons name="people-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
+              <Text style={styles.btnSoldText}>Remise en main propre à convenir</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.btnBuy}
+              onPress={() => { setShipTrackingInput(''); setShowShipModal(true); }}
+            >
+              <Ionicons name="send-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
+              <Text style={styles.btnBuyText}>Expédier l'article</Text>
+            </TouchableOpacity>
+          )
         ) : isOwner ? (
           <>
             <TouchableOpacity
@@ -1123,11 +1622,38 @@ export function ListingScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </>
         ) : listing.status === 'sold' ? (
-          listing.buyer_id !== user?.id ? (
+          transaction != null && transaction.buyer_id === user?.id ? (
+            transaction.shipping_status === 'delivered' ? (
+              <View style={[styles.btnSold, { opacity: 0.6 }]}>
+                <Ionicons name="checkmark-circle-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
+                <Text style={styles.btnSoldText}>Réception confirmée</Text>
+              </View>
+            ) : transaction.shipping_status === 'shipped' || transaction.shipping_status === 'to_hand' ? (
+              <TouchableOpacity
+                style={[styles.btnBuy, confirmingReception && { opacity: 0.6 }]}
+                disabled={confirmingReception}
+                onPress={confirmReceptionFromListing}
+              >
+                {confirmingReception
+                  ? <ActivityIndicator color={colors.background} size="small" />
+                  : <>
+                      <Ionicons name="checkmark-circle-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
+                      <Text style={styles.btnBuyText}>
+                        {transaction.shipping_status === 'to_hand' ? 'Confirmer la remise' : 'Confirmer la réception'}
+                      </Text>
+                    </>
+                }
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.btnSold, { opacity: 0.6 }]}>
+                <Text style={styles.btnSoldText}>En attente d'expédition</Text>
+              </View>
+            )
+          ) : (
             <View style={[styles.btnSold, { opacity: 0.6 }]}>
               <Text style={styles.btnSoldText}>Article vendu</Text>
             </View>
-          ) : null
+          )
         ) : (
           <>
             <TouchableOpacity
@@ -1156,12 +1682,12 @@ export function ListingScreen({ navigation, route }: Props) {
             >
               {buying
                 ? <ActivityIndicator color={colors.background} size="small" />
-                : <Text style={styles.btnBuyText}>Acheter · {((listing.price_final) + (listing.shipping_price ?? 0)).toFixed(2)} €</Text>
+                : <Text style={styles.btnBuyText}>Acheter · {grandTotal.toFixed(2)} €</Text>
               }
             </TouchableOpacity>
           </>
         )}
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
@@ -1494,6 +2020,17 @@ const styles = StyleSheet.create({
   shippingSheetRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
   shippingSheetLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textSecondary },
   shippingSheetPriceText: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  shippingRecap: { marginBottom: 12 },
+  shippingRecapRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  shippingRecapLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, flex: 1, marginRight: 8 },
+  shippingRecapValue: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary },
+  shippingRecapMeta: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary },
+  shippingRecapDivider: { height: 1, backgroundColor: colors.chipBackground, marginTop: 8 },
+  shippingAddressConfirmed: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    marginTop: 6, paddingHorizontal: 4,
+  },
+  shippingAddressConfirmedText: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, flex: 1 },
   shippingAddressLabel: {
     fontFamily: fonts.mono, fontSize: 10, color: colors.textDisabled,
     letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8,
@@ -1508,6 +2045,74 @@ const styles = StyleSheet.create({
     paddingVertical: 16, alignItems: 'center', marginTop: 6,
   },
   shippingConfirmText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
+
+  // Recap modal
+  recapSheet: {
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 8,
+  },
+  recapTitle: { fontFamily: fonts.serif, fontSize: 22, color: colors.textPrimary, marginBottom: 20 },
+  recapProduct: { flexDirection: 'row', gap: 14, alignItems: 'flex-start', marginBottom: 16 },
+  recapThumb: { width: 72, height: 72, borderRadius: 12, backgroundColor: colors.surface },
+  recapThumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  recapProductName: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary, marginBottom: 4 },
+  recapProductMeta: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  recapDivider: { height: 1, backgroundColor: colors.chipBackground, marginVertical: 14 },
+  recapPriceRows: { gap: 10 },
+  recapPriceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  recapPriceLabel: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
+  recapPriceValue: { fontFamily: fonts.body, fontSize: 13, color: colors.textPrimary },
+  recapPriceTotal: { marginTop: 4 },
+  recapTotalLabel: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary },
+  recapTotalValue: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.primary },
+  recapAddressRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  recapAddressLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textDisabled, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4 },
+  recapAddressText: { fontFamily: fonts.body, fontSize: 13, color: colors.textPrimary },
+  recapPayBtn: {
+    backgroundColor: colors.primary, borderRadius: 50,
+    paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center',
+    marginTop: 20, marginBottom: 8,
+  },
+  recapPayText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
+
+  // Bannière statut acheteur
+  statusBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    paddingHorizontal: 20, paddingVertical: 14,
+  },
+  statusBannerPending: { backgroundColor: '#fff8e6' },
+  statusBannerShipped: { backgroundColor: '#eaf7ef' },
+  statusBannerTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14 },
+  statusBannerSub: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+
+  // Modal expédition
+  shipAddressBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 4,
+  },
+  shipSteps: { gap: 16, marginBottom: 4 },
+  shipStep: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  shipStepNum: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    marginTop: 1,
+  },
+  shipStepNumText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.background },
+  shipStepTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, marginBottom: 2 },
+  shipStepDesc: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+  shipLinkBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginTop: 6, alignSelf: 'flex-start',
+    borderWidth: 1, borderColor: colors.primary, borderRadius: 20,
+    paddingVertical: 4, paddingHorizontal: 10,
+  },
+  shipLinkText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.primary },
+  shipTrackingInput: {
+    marginTop: 8, backgroundColor: colors.surface, borderRadius: 10,
+    padding: 10, fontFamily: fonts.mono, fontSize: 14, color: colors.textPrimary,
+    borderWidth: 1, borderColor: colors.chipBackground,
+  },
 
   // Q&A
   qEmpty: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, marginBottom: 12 },

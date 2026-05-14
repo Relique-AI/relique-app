@@ -89,6 +89,16 @@ export function AuthScreen() {
     }
 
     setLoading(true);
+    let referrerUsername: string | null = null;
+    if (tab === 'signup' && referralCode.trim()) {
+      const { supabase: sb } = await import('../services/supabase');
+      const { data: referrer } = await sb
+        .from('profiles')
+        .select('username')
+        .eq('referral_code', referralCode.trim().toUpperCase())
+        .single();
+      referrerUsername = referrer?.username ?? null;
+    }
     const errMsg =
       tab === 'login'
         ? await signIn(email.trim(), password)
@@ -98,7 +108,10 @@ export function AuthScreen() {
     if (errMsg) {
       setError(translateError(errMsg));
     } else if (tab === 'signup') {
-      setSuccess('Compte créé ! Vérifiez votre email pour confirmer votre inscription.');
+      const referralMsg = referrerUsername
+        ? ` Vous avez été parrainé par ${referrerUsername} — votre parrain en a été informé. Vous bénéficiez de 3 achats à −50% de frais !`
+        : '';
+      setSuccess(`Compte créé ! Vérifiez votre email pour confirmer votre inscription.${referralMsg}`);
     }
   };
 

@@ -2,6 +2,18 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import Stripe from 'https://esm.sh/stripe@13.0.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+const SHIPPING_RATES: Record<string, Record<string, number>> = {
+  relay:      { xs: 3.99, s:  5.49, m:  6.99, l:  8.99 },
+  colissimo:  { xs: 6.50, s:  8.25, m: 10.75, l: 15.50 },
+  chronopost: { xs: 12.00, s: 16.00, m: 20.00, l: 28.00 },
+};
+
+function getShippingCost(carrier: string, parcelSize: string | null | undefined): number {
+  if (carrier === 'hand') return 0;
+  if (parcelSize === 'xl') return 0; // hors gabarit : frais convenus séparément
+  return SHIPPING_RATES[carrier]?.[parcelSize ?? 's'] ?? 0;
+}
+
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
   apiVersion: '2023-10-16',
   httpClient: Stripe.createFetchHttpClient(),
@@ -57,9 +69,33 @@ serve(async (req) => {
       itemPrice = offer.amount;
     }
 
-    const shippingCost = shipping_method === 'hand' ? 0 : (listing.shipping_price ?? 0);
-    const amount = Math.round((itemPrice + shippingCost) * 100);
-    const fee = Math.round(amount * 0.03);
+    const shippingCost = getShippingCost(shipping_method, listing.parcel_size);
+    const baseAmountCents = Math.round((itemPrice + shippingCost) * 100);
+
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    // Referral discount: -50% on fee if buyer has credits
+    const { data: buyerProfile } = await admin
+      .from('profiles')
+      .select('referral_credits')
+      .eq('id', user.id)
+      .single();
+    const referralCredits = buyerProfile?.referral_credits ?? 0;
+    const referralDiscount = referralCredits > 0;
+    const feeRate = referralDiscount ? 0.04 : 0.08;
+    const fee = Math.round(baseAmountCents * feeRate);
+    const amount = baseAmountCents + fee;
+
+    // Decrement credit before creating the payment intent
+    if (referralDiscount) {
+      await admin
+        .from('profiles')
+        .update({ referral_credits: referralCredits - 1 })
+        .eq('id', user.id);
+    }
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
@@ -73,10 +109,11 @@ serve(async (req) => {
         shipping_method,
         ...(delivery_address ? { delivery_address } : {}),
         ...(offer_id ? { offer_id } : {}),
+        ...(referralDiscount ? { referral_credit_used: 'true' } : {}),
       },
     });
 
-    return json({ clientSecret: paymentIntent.client_secret, amount, paymentIntentId: paymentIntent.id });
+    return json({ clientSecret: paymentIntent.client_secret, amount, paymentIntentId: paymentIntent.id, referralCreditUsed: referralDiscount });
   } catch (err: any) {
     const msg = err?.message ?? String(err);
     console.error('create-payment-intent error:', msg);

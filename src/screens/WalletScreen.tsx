@@ -168,7 +168,7 @@ export function WalletScreen({ navigation }: Props) {
               <View style={{ flex: 1 }}>
                 <Text style={styles.onboardedTitle}>Compte Stripe actif</Text>
                 <Text style={styles.onboardedText}>
-                  Vos paiements sont virés automatiquement sur votre IBAN (3 % de commission Pépite).
+                  Vos paiements sont virés automatiquement sur votre IBAN.
                 </Text>
               </View>
             </View>
@@ -196,7 +196,6 @@ export function WalletScreen({ navigation }: Props) {
             {[
               "Publiez votre objet via l'onglet Scanner.",
               'Un acheteur paie directement dans l\'app.',
-              'Pépite prélève 3 % de commission, le reste vous est disponible dans ce portefeuille.',
               'Virez vos fonds sur votre compte bancaire en un clic.',
             ].map((text, i) => (
               <View key={i} style={styles.infoRow}>

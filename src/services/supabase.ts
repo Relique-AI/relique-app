@@ -82,6 +82,7 @@ export interface Listing {
   shipping_options: string[] | null;
   shipping_price: number | null;
   parcel_size: string | null;
+  buyer_id: string | null;
   created_at: string;
   profiles?: Profile;
 }
@@ -94,7 +95,7 @@ export interface Message {
   content: string;
   read: boolean;
   created_at: string;
-  type: 'text' | 'offer' | 'image';
+  type: 'text' | 'offer' | 'image' | 'system';
   offer_id: string | null;
 }
 

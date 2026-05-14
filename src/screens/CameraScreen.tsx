@@ -59,7 +59,7 @@ export function CameraScreen({ navigation }: Props) {
     const result = await cameraRef.current.takePictureAsync({
       base64: true,
       quality: 0.3,
-      ...(Platform.OS === 'ios' && { shutterSound: false }),
+      shutterSound: false,
     });
 
     if (result?.uri && result?.base64) {

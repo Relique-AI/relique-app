@@ -1,5 +1,12 @@
+import * as Sentry from '@sentry/react-native';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { useFonts } from 'expo-font';
+
+Sentry.init({
+  dsn: 'https://6cdab45561f2c28fb4371cc3f789fe53@o4511387816165376.ingest.de.sentry.io/4511387820163152',
+  tracesSampleRate: 0.2,
+  environment: __DEV__ ? 'development' : 'production',
+});
 import {
   Fraunces_400Regular,
   Fraunces_400Regular_Italic,
@@ -79,7 +86,7 @@ function AppWithNotifications() {
   );
 }
 
-export default function App() {
+function App() {
   const [fontsLoaded] = useFonts({
     Fraunces_400Regular,
     Fraunces_400Regular_Italic,
@@ -108,3 +115,5 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(App);

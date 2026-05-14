@@ -67,6 +67,7 @@ export function ProfileScreen({ navigation, route }: Props) {
   const [referralCount, setReferralCount] = useState(0);
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [pendingShipments, setPendingShipments] = useState<Record<string, { transaction_id: string; delivery_address: string | null; label_url: string | null }>>({});
+  const [deliveredListingIds, setDeliveredListingIds] = useState<Set<string>>(new Set());
   const [trackingModal, setTrackingModal] = useState<{ transactionId: string; deliveryAddress: string | null } | null>(null);
   const [trackingInput, setTrackingInput] = useState('');
   const [savedEstimations, setSavedEstimations] = useState<SavedEstimation[]>([]);
@@ -150,15 +151,21 @@ export function ProfileScreen({ navigation, route }: Props) {
     if (!user) return;
     const { data } = await supabase
       .from('transactions')
-      .select('id, listing_id, delivery_address, label_url')
+      .select('id, listing_id, delivery_address, label_url, shipping_status')
       .eq('seller_id', user.id)
-      .eq('shipping_status', 'to_ship');
+      .in('shipping_status', ['to_ship', 'to_hand', 'delivered']);
     if (data) {
-      const map: Record<string, { transaction_id: string; delivery_address: string | null; label_url: string | null }> = {};
+      const pending: Record<string, { transaction_id: string; delivery_address: string | null; label_url: string | null }> = {};
+      const delivered = new Set<string>();
       for (const t of data as any[]) {
-        map[t.listing_id] = { transaction_id: t.id, delivery_address: t.delivery_address, label_url: t.label_url ?? null };
+        if (t.shipping_status === 'to_ship') {
+          pending[t.listing_id] = { transaction_id: t.id, delivery_address: t.delivery_address, label_url: t.label_url ?? null };
+        } else if (t.shipping_status === 'delivered') {
+          delivered.add(t.listing_id);
+        }
       }
-      setPendingShipments(map);
+      setPendingShipments(pending);
+      setDeliveredListingIds(delivered);
     }
   }, [user]);
 
@@ -262,7 +269,11 @@ export function ProfileScreen({ navigation, route }: Props) {
         {
           text: 'Confirmer',
           onPress: async () => {
-            await supabase.from('transactions').update({ shipping_status: 'delivered' }).eq('id', transactionId);
+            const session = (await supabase.auth.getSession()).data.session;
+            await supabase.functions.invoke('confirm-reception', {
+              body: { transaction_id: transactionId },
+              headers: { Authorization: `Bearer ${session?.access_token}` },
+            });
             loadPurchases();
           },
         },
@@ -272,13 +283,19 @@ export function ProfileScreen({ navigation, route }: Props) {
 
   const markShipped = async () => {
     if (!trackingModal) return;
-    await supabase
-      .from('transactions')
-      .update({ shipping_status: 'shipped', tracking_number: trackingInput.trim() || null })
-      .eq('id', trackingModal.transactionId);
+    const session = (await supabase.auth.getSession()).data.session;
+    const { data, error } = await supabase.functions.invoke('mark-shipped', {
+      body: { transaction_id: trackingModal.transactionId, tracking_number: trackingInput.trim() || null },
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    });
+    if (error || data?.error) {
+      Alert.alert('Erreur', data?.error ?? 'Impossible de marquer comme expédié.');
+      return;
+    }
     setTrackingModal(null);
     setTrackingInput('');
     loadPendingShipments();
+    loadMyListings();
   };
 
   const handleSignOut = () => {
@@ -318,6 +335,7 @@ export function ProfileScreen({ navigation, route }: Props) {
     const isSold = item.status === 'sold';
     const unanswered = questionCounts[item.id] ?? 0;
     const pendingShipment = pendingShipments[item.id];
+    const isDelivered = deliveredListingIds.has(item.id);
     return (
       <TouchableOpacity
         style={styles.myCard}
@@ -348,7 +366,13 @@ export function ProfileScreen({ navigation, route }: Props) {
                 <Text style={styles.questionBadgeText}>{unanswered} question{unanswered > 1 ? 's' : ''}</Text>
               </View>
             )}
-            {pendingShipment && (
+            {isDelivered && (
+              <View style={styles.deliveredBadge}>
+                <Ionicons name="checkmark-circle-outline" size={11} color={colors.background} />
+                <Text style={styles.deliveredBadgeText}>Réception confirmée</Text>
+              </View>
+            )}
+            {!isDelivered && pendingShipment && (
               <TouchableOpacity
                 style={styles.shipBadge}
                 onPress={() => { setTrackingModal({ transactionId: pendingShipment.transaction_id, deliveryAddress: pendingShipment.delivery_address }); setTrackingInput(''); }}
@@ -442,9 +466,14 @@ export function ProfileScreen({ navigation, route }: Props) {
                 {isPending ? 'En cours' : 'Payé'}
               </Text>
             </View>
+            {shippingStatus === 'to_hand' && (
+              <View style={[styles.statusBadge, { backgroundColor: 'rgba(255,152,0,0.15)' }]}>
+                <Text style={[styles.statusText, { color: '#FF9800' }]}>Remise à convenir</Text>
+              </View>
+            )}
             {isPostal && shippingStatus === 'to_ship' && (
               <View style={[styles.statusBadge, { backgroundColor: 'rgba(255,152,0,0.15)' }]}>
-                <Text style={[styles.statusText, { color: '#FF9800' }]}>À expédier</Text>
+                <Text style={[styles.statusText, { color: '#FF9800' }]}>En attente d'expédition</Text>
               </View>
             )}
             {isPostal && shippingStatus === 'shipped' && (
@@ -452,22 +481,24 @@ export function ProfileScreen({ navigation, route }: Props) {
                 <Text style={[styles.statusText, { color: '#2196F3' }]}>En livraison</Text>
               </View>
             )}
-            {isPostal && shippingStatus === 'delivered' && (
+            {shippingStatus === 'delivered' && (
               <View style={[styles.statusBadge, styles.statusActive]}>
                 <Text style={[styles.statusText, styles.statusTextActive]}>Livré</Text>
               </View>
             )}
           </View>
-          {item.tracking_number && (
+          {item.tracking_number && shippingStatus !== 'delivered' && (
             <Text style={styles.trackingText}>Suivi : {item.tracking_number}</Text>
           )}
-          {isPostal && shippingStatus === 'shipped' && (
+          {(shippingStatus === 'to_hand' || (isPostal && shippingStatus === 'shipped')) && (
             <TouchableOpacity
               style={styles.confirmReceiptBtn}
               onPress={() => confirmReceipt(item.id)}
             >
               <Ionicons name="checkmark-circle-outline" size={13} color={colors.background} />
-              <Text style={styles.confirmReceiptText}>Confirmer réception</Text>
+              <Text style={styles.confirmReceiptText}>
+                {shippingStatus === 'to_hand' ? 'Confirmer la remise' : 'Confirmer réception'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -484,7 +515,12 @@ export function ProfileScreen({ navigation, route }: Props) {
     );
   }
 
-  const currentData = tab === 'listings' ? myListings : tab === 'favorites' ? favorites : purchases;
+  const sortedListings = [...myListings].sort((a, b) => {
+    const aScore = (pendingShipments[a.id] ? 2 : 0) + ((questionCounts[a.id] ?? 0) > 0 ? 1 : 0);
+    const bScore = (pendingShipments[b.id] ? 2 : 0) + ((questionCounts[b.id] ?? 0) > 0 ? 1 : 0);
+    return bScore - aScore;
+  });
+  const currentData = tab === 'listings' ? sortedListings : tab === 'favorites' ? favorites : purchases;
 
   return (
     <SafeAreaView style={styles.root}>
@@ -898,6 +934,17 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   shipBadgeText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.background },
+  deliveredBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.success,
+    borderRadius: 20,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginLeft: 6,
+  },
+  deliveredBadgeText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.background },
   labelBadge: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { colors, fonts, spacing } from '../theme';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { ConditionBadge } from '../components/ConditionBadge';
+import { SHIPPING_RATES, PARCEL_SIZES as PARCEL_SIZES_DATA } from '../utils/shippingRates';
 
 const { width } = Dimensions.get('window');
 
@@ -46,18 +47,12 @@ const CATEGORIES = [
 ];
 
 const SHIPPING_OPTIONS = [
-  { id: 'hand', label: 'Remise en main propre', detail: 'Gratuit · À définir avec l\'acheteur' },
-  { id: 'relay', label: 'Mondial Relay', detail: 'À partir de 3,99 €' },
-  { id: 'colissimo', label: 'Colissimo', detail: 'À partir de 6,50 €' },
-  { id: 'chronopost', label: 'Chronopost', detail: 'À partir de 12,00 €' },
+  { id: 'hand',       label: 'Remise en main propre' },
+  { id: 'colissimo',  label: 'Colissimo' },
+  { id: 'chronopost', label: 'Chronopost' },
 ];
 
-const PARCEL_SIZES = [
-  { id: 'xs', label: 'Petit',      detail: 'Jusqu\'à 1 kg · bijoux, accessoires' },
-  { id: 's',  label: 'Moyen',      detail: 'Jusqu\'à 3 kg · vêtements, livres' },
-  { id: 'm',  label: 'Grand',      detail: 'Jusqu\'à 5 kg · objets décoratifs' },
-  { id: 'l',  label: 'Très grand', detail: 'Jusqu\'à 10 kg · mobilier léger' },
-];
+const PARCEL_SIZES = PARCEL_SIZES_DATA;
 
 async function compressPhoto(uri: string): Promise<string> {
   const result = await ImageManipulator.manipulateAsync(
@@ -129,7 +124,6 @@ export function SellScreen({ navigation, route }: Props) {
   }, []);
 
   const [shippingOptions, setShippingOptions] = useState<string[]>(['hand']);
-  const [shippingPrice, setShippingPrice] = useState('0');
   const [parcelSize, setParcelSize] = useState('s');
 
   const hasPostal = shippingOptions.some(o => o !== 'hand');
@@ -208,6 +202,10 @@ export function SellScreen({ navigation, route }: Props) {
       Alert.alert('Prix invalide', 'Veuillez saisir un prix valide.');
       return;
     }
+    doPublish(priceNum);
+  };
+
+  const doPublish = async (priceNum: number) => {
     if (!user || !session) return;
 
     setLoading(true);
@@ -235,7 +233,7 @@ export function SellScreen({ navigation, route }: Props) {
         status: 'active',
         location: location.trim() || null,
         shipping_options: shippingOptions,
-        shipping_price: parseFloat(shippingPrice.replace(',', '.')) || 0,
+        shipping_price: 0,
         parcel_size: hasPostal ? parcelSize : null,
       });
 
@@ -418,34 +416,42 @@ export function SellScreen({ navigation, route }: Props) {
           {/* Livraison */}
           <View style={styles.field}>
             <Text style={styles.label}>Modes de livraison</Text>
-            <Text style={styles.shippingSubtitle}>Sélectionnez les options que vous proposez</Text>
-            {SHIPPING_OPTIONS.map((opt) => (
-              <TouchableOpacity
-                key={opt.id}
-                style={[styles.shippingRow, shippingOptions.includes(opt.id) && styles.shippingRowActive]}
-                onPress={() => toggleShipping(opt.id)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.shippingCheck, shippingOptions.includes(opt.id) && styles.shippingCheckActive]}>
-                  {shippingOptions.includes(opt.id) && (
-                    <Ionicons name="checkmark" size={13} color={colors.background} />
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.shippingLabel, shippingOptions.includes(opt.id) && styles.shippingLabelActive]}>
-                    {opt.label}
-                  </Text>
-                  <Text style={styles.shippingDetail}>{opt.detail}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            <Text style={styles.shippingSubtitle}>Sélectionnez les options que vous proposez à l'acheteur</Text>
+            {SHIPPING_OPTIONS.map((opt) => {
+              const rate = opt.id === 'hand' ? null : (SHIPPING_RATES[opt.id]?.[parcelSize] ?? null);
+              const detail = opt.id === 'hand'
+                ? "Gratuit · À organiser directement"
+                : parcelSize === 'xl'
+                  ? "Frais à convenir avec l'acheteur"
+                  : rate !== null ? `${rate.toFixed(2)} € (format ${PARCEL_SIZES.find(p => p.id === parcelSize)?.label ?? ''})` : 'Tarif selon format du colis';
+              return (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[styles.shippingRow, shippingOptions.includes(opt.id) && styles.shippingRowActive]}
+                  onPress={() => toggleShipping(opt.id)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.shippingCheck, shippingOptions.includes(opt.id) && styles.shippingCheckActive]}>
+                    {shippingOptions.includes(opt.id) && (
+                      <Ionicons name="checkmark" size={13} color={colors.background} />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.shippingLabel, shippingOptions.includes(opt.id) && styles.shippingLabelActive]}>
+                      {opt.label}
+                    </Text>
+                    <Text style={styles.shippingDetail}>{detail}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* Format du colis */}
           {hasPostal && (
             <View style={styles.field}>
               <Text style={styles.label}>Format du colis</Text>
-              <Text style={styles.shippingSubtitle}>Choisissez la tranche correspondant à votre colis</Text>
+              <Text style={styles.shippingSubtitle}>Détermine le tarif de livraison affiché à l'acheteur</Text>
               {PARCEL_SIZES.map((size) => (
                 <TouchableOpacity
                   key={size.id}
@@ -468,20 +474,6 @@ export function SellScreen({ navigation, route }: Props) {
               ))}
             </View>
           )}
-
-          {/* Prix de livraison */}
-          <View style={styles.field}>
-            <Text style={styles.label}>Prix de livraison (€)</Text>
-            <Text style={styles.shippingSubtitle}>0 = livraison gratuite · frais à votre charge</Text>
-            <AppTextInput
-              style={styles.input}
-              value={shippingPrice}
-              onChangeText={setShippingPrice}
-              keyboardType="decimal-pad"
-              placeholder="0"
-
-            />
-          </View>
 
           {/* Conseils de vente IA */}
           {analysis.sellingTips.length > 0 && (

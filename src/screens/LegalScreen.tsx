@@ -185,7 +185,7 @@ export function LegalScreen({ navigation }: Props) {
             {'Le paiement est exclusivement réalisé via le service de paiement intégré opéré par Stripe. Pépite ne collecte, ne stocke ni ne traite directement les données de carte bancaire. Les fonds sont disponibles dans le portefeuille du Vendeur, déduction faite de la Commission de Pépite, et peuvent être virés sur son compte bancaire à tout moment.'}
           </Sub>
           <Sub title="7.3 Commission de Pépite">
-            {'Pépite perçoit une Commission de 3 % (trois pour cent) du Prix total de chaque Transaction, automatiquement déduite lors du traitement du paiement. La Commission est acquise à Pépite dès la conclusion de la Transaction.'}
+            {'Pépite perçoit une Commission de 8 % (huit pour cent) du Prix total de chaque Transaction, automatiquement déduite lors du traitement du paiement. La Commission est acquise à Pépite dès la conclusion de la Transaction.'}
           </Sub>
           <Sub title="7.4 Obligations déclaratives – DAC7">
             {'Conformément à la Directive européenne 2021/514/UE (DAC7), Pépite est tenue de déclarer à l\'administration fiscale les informations relatives aux Vendeurs ayant réalisé plus de 30 transactions ou plus de 2 000 € de revenus bruts annuels sur la Plateforme.'}

@@ -19,6 +19,7 @@ import { ProfileStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Listing } from '../services/supabase';
 import { AppTextInput } from '../components/AppTextInput';
+import { PARCEL_SIZES } from '../utils/shippingRates';
 
 type Props = {
   navigation: StackNavigationProp<ProfileStackParamList, 'EditListing'>;
@@ -32,10 +33,10 @@ export function EditListingScreen({ navigation, route }: Props) {
   const [price, setPrice] = useState('');
   const [story, setStory] = useState('');
   const [location, setLocation] = useState('');
-  const [shippingPrice, setShippingPrice] = useState('0');
   const [locationSuggestions, setLocationSuggestions] = useState<Array<{ label: string; value: string }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const locationSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [parcelSize, setParcelSize] = useState('s');
   const [tipsOpen, setTipsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -60,7 +61,7 @@ export function EditListingScreen({ navigation, route }: Props) {
       setPrice(String(l.price_final));
       setStory(l.story ?? '');
       setLocation(l.location ?? '');
-      setShippingPrice(String(l.shipping_price ?? 0));
+      setParcelSize(l.parcel_size ?? 's');
     }
     setLoading(false);
   };
@@ -113,7 +114,7 @@ export function EditListingScreen({ navigation, route }: Props) {
         price_final: parsedPrice,
         story: story.trim(),
         location: location.trim() || null,
-        shipping_price: parseFloat(shippingPrice.replace(',', '.')) || 0,
+        parcel_size: parcelSize,
       })
       .eq('id', id);
     setSaving(false);
@@ -256,22 +257,35 @@ export function EditListingScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          {/* Prix livraison */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Prix de livraison (€)</Text>
-            <View style={styles.priceWrap}>
-              <AppTextInput
-                style={styles.priceInput}
-                value={shippingPrice}
-                onChangeText={setShippingPrice}
-                keyboardType="decimal-pad"
-                placeholder="0"
-
-              />
-              <Text style={styles.priceSymbol}>€</Text>
+          {/* Format du colis */}
+          {(listing.shipping_options ?? []).some((o: string) => o !== 'hand') && (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Format du colis</Text>
+              <View style={{ gap: 8 }}>
+                {PARCEL_SIZES.map((size) => (
+                  <TouchableOpacity
+                    key={size.id}
+                    style={[
+                      styles.sizeRow,
+                      parcelSize === size.id && styles.sizeRowActive,
+                    ]}
+                    onPress={() => setParcelSize(size.id)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.sizeRadio, parcelSize === size.id && styles.sizeRadioActive]}>
+                      {parcelSize === size.id && <View style={styles.sizeRadioDot} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.sizeLabel, parcelSize === size.id && { color: colors.textPrimary }]}>
+                        {size.label}
+                      </Text>
+                      <Text style={styles.sizeDetail}>{size.detail}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-            <Text style={styles.fieldHint}>0 = livraison gratuite</Text>
-          </View>
+          )}
 
           {/* Conseils de vente IA */}
           {(listing.selling_tips?.length ?? 0) > 0 && (
@@ -432,4 +446,29 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   infoText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, flex: 1, lineHeight: 19 },
+
+  sizeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.chipBackground,
+  },
+  sizeRowActive: { borderColor: colors.primary },
+  sizeRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.textSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sizeRadioActive: { borderColor: colors.primary },
+  sizeRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
+  sizeLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textSecondary },
+  sizeDetail: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 });

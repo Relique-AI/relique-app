@@ -782,6 +782,24 @@ export function ChatScreen({ navigation, route }: Props) {
 
   const renderMessage = ({ item }: { item: Message }) => {
     if (item.type === 'offer') return renderOfferBubble(item);
+
+    try {
+      const parsed = JSON.parse(item.content);
+      if (parsed.__pepite_type === 'purchase') {
+        return (
+          <View style={styles.systemCard}>
+            <View style={styles.systemCardInner}>
+              <View style={styles.systemCardHeader}>
+                <Ionicons name="bag-check-outline" size={16} color={colors.primary} />
+                <Text style={styles.systemCardTitle}>Achat confirmé</Text>
+              </View>
+              <Text style={styles.systemCardItem} numberOfLines={2}>{parsed.listing_name}</Text>
+              <Text style={styles.systemCardSub}>Remise en main propre · À convenir entre les deux parties</Text>
+            </View>
+          </View>
+        );
+      }
+    } catch {}
     const isMine = item.sender_id === user?.id;
     if (item.type === 'image') {
       return (
@@ -1236,4 +1254,39 @@ const styles = StyleSheet.create({
     paddingVertical: 16, alignItems: 'center', marginTop: 6,
   },
   shippingConfirmText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
+
+  systemCard: {
+    alignItems: 'center',
+    marginVertical: 12,
+    paddingHorizontal: spacing.section,
+  },
+  systemCardInner: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: `${colors.primary}40`,
+    width: '100%',
+    gap: 6,
+  },
+  systemCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  systemCardTitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.primary,
+  },
+  systemCardItem: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  systemCardSub: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
 });

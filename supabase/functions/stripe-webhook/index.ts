@@ -43,7 +43,7 @@ serve(async (req) => {
     if (listing_id && buyer_id && seller_id) {
       const shipping_method = pi.metadata.shipping_method ?? 'hand';
       const delivery_address = pi.metadata.delivery_address ?? null;
-      const shipping_status = shipping_method === 'hand' ? 'delivered' : 'to_ship';
+      const shipping_status = shipping_method === 'hand' ? 'to_hand' : 'to_ship';
 
       const { data: listing } = await supabase
         .from('listings')
