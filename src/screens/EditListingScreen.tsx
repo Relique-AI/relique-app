@@ -44,6 +44,10 @@ export function EditListingScreen({ navigation, route }: Props) {
     loadListing();
   }, []);
 
+  useEffect(() => {
+    return () => { if (locationSearchTimeout.current) clearTimeout(locationSearchTimeout.current); };
+  }, []);
+
   const loadListing = async () => {
     const { data } = await supabase
       .from('listings')

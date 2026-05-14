@@ -123,6 +123,11 @@ export function SellScreen({ navigation, route }: Props) {
   const [locationSuggestions, setLocationSuggestions] = useState<Array<{ label: string; value: string }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const locationSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => { if (locationSearchTimeout.current) clearTimeout(locationSearchTimeout.current); };
+  }, []);
+
   const [shippingOptions, setShippingOptions] = useState<string[]>(['hand']);
   const [shippingPrice, setShippingPrice] = useState('0');
   const [parcelSize, setParcelSize] = useState('s');
