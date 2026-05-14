@@ -591,8 +591,8 @@ export function ProfileScreen({ navigation, route }: Props) {
                       )}
                     </View>
                     <View style={styles.myCardBody}>
-                      <Text style={styles.myCardName} numberOfLines={2}>{draft.analysis.name}</Text>
-                      <Text style={styles.myCardPrice}>{draft.analysis.priceMin} — {draft.analysis.priceMax} €</Text>
+                      <Text style={styles.myCardName} numberOfLines={2}>{draft.analysis?.name ?? '—'}</Text>
+                      <Text style={styles.myCardPrice}>{draft.analysis?.priceMin ?? '?'} — {draft.analysis?.priceMax ?? '?'} €</Text>
                       <View style={styles.myCardRow}>
                         <View style={[styles.statusBadge, { backgroundColor: 'rgba(245,184,46,0.12)' }]}>
                           <Text style={[styles.statusText, { color: colors.primary }]}>Brouillon · {date}</Text>
