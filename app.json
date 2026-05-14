@@ -23,7 +23,7 @@
         "NSPhotoLibraryUsageDescription": "Pépite accède à vos photos pour analyser vos objets.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "6"
+      "buildNumber": "20"
     },
     "android": {
       "softwareKeyboardLayoutMode": "pan",
