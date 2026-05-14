@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +15,7 @@ interface Props {
   onFavoriteToggle: () => void;
 }
 
-export function ListingCard({ listing, width, isFavorited, onPress, onFavoriteToggle }: Props) {
+export const ListingCard = memo(function ListingCard({ listing, width, isFavorited, onPress, onFavoriteToggle }: Props) {
   const imageUri = listing.images?.[0];
   const condition = listing.condition as AnalysisResult['condition'];
 
@@ -61,7 +62,11 @@ export function ListingCard({ listing, width, isFavorited, onPress, onFavoriteTo
       </View>
     </TouchableOpacity>
   );
-}
+}, (prev, next) =>
+  prev.listing.id === next.listing.id &&
+  prev.isFavorited === next.isFavorited &&
+  prev.width === next.width,
+);
 
 const styles = StyleSheet.create({
   card: {
