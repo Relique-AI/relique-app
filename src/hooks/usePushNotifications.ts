@@ -17,33 +17,40 @@ Notifications.setNotificationHandler({
 });
 
 function doNavigate(data: Record<string, any>) {
-  if (data?.type === 'message' && data?.listing_id && data?.sender_id) {
-    navigate('Messages', {
-      screen: 'Chat',
-      params: {
-        listing_id: data.listing_id,
-        receiver_id: data.sender_id,
-        listing_name: data.listing_name ?? '',
-      },
-    });
+  const chatParams = data?.listing_id && data?.sender_id ? {
+    listing_id: data.listing_id,
+    receiver_id: data.sender_id,
+    listing_name: data.listing_name ?? '',
+  } : null;
+
+  if (data?.type === 'message' && chatParams) {
+    navigate('Messages', { screen: 'Chat', params: chatParams });
   } else if (data?.type === 'message') {
     navigate('Messages');
+  } else if (
+    (data?.type === 'offer_received' || data?.type === 'offer_accepted' ||
+     data?.type === 'offer_declined' || data?.type === 'offer_counter') && chatParams
+  ) {
+    navigate('Messages', { screen: 'Chat', params: chatParams });
   } else if (data?.type === 'question' && data?.listing_id) {
-    navigate('Profil', {
-      screen: 'Listing',
-      params: { id: data.listing_id },
-    });
-  } else if ((data?.type === 'question_answer') && data?.listing_id) {
-    navigate('Marché', {
-      screen: 'Listing',
-      params: { id: data.listing_id },
-    });
+    navigate('Profil', { screen: 'Listing', params: { id: data.listing_id } });
+  } else if (data?.type === 'question_answer' && data?.listing_id) {
+    navigate('Marché', { screen: 'Listing', params: { id: data.listing_id } });
   } else if (data?.type === 'new_listing' && data?.listing_id) {
-    navigate('Marché', {
-      screen: 'Listing',
-      params: { id: data.listing_id },
-    });
+    navigate('Marché', { screen: 'Listing', params: { id: data.listing_id } });
+  } else if (data?.type === 'sale' && data?.listing_id) {
+    navigate('Profil', { screen: 'Listing', params: { id: data.listing_id } });
+  } else if (data?.type === 'shipped' && data?.listing_id) {
+    navigate('Marché', { screen: 'Listing', params: { id: data.listing_id } });
+  } else if ((data?.type === 'delivered' || data?.type === 'label_ready') && data?.listing_id) {
+    navigate('Profil', { screen: 'Listing', params: { id: data.listing_id } });
   } else if (data?.type === 'referral') {
+    navigate('Profil');
+  } else if (data?.type === 'referral_reward') {
+    navigate('Profil', { screen: 'EditProfile' });
+  } else if (data?.type === 'report') {
+    navigate('Profil', { screen: 'Admin' });
+  } else if (data?.type === 'moderation') {
     navigate('Profil');
   }
 }
