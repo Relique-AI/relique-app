@@ -202,13 +202,14 @@ export function ResultScreen({ navigation, route }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Animated.View
         style={[styles.cardContainer, { transform: [{ translateY: slideAnim }] }]}
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
           {/* Image héro */}
           <Animated.View style={{ opacity: fadeAnims[0] }}>
@@ -309,8 +310,7 @@ export function ResultScreen({ navigation, route }: Props) {
           {/* Questions de clarification */}
           {(analysis.clarifyingQuestions ?? []).length > 0 && (
             <Animated.View style={[styles.section, { opacity: fadeAnims[4] }]}>
-              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'position' : undefined}>
-                <View style={styles.clarifyCard}>
+              <View style={styles.clarifyCard}>
                   <View style={styles.clarifyHeader}>
                     <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
                     <Text style={styles.clarifyTitle}>Pour affiner l'estimation</Text>
@@ -337,8 +337,7 @@ export function ResultScreen({ navigation, route }: Props) {
                     <Ionicons name="refresh" size={14} color={colors.background} />
                     <Text style={styles.clarifyBtnText}>Relancer l'analyse</Text>
                   </TouchableOpacity>
-                </View>
-              </KeyboardAvoidingView>
+              </View>
             </Animated.View>
           )}
 
@@ -381,7 +380,7 @@ export function ResultScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

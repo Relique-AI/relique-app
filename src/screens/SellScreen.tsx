@@ -118,6 +118,8 @@ export function SellScreen({ navigation, route }: Props) {
   const [locationSuggestions, setLocationSuggestions] = useState<Array<{ label: string; value: string }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const locationSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const [descriptionY, setDescriptionY] = useState(0);
 
   useEffect(() => {
     return () => { if (locationSearchTimeout.current) clearTimeout(locationSearchTimeout.current); };
@@ -277,6 +279,7 @@ export function SellScreen({ navigation, route }: Props) {
         </View>
 
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -355,7 +358,7 @@ export function SellScreen({ navigation, route }: Props) {
           </View>
 
           {/* Description */}
-          <View style={styles.field}>
+          <View style={styles.field} onLayout={(e) => setDescriptionY(e.nativeEvent.layout.y)}>
             <Text style={styles.label}>Description</Text>
             <AppTextInput
               style={[styles.input, styles.inputMulti]}
@@ -364,7 +367,7 @@ export function SellScreen({ navigation, route }: Props) {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-
+              onFocus={() => scrollRef.current?.scrollTo({ y: descriptionY, animated: true })}
             />
           </View>
 
