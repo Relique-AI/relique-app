@@ -36,6 +36,8 @@ import { AnalysisResult } from '../types';
 import { AppTextInput } from '../components/AppTextInput';
 import { PaymentFlowSheet } from '../components/PaymentFlowSheet';
 import { getShippingCost } from '../utils/shippingRates';
+import NotificationPromptModal from '../components/NotificationPromptModal';
+import { useNotificationPermission } from '../hooks/useNotificationPermission';
 
 const COMMISSION_RATE = 0.08;
 
@@ -155,6 +157,7 @@ export function ListingScreen({ navigation, route }: Props) {
   const { user } = useAuth();
 
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { promptContext, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
   const [listing, setListing] = useState<Listing | null>(null);
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -387,6 +390,7 @@ export function ListingScreen({ navigation, route }: Props) {
     if (!error) {
       setNewQuestion('');
       loadQuestions();
+      promptIfNeeded('question');
       if (!isFavorited) {
         supabase.from('favorites').insert({ user_id: user.id, listing_id: id }).then(() => {
           setIsFavorited(true);
@@ -505,13 +509,13 @@ export function ListingScreen({ navigation, route }: Props) {
 
   const handleShare = async () => {
     if (!listing) return;
-    const deepLink = `pepite://listing/${listing.id}`;
+    const webLink = `https://pepite-redirect.vercel.app/listing/${listing.id}`;
     await Share.share({
       title: listing.name,
       message:
         `${listing.name} — ${listing.price_final} €\n` +
         `${listing.category} · ${listing.era}\n\n` +
-        `Voir cette annonce sur Pépite : ${deepLink}`,
+        `Voir cette annonce sur Pépite : ${webLink}`,
     });
   };
 
@@ -582,6 +586,8 @@ export function ListingScreen({ navigation, route }: Props) {
         body: { payment_intent_id: paymentIntentId },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       }).catch(() => {});
+
+      promptIfNeeded('purchase');
 
       if (shippingMethod === 'hand') {
         try {
@@ -658,6 +664,7 @@ export function ListingScreen({ navigation, route }: Props) {
 
     setShowOfferModal(false);
     setOfferAmount('');
+    promptIfNeeded('offer');
     navigation.navigate('Chat', {
       listing_id: listing.id,
       receiver_id: listing.seller_id,
@@ -1418,6 +1425,7 @@ export function ListingScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </>
         )}
+      <NotificationPromptModal context={promptContext} onAccept={onAccept} onDismiss={onDismiss} />
       </View>
     </View>
   );

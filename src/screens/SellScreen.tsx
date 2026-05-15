@@ -22,6 +22,8 @@ import { RootStackParamList, AnalysisResult, CapturedPhoto } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
+import NotificationPromptModal from '../components/NotificationPromptModal';
+import { useNotificationPermission } from '../hooks/useNotificationPermission';
 import { ConditionBadge } from '../components/ConditionBadge';
 import { SHIPPING_RATES, PARCEL_SIZES as PARCEL_SIZES_DATA } from '../utils/shippingRates';
 
@@ -101,6 +103,7 @@ export function SellScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { analysis, photos: initialPhotos, preUploadedPhotoUrls } = route.params;
   const { user, session } = useAuth();
+  const { promptContext, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
 
   const isPreUploaded = !!(preUploadedPhotoUrls?.length);
   const [photos, setPhotos] = useState<CapturedPhoto[]>(
@@ -240,6 +243,8 @@ export function SellScreen({ navigation, route }: Props) {
       });
 
       if (error) throw error;
+
+      promptIfNeeded('listing');
 
       Alert.alert(
         'Annonce publiée !',
@@ -525,6 +530,7 @@ export function SellScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <NotificationPromptModal context={promptContext} onAccept={onAccept} onDismiss={onDismiss} />
     </SafeAreaView>
   );
 }

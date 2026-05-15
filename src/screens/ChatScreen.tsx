@@ -27,6 +27,8 @@ import { useAuth } from '../context/AuthContext';
 import { useStripe } from '@stripe/stripe-react-native';
 import { AppTextInput } from '../components/AppTextInput';
 import { PaymentFlowSheet } from '../components/PaymentFlowSheet';
+import NotificationPromptModal from '../components/NotificationPromptModal';
+import { useNotificationPermission } from '../hooks/useNotificationPermission';
 
 type Props = {
   navigation: StackNavigationProp<any, any>;
@@ -168,6 +170,7 @@ export function ChatScreen({ navigation, route }: Props) {
   const { listing_id, receiver_id, listing_name } = route.params;
   const { user } = useAuth();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { promptContext, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -357,6 +360,7 @@ export function ChatScreen({ navigation, route }: Props) {
     }).catch(() => {});
 
     setSending(false);
+    promptIfNeeded('message');
   };
 
   const pickAndSendImage = async (source: 'camera' | 'library') => {
@@ -968,6 +972,8 @@ export function ChatScreen({ navigation, route }: Props) {
       {viewingImage && (
         <ImageViewerModal uri={viewingImage} onClose={() => setViewingImage(null)} />
       )}
+
+      <NotificationPromptModal context={promptContext} onAccept={onAccept} onDismiss={onDismiss} />
     </SafeAreaView>
   );
 }

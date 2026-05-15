@@ -80,7 +80,6 @@ export function usePushNotifications() {
 
   useEffect(() => {
     if (!user) return;
-    registerForPushNotifications();
 
     // Gérer l'ouverture depuis une notif quand l'app était fermée
     Notifications.getLastNotificationResponseAsync().then((response) => {
