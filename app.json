@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pépite",
     "slug": "relique",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -23,7 +23,7 @@
         "NSPhotoLibraryUsageDescription": "Pépite accède à vos photos pour analyser vos objets.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "20"
+      "buildNumber": "22"
     },
     "android": {
       "softwareKeyboardLayoutMode": "pan",
@@ -43,7 +43,7 @@
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 27
+      "versionCode": 28
     },
     "androidStatusBar": {
       "barStyle": "light-content",
