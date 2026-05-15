@@ -10,7 +10,6 @@ import {
   RefreshControl,
   Alert,
   Dimensions,
-  Share,
   Modal,
   KeyboardAvoidingView,
   Platform,
@@ -63,8 +62,7 @@ export function ProfileScreen({ navigation, route }: Props) {
   const [myListings, setMyListings] = useState<Listing[]>([]);
   const [favorites, setFavorites] = useState<Listing[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [referralCode, setReferralCode] = useState('');
-  const [referralCount, setReferralCount] = useState(0);
+
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [pendingShipments, setPendingShipments] = useState<Record<string, { transaction_id: string; delivery_address: string | null; label_url: string | null }>>({});
   const [deliveredListingIds, setDeliveredListingIds] = useState<Set<string>>(new Set());
@@ -118,13 +116,7 @@ export function ProfileScreen({ navigation, route }: Props) {
     const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     if (data) {
       setProfile(data as Profile);
-      setReferralCode(data.referral_code ?? '');
     }
-    const { count } = await supabase
-      .from('referrals')
-      .select('*', { count: 'exact', head: true })
-      .eq('referrer_id', user.id);
-    setReferralCount(count ?? 0);
   }, [user]);
 
   const loadPurchases = useCallback(async () => {
@@ -303,17 +295,6 @@ export function ProfileScreen({ navigation, route }: Props) {
       { text: 'Annuler', style: 'cancel' },
       { text: 'Déconnecter', style: 'destructive', onPress: signOut },
     ]);
-  };
-
-  const handleShareReferral = async () => {
-    if (!referralCode) return;
-    await Share.share({
-      message:
-        `Rejoins-moi sur Pépite, l'app pour scanner, estimer et vendre tes objets !\n\n` +
-        `Utilise mon code de parrainage : ${referralCode}\n\n` +
-        `📱 iOS : https://apps.apple.com/app/id6744942840\n` +
-        `🤖 Android : https://play.google.com/store/apps/details?id=com.hugosld.pepite`,
-    });
   };
 
   // ─── Rendu carte "Mes annonces" ──────────────────────────────────────────────
@@ -652,31 +633,7 @@ export function ProfileScreen({ navigation, route }: Props) {
         }
         ItemSeparatorComponent={tab === 'listings' ? () => <View style={styles.separator} /> : undefined}
         ListFooterComponent={
-          <View style={styles.footer}>
-            {!!referralCode && (
-              <View style={styles.referralCard}>
-                <Text style={styles.referralSectionLabel}>Parrainage</Text>
-                <View style={styles.referralCodeRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.referralLabel}>Mon code</Text>
-                    <Text style={styles.referralCode}>{referralCode}</Text>
-                  </View>
-                  <TouchableOpacity style={styles.shareBtn} onPress={handleShareReferral} activeOpacity={0.8}>
-                    <Ionicons name="share-social-outline" size={16} color={colors.background} />
-                    <Text style={styles.shareBtnText}>Partager</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.referralStatRow}>
-                  <Ionicons name="people-outline" size={16} color={colors.primary} />
-                  <Text style={styles.referralStatText}>
-                    {referralCount === 0
-                      ? 'Aucun filleul pour l\'instant'
-                      : `${referralCount} filleul${referralCount > 1 ? 's' : ''} parrainé${referralCount > 1 ? 's' : ''}`}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
+          <View style={styles.footer} />
         }
         ListEmptyComponent={
           <View style={styles.empty}>
@@ -862,39 +819,6 @@ const styles = StyleSheet.create({
   favInfo: { padding: 10, gap: 4 },
   favName: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textPrimary, lineHeight: 18 },
   favPrice: { fontFamily: fonts.serif, fontSize: 17, color: colors.primary },
-
-  // Parrainage
-  referralCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(245,184,46,0.2)',
-    gap: 12,
-  },
-  referralSectionLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.primaryDim,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-  },
-  referralCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  referralLabel: { fontFamily: fonts.mono, fontSize: 11, color: colors.textDisabled, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 1.5 },
-  referralCode: { fontFamily: fonts.serif, fontSize: 24, color: colors.primary, letterSpacing: 3 },
-  shareBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 50,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  shareBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.background },
-  referralStatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  referralStatText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
 
   // Footer
   footer: {
