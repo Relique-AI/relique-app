@@ -26,6 +26,7 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext';
 import { useStripe } from '@stripe/stripe-react-native';
 import { AppTextInput } from '../components/AppTextInput';
+import { PaymentFlowSheet } from '../components/PaymentFlowSheet';
 
 type Props = {
   navigation: StackNavigationProp<any, any>;
@@ -162,13 +163,6 @@ const ivStyles = StyleSheet.create({
   },
 });
 
-const SHIPPING_LABELS: Record<string, string> = {
-  hand: 'Remise en main propre',
-  relay: 'Mondial Relay',
-  colissimo: 'Colissimo',
-  chronopost: 'Chronopost',
-};
-
 export function ChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { listing_id, receiver_id, listing_name } = route.params;
@@ -193,11 +187,10 @@ export function ChatScreen({ navigation, route }: Props) {
   const [sendingImage, setSendingImage] = useState(false);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
 
-  // Shipping sheet for offer payment
-  const [showShippingSheet, setShowShippingSheet] = useState(false);
+  // Payment flow for offer
+  const [showPaymentFlow, setShowPaymentFlow] = useState(false);
   const [pendingPayOffer, setPendingPayOffer] = useState<Offer | null>(null);
-  const [selectedShipping, setSelectedShipping] = useState('');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [referralCredits, setReferralCredits] = useState(0);
 
   const flatListRef = useRef<FlatList>(null);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -225,6 +218,10 @@ export function ChatScreen({ navigation, route }: Props) {
         if (data) {
           setListing(data as Listing);
           if (data.images?.[0]) setListingImage(data.images[0]);
+        }
+        if (user) {
+          supabase.from('profiles').select('referral_credits').eq('id', user.id).single()
+            .then(({ data: p }) => setReferralCredits(p?.referral_credits ?? 0));
         }
       });
   }, [listing_id]);
@@ -555,16 +552,8 @@ export function ChatScreen({ navigation, route }: Props) {
   // ── Payment ────────────────────────────────────────────────────────────────
 
   const handlePayOffer = (offer: Offer) => {
-    const options = listing?.shipping_options ?? ['hand'];
-    const hasPostal = options.some((o) => o !== 'hand');
-    if (!hasPostal) {
-      processOfferPurchase(offer, 'hand', undefined);
-      return;
-    }
     setPendingPayOffer(offer);
-    setSelectedShipping(options[0]);
-    setDeliveryAddress('');
-    setShowShippingSheet(true);
+    setShowPaymentFlow(true);
   };
 
   const processOfferPurchase = async (offer: Offer, shippingMethod: string, deliveryAddr: string | undefined) => {
@@ -605,6 +594,12 @@ export function ChatScreen({ navigation, route }: Props) {
       const { error: presentError } = await presentPaymentSheet();
       if (presentError) {
         if (presentError.code !== 'Canceled') Alert.alert('Erreur', presentError.message);
+        if (data.referralCreditUsed) {
+          supabase.functions.invoke('restore-referral-credit', {
+            body: { payment_intent_id: paymentIntentId },
+            headers: { Authorization: `Bearer ${session?.access_token}` },
+          }).then(() => setReferralCredits((c) => c + 1)).catch(() => {});
+        }
         return;
       }
 
@@ -618,10 +613,12 @@ export function ChatScreen({ navigation, route }: Props) {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       }).catch(() => {});
 
-      navigation.getParent()?.navigate('Profil', {
-        screen: 'Profile',
-        params: { initialTab: 'purchases' },
-      });
+      if (shippingMethod !== 'hand') {
+        navigation.getParent()?.navigate('Profil', {
+          screen: 'Profile',
+          params: { initialTab: 'purchases' },
+        });
+      }
     } catch (e: any) {
       Alert.alert('Erreur', e.message ?? 'Une erreur est survenue');
     } finally {
@@ -947,73 +944,27 @@ export function ChatScreen({ navigation, route }: Props) {
         </KeyboardAvoidingView>
       )}
 
-      {/* Shipping sheet for offer payment */}
-      {showShippingSheet && pendingPayOffer && (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowShippingSheet(false)} />
-          <View style={styles.shippingSheet}>
-            <Text style={styles.shippingSheetTitle}>Mode de livraison</Text>
-            {(listing?.shipping_options ?? []).map((opt) => {
-              const isSelected = selectedShipping === opt;
-              const shippingCost = opt === 'hand' ? 0 : (listing?.shipping_price ?? 0);
-              const total = pendingPayOffer.amount + shippingCost;
-              return (
-                <TouchableOpacity
-                  key={opt}
-                  style={[styles.shippingSheetRow, isSelected && styles.shippingSheetRowActive]}
-                  onPress={() => setSelectedShipping(opt)}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.shippingRadio, isSelected && styles.shippingRadioActive]}>
-                    {isSelected && <View style={styles.shippingRadioDot} />}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.shippingLabel, isSelected && { color: colors.textPrimary }]}>
-                      {SHIPPING_LABELS[opt] ?? opt}
-                    </Text>
-                    <Text style={styles.shippingPriceText}>
-                      {opt === 'hand' ? 'Gratuit' : `+ ${shippingCost} €`} · Total {total.toFixed(2)} €
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-            {selectedShipping !== 'hand' && (
-              <View style={{ marginTop: 8 }}>
-                <Text style={styles.shippingAddressLabel}>Adresse de livraison</Text>
-                <AppTextInput
-                  style={styles.shippingAddressInput}
-                  value={deliveryAddress}
-                  onChangeText={setDeliveryAddress}
-                  placeholder="Ex : 12 rue de la Paix, 75001 Paris"
-      
-                  multiline
-                />
-              </View>
-            )}
-            <TouchableOpacity
-              style={[
-                styles.shippingConfirmBtn,
-                (buying || (selectedShipping !== 'hand' && !deliveryAddress.trim())) && { opacity: 0.4 },
-              ]}
-              disabled={buying || (selectedShipping !== 'hand' && !deliveryAddress.trim())}
-              onPress={() => {
-                setShowShippingSheet(false);
-                processOfferPurchase(
-                  pendingPayOffer,
-                  selectedShipping,
-                  selectedShipping !== 'hand' ? deliveryAddress.trim() : undefined,
-                );
-              }}
-            >
-              {buying
-                ? <ActivityIndicator color={colors.background} size="small" />
-                : <Text style={styles.shippingConfirmText}>Confirmer et payer</Text>
-              }
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
+      {/* Parcours de paiement (offre) */}
+      {listing && pendingPayOffer && (
+        <PaymentFlowSheet
+          visible={showPaymentFlow}
+          shippingOptions={(listing.shipping_options ?? []).length > 0 ? listing.shipping_options! : ['hand']}
+          parcelSize={listing.parcel_size}
+          basePrice={pendingPayOffer.amount}
+          listingName={listing.name}
+          listingCategory={listing.category}
+          thumbnail={listingImage}
+          priceLabelItem="Prix de l'objet (offre)"
+          referralCredits={referralCredits}
+          buying={buying}
+          onConfirm={(shippingMethod, deliveryAddr) => {
+            setShowPaymentFlow(false);
+            processOfferPurchase(pendingPayOffer, shippingMethod, deliveryAddr);
+          }}
+          onClose={() => setShowPaymentFlow(false)}
+        />
       )}
+
       {viewingImage && (
         <ImageViewerModal uri={viewingImage} onClose={() => setViewingImage(null)} />
       )}
@@ -1210,51 +1161,6 @@ const styles = StyleSheet.create({
   },
   modalSendText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
 
-  // Shipping sheet
-  shippingSheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    gap: 10,
-  },
-  shippingSheetTitle: { fontFamily: fonts.serif, fontSize: 22, color: colors.textPrimary, marginBottom: 4 },
-  shippingSheetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  shippingSheetRowActive: { borderColor: colors.primary },
-  shippingRadio: {
-    width: 20, height: 20, borderRadius: 10,
-    borderWidth: 1.5, borderColor: colors.textSecondary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  shippingRadioActive: { borderColor: colors.primary },
-  shippingRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
-  shippingLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textSecondary },
-  shippingPriceText: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  shippingAddressLabel: {
-    fontFamily: fonts.mono, fontSize: 10, color: colors.textDisabled,
-    letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8,
-  },
-  shippingAddressInput: {
-    backgroundColor: colors.surface, borderRadius: 12, padding: 14,
-    fontFamily: fonts.body, fontSize: 14, color: colors.textPrimary,
-    borderWidth: 1, borderColor: colors.chipBackground, minHeight: 64,
-  },
-  shippingConfirmBtn: {
-    backgroundColor: colors.primary, borderRadius: 50,
-    paddingVertical: 16, alignItems: 'center', marginTop: 6,
-  },
-  shippingConfirmText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
-
   systemCard: {
     alignItems: 'center',
     marginVertical: 12,
@@ -1289,4 +1195,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
+
 });

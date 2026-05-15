@@ -34,6 +34,7 @@ import { ConditionBadge } from '../components/ConditionBadge';
 import { ReviewModal } from '../components/ReviewModal';
 import { AnalysisResult } from '../types';
 import { AppTextInput } from '../components/AppTextInput';
+import { PaymentFlowSheet } from '../components/PaymentFlowSheet';
 import { getShippingCost } from '../utils/shippingRates';
 
 const COMMISSION_RATE = 0.08;
@@ -168,16 +169,7 @@ export function ListingScreen({ navigation, route }: Props) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [zoomVisible, setZoomVisible] = useState(false);
   const [zoomIndex, setZoomIndex] = useState(0);
-  const [showShippingSheet, setShowShippingSheet] = useState(false);
-  const [selectedShipping, setSelectedShipping] = useState('');
-  const [deliveryFirstName, setDeliveryFirstName] = useState('');
-  const [deliveryLastName, setDeliveryLastName] = useState('');
-  const [deliveryCompany, setDeliveryCompany] = useState('');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [showRecapModal, setShowRecapModal] = useState(false);
-  const [pendingShipping, setPendingShipping] = useState('');
-  const [pendingRecipient, setPendingRecipient] = useState<string | undefined>(undefined);
-  const [pendingAddress, setPendingAddress] = useState<string | undefined>(undefined);
+  const [showPaymentFlow, setShowPaymentFlow] = useState(false);
   const [transaction, setTransaction] = useState<{
     id: string;
     buyer_id: string;
@@ -531,23 +523,7 @@ export function ListingScreen({ navigation, route }: Props) {
 
   const handleBuy = () => {
     if (!listing || !user) return;
-    const options = (listing.shipping_options ?? []).length > 0
-      ? listing.shipping_options!
-      : ['hand'];
-    const hasPostalOpts = options.some((o) => o !== 'hand');
-    if (!hasPostalOpts) {
-      setPendingShipping('hand');
-      setPendingRecipient(undefined);
-      setPendingAddress(undefined);
-      setShowRecapModal(true);
-      return;
-    }
-    setSelectedShipping(options[0]);
-    setDeliveryFirstName('');
-    setDeliveryLastName('');
-    setDeliveryCompany('');
-    setDeliveryAddress('');
-    setShowShippingSheet(true);
+    setShowPaymentFlow(true);
   };
 
   const processPurchase = async (shippingMethod: string, deliveryAddr: string | undefined) => {
@@ -758,7 +734,8 @@ export function ListingScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.root}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
 
         {/* Carrousel photos */}
         <View style={styles.photoSection}>
@@ -1109,6 +1086,7 @@ export function ListingScreen({ navigation, route }: Props) {
 
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Modal offre */}
       {showOfferModal && (
@@ -1193,272 +1171,25 @@ export function ListingScreen({ navigation, route }: Props) {
         </GestureHandlerRootView>
       </Modal>
 
-      {/* Shipping method sheet */}
-      {showShippingSheet && (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.offerOverlay}
-        >
-          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowShippingSheet(false)} />
-          <View style={styles.shippingSheet}>
-            <Text style={styles.shippingSheetTitle}>Mode de livraison</Text>
+      {/* Parcours de paiement (sélection livraison + récap) */}
+      <PaymentFlowSheet
+        visible={showPaymentFlow}
+        shippingOptions={listingShippingOpts}
+        parcelSize={listing.parcel_size}
+        basePrice={listing.price_final}
+        listingName={listing.name}
+        listingCategory={listing.category}
+        thumbnail={images[0] ?? null}
+        sellerName={sellerName}
+        referralCredits={referralCredits}
+        buying={buying}
+        onConfirm={(shippingMethod, deliveryAddr) => {
+          setShowPaymentFlow(false);
+          processPurchase(shippingMethod, deliveryAddr);
+        }}
+        onClose={() => setShowPaymentFlow(false)}
+      />
 
-            {/* Récap de la vente */}
-            <View style={styles.shippingRecap}>
-              <View style={styles.shippingRecapRow}>
-                <Text style={styles.shippingRecapLabel} numberOfLines={1}>{listing?.name}</Text>
-                <Text style={styles.shippingRecapValue}>{listing?.price_final?.toFixed(2)} €</Text>
-              </View>
-              {sellerName ? (
-                <View style={styles.shippingRecapRow}>
-                  <Text style={styles.shippingRecapMeta}>Vendu par {sellerName}</Text>
-                </View>
-              ) : null}
-              <View style={styles.shippingRecapDivider} />
-            </View>
-
-            {(listing?.shipping_options ?? []).map((opt) => {
-              const isSelected = selectedShipping === opt;
-              const shippingCostForOpt = getShippingCost(opt, listing?.parcel_size);
-              const baseForOpt = (listing?.price_final ?? 0) + shippingCostForOpt;
-              const total = Math.round(baseForOpt * (1 + COMMISSION_RATE) * 100) / 100;
-              const xlCarrier = opt !== 'hand' && listing?.parcel_size === 'xl';
-              return (
-                <TouchableOpacity
-                  key={opt}
-                  style={[styles.shippingSheetRow, isSelected && styles.shippingSheetRowActive]}
-                  onPress={() => setSelectedShipping(opt)}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.shippingSheetRadio, isSelected && styles.shippingSheetRadioActive]}>
-                    {isSelected && <View style={styles.shippingSheetRadioDot} />}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.shippingSheetLabel, isSelected && { color: colors.textPrimary }]}>
-                      {SHIPPING_LABELS[opt] ?? opt}
-                    </Text>
-                    <Text style={styles.shippingSheetPriceText}>
-                      {opt === 'hand'
-                        ? `Gratuit  ·  Total ${total.toFixed(2)} €`
-                        : xlCarrier
-                          ? "Frais à convenir avec l'acheteur"
-                          : `+ ${shippingCostForOpt.toFixed(2)} €  ·  Total ${total.toFixed(2)} €`}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-            {selectedShipping !== 'hand' && (
-              <View style={{ marginTop: 8, gap: 10 }}>
-                <Text style={styles.shippingAddressLabel}>Destinataire</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <AppTextInput
-                    style={[styles.shippingAddressInput, { flex: 1 }]}
-                    value={deliveryFirstName}
-                    onChangeText={setDeliveryFirstName}
-                    placeholder="Prénom"
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                  />
-                  <AppTextInput
-                    style={[styles.shippingAddressInput, { flex: 1 }]}
-                    value={deliveryLastName}
-                    onChangeText={setDeliveryLastName}
-                    placeholder="Nom"
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                  />
-                </View>
-                <AppTextInput
-                  style={styles.shippingAddressInput}
-                  value={deliveryCompany}
-                  onChangeText={setDeliveryCompany}
-                  placeholder="Entreprise (optionnel)"
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                />
-                <Text style={styles.shippingAddressLabel}>Adresse de livraison</Text>
-                <AppTextInput
-                  style={styles.shippingAddressInput}
-                  value={deliveryAddress}
-                  onChangeText={setDeliveryAddress}
-                  placeholder="Ex : 12 rue de la Paix, 75001 Paris"
-                  multiline
-                />
-              </View>
-            )}
-            {(() => {
-              const xlSelected = selectedShipping !== 'hand' && listing?.parcel_size === 'xl';
-              const confirmShippingCost = getShippingCost(selectedShipping, listing?.parcel_size);
-              const confirmBase = (listing?.price_final ?? 0) + confirmShippingCost;
-              const confirmTotal = Math.round(confirmBase * (1 + COMMISSION_RATE) * 100) / 100;
-              return (
-                <TouchableOpacity
-                  style={[
-                    styles.shippingConfirmBtn,
-                    (buying || (selectedShipping !== 'hand' && (!deliveryFirstName.trim() || !deliveryLastName.trim() || !deliveryAddress.trim()))) && { opacity: 0.4 },
-                  ]}
-                  disabled={buying || (selectedShipping !== 'hand' && (!deliveryFirstName.trim() || !deliveryLastName.trim() || !deliveryAddress.trim()))}
-                  onPress={() => {
-                    const addr = selectedShipping !== 'hand' ? deliveryAddress.trim() : undefined;
-                    const recipient = selectedShipping !== 'hand'
-                      ? [deliveryFirstName.trim() + ' ' + deliveryLastName.trim(), deliveryCompany.trim()].filter(Boolean).join('\n')
-                      : undefined;
-                    setPendingShipping(selectedShipping);
-                    setPendingRecipient(recipient);
-                    setPendingAddress(addr);
-                    setShowShippingSheet(false);
-                    setShowRecapModal(true);
-                  }}
-                >
-                  {buying
-                    ? <ActivityIndicator color={colors.background} size="small" />
-                    : <Text style={styles.shippingConfirmText}>
-                        {xlSelected
-                          ? `Confirmer · ${confirmTotal.toFixed(2)} € + livraison à convenir`
-                          : `Confirmer et payer · ${confirmTotal.toFixed(2)} €`}
-                      </Text>
-                  }
-                </TouchableOpacity>
-              );
-            })()}
-          </View>
-        </KeyboardAvoidingView>
-      )}
-
-      {/* Récap avant paiement */}
-      {showRecapModal && listing && (() => {
-        const recapShippingCost = getShippingCost(pendingShipping, listing.parcel_size);
-        const recapBase = listing.price_final + recapShippingCost;
-        const hasReferralDiscount = referralCredits > 0;
-        const effectiveRate = hasReferralDiscount ? COMMISSION_RATE * 0.5 : COMMISSION_RATE;
-        const recapFee = Math.round(recapBase * effectiveRate * 100) / 100;
-        const recapTotal = Math.round(recapBase * (1 + effectiveRate) * 100) / 100;
-        const xlShipping = pendingShipping !== 'hand' && listing.parcel_size === 'xl';
-        const thumb = images[0];
-        return (
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.offerOverlay}>
-            <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowRecapModal(false)} />
-            <View style={styles.recapSheet}>
-              <Text style={styles.recapTitle}>Récapitulatif</Text>
-
-              {/* Produit */}
-              <View style={styles.recapProduct}>
-                {thumb ? (
-                  <Image source={{ uri: thumb }} style={styles.recapThumb} />
-                ) : (
-                  <View style={[styles.recapThumb, styles.recapThumbPlaceholder]}>
-                    <Ionicons name="image-outline" size={24} color={colors.textDisabled} />
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.recapProductName} numberOfLines={2}>{listing.name}</Text>
-                  {listing.category ? <Text style={styles.recapProductMeta}>{listing.category}</Text> : null}
-                  {sellerName ? <Text style={styles.recapProductMeta}>Vendu par {sellerName}</Text> : null}
-                </View>
-              </View>
-
-              <View style={styles.recapDivider} />
-
-              {/* Prix */}
-              <View style={styles.recapPriceRows}>
-                <View style={styles.recapPriceRow}>
-                  <Text style={styles.recapPriceLabel}>Prix de l'objet</Text>
-                  <Text style={styles.recapPriceValue}>{listing.price_final.toFixed(2)} €</Text>
-                </View>
-                {pendingShipping === 'hand' ? (
-                  <View style={styles.recapPriceRow}>
-                    <Text style={styles.recapPriceLabel}>Remise en main propre</Text>
-                  </View>
-                ) : (
-                  <View style={styles.recapPriceRow}>
-                    <Text style={styles.recapPriceLabel}>Livraison ({SHIPPING_LABELS[pendingShipping] ?? pendingShipping})</Text>
-                    <Text style={styles.recapPriceValue}>
-                      {xlShipping ? 'À convenir' : `${recapShippingCost.toFixed(2)} €`}
-                    </Text>
-                  </View>
-                )}
-                {hasReferralDiscount ? (
-                  <>
-                    <View style={styles.recapPriceRow}>
-                      <Text style={styles.recapPriceLabel}>Frais de service Pépite (8%)</Text>
-                      <Text style={styles.recapPriceValue}>
-                        {Math.round(recapBase * COMMISSION_RATE * 100) / 100} €
-                      </Text>
-                    </View>
-                    <View style={styles.recapPriceRow}>
-                      <Text style={[styles.recapPriceLabel, { color: colors.success }]}>
-                        ✦ Réduction parrainage −50% ({referralCredits} crédit{referralCredits > 1 ? 's' : ''} restant{referralCredits > 1 ? 's' : ''})
-                      </Text>
-                      <Text style={[styles.recapPriceValue, { color: colors.success }]}>
-                        −{(Math.round(recapBase * COMMISSION_RATE * 100) / 100 - recapFee).toFixed(2)} €
-                      </Text>
-                    </View>
-                  </>
-                ) : (
-                  <View style={styles.recapPriceRow}>
-                    <Text style={styles.recapPriceLabel}>Frais de service Pépite (8%)</Text>
-                    <Text style={styles.recapPriceValue}>{recapFee.toFixed(2)} €</Text>
-                  </View>
-                )}
-                <View style={[styles.recapPriceRow, styles.recapPriceTotal]}>
-                  <Text style={styles.recapTotalLabel}>Total</Text>
-                  <Text style={styles.recapTotalValue}>
-                    {xlShipping ? `${Math.round(listing.price_final * (1 + COMMISSION_RATE) * 100) / 100} € + livraison` : `${recapTotal.toFixed(2)} €`}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Destinataire + Adresse */}
-              {(pendingRecipient || pendingAddress) ? (
-                <>
-                  <View style={styles.recapDivider} />
-                  {pendingRecipient && (
-                    <View style={styles.recapAddressRow}>
-                      <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.recapAddressLabel}>Destinataire</Text>
-                        <Text style={styles.recapAddressText}>{pendingRecipient}</Text>
-                      </View>
-                    </View>
-                  )}
-                  {pendingAddress && (
-                    <View style={[styles.recapAddressRow, pendingRecipient && { marginTop: 8 }]}>
-                      <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.recapAddressLabel}>Adresse de livraison</Text>
-                        <Text style={styles.recapAddressText}>{pendingAddress}</Text>
-                      </View>
-                    </View>
-                  )}
-                </>
-              ) : null}
-
-              {/* Bouton payer */}
-              <TouchableOpacity
-                style={[styles.recapPayBtn, buying && { opacity: 0.5 }]}
-                disabled={buying}
-                onPress={() => {
-                  setShowRecapModal(false);
-                  const fullDeliveryAddress = pendingRecipient && pendingAddress
-                    ? `${pendingRecipient}\n${pendingAddress}`
-                    : pendingAddress;
-                  processPurchase(pendingShipping, fullDeliveryAddress);
-                }}
-              >
-                {buying
-                  ? <ActivityIndicator color={colors.background} size="small" />
-                  : <Text style={styles.recapPayText}>
-                      {xlShipping
-                        ? `Payer · ${(Math.round(listing.price_final * (1 + COMMISSION_RATE) * 100) / 100).toFixed(2)} €`
-                        : `Payer · ${recapTotal.toFixed(2)} €`}
-                    </Text>
-                }
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
-        );
-      })()}
 
       {/* Modal expédition vendeur */}
       {showShipModal && listing && (() => {
@@ -1990,83 +1721,14 @@ const styles = StyleSheet.create({
   },
   offerSendText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
 
-  // Shipping sheet
-  shippingSheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    gap: 10,
-  },
-  shippingSheetTitle: { fontFamily: fonts.serif, fontSize: 22, color: colors.textPrimary, marginBottom: 4 },
-  shippingSheetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  shippingSheetRowActive: { borderColor: colors.primary },
-  shippingSheetRadio: {
-    width: 20, height: 20, borderRadius: 10,
-    borderWidth: 1.5, borderColor: colors.textSecondary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  shippingSheetRadioActive: { borderColor: colors.primary },
-  shippingSheetRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
-  shippingSheetLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textSecondary },
-  shippingSheetPriceText: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  shippingRecap: { marginBottom: 12 },
-  shippingRecapRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  shippingRecapLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, flex: 1, marginRight: 8 },
-  shippingRecapValue: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary },
-  shippingRecapMeta: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary },
-  shippingRecapDivider: { height: 1, backgroundColor: colors.chipBackground, marginTop: 8 },
-  shippingAddressConfirmed: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
-    marginTop: 6, paddingHorizontal: 4,
-  },
-  shippingAddressConfirmedText: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, flex: 1 },
-  shippingAddressLabel: {
-    fontFamily: fonts.mono, fontSize: 10, color: colors.textDisabled,
-    letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8,
-  },
-  shippingAddressInput: {
-    backgroundColor: colors.surface, borderRadius: 12, padding: 14,
-    fontFamily: fonts.body, fontSize: 14, color: colors.textPrimary,
-    borderWidth: 1, borderColor: colors.chipBackground, minHeight: 64,
-  },
-  shippingConfirmBtn: {
-    backgroundColor: colors.primary, borderRadius: 50,
-    paddingVertical: 16, alignItems: 'center', marginTop: 6,
-  },
-  shippingConfirmText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background },
-
-  // Recap modal
+  // Ship modal (shared sheet styles — used by the seller expedition modal)
   recapSheet: {
     backgroundColor: colors.background,
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 8,
   },
   recapTitle: { fontFamily: fonts.serif, fontSize: 22, color: colors.textPrimary, marginBottom: 20 },
-  recapProduct: { flexDirection: 'row', gap: 14, alignItems: 'flex-start', marginBottom: 16 },
-  recapThumb: { width: 72, height: 72, borderRadius: 12, backgroundColor: colors.surface },
-  recapThumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  recapProductName: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary, marginBottom: 4 },
-  recapProductMeta: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   recapDivider: { height: 1, backgroundColor: colors.chipBackground, marginVertical: 14 },
-  recapPriceRows: { gap: 10 },
-  recapPriceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  recapPriceLabel: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
-  recapPriceValue: { fontFamily: fonts.body, fontSize: 13, color: colors.textPrimary },
-  recapPriceTotal: { marginTop: 4 },
-  recapTotalLabel: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary },
-  recapTotalValue: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.primary },
-  recapAddressRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   recapAddressLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textDisabled, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4 },
   recapAddressText: { fontFamily: fonts.body, fontSize: 13, color: colors.textPrimary },
   recapPayBtn: {
