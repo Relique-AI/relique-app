@@ -251,6 +251,25 @@ export function EditProfileScreen({ navigation }: Props) {
           <View style={styles.referralCard}>
             <Text style={styles.referralTitle}>Parrainage</Text>
 
+            {/* Avantages */}
+            <View style={styles.benefitsBox}>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitIcon}>🎁</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.benefitWho}>Pour toi</Text>
+                  <Text style={styles.benefitDesc}>1 achat à −50% de frais par filleul actif</Text>
+                </View>
+              </View>
+              <View style={styles.benefitDivider} />
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitIcon}>✨</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.benefitWho}>Pour ton filleul</Text>
+                  <Text style={styles.benefitDesc}>3 achats à −50% de frais de service</Text>
+                </View>
+              </View>
+            </View>
+
             {/* Code de parrainage */}
             <View style={styles.referralRow}>
               <View style={{ flex: 1 }}>
@@ -261,7 +280,7 @@ export function EditProfileScreen({ navigation }: Props) {
                 style={styles.shareBtn}
                 onPress={() =>
                   Share.share({
-                    message: `Rejoins Pépite avec mon code de parrainage : ${referralCode} — Tu bénéficieras de 3 achats à −50% de frais de service !`,
+                    message: `Rejoins Pépite avec mon code de parrainage : ${referralCode}\nTélécharge l'app : https://pepite-redirect.vercel.app/telecharger\nTu bénéficieras de 3 achats à −50% de frais de service !`,
                   })
                 }
               >
@@ -415,6 +434,38 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: 13,
     color: colors.primary,
+  },
+  benefitsBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.chipBackground,
+    overflow: 'hidden',
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  benefitDivider: {
+    height: 1,
+    backgroundColor: colors.chipBackground,
+    marginHorizontal: 14,
+  },
+  benefitIcon: {
+    fontSize: 18,
+  },
+  benefitWho: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.textPrimary,
+  },
+  benefitDesc: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 1,
   },
   referralStat: {
     flexDirection: 'row',

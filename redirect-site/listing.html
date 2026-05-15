@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voir sur Pépite</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #FFFDF7;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .card {
+      max-width: 360px;
+      width: 100%;
+    }
+    .emoji { font-size: 52px; margin-bottom: 20px; }
+    h1 { font-size: 22px; font-weight: 700; color: #1A1A1A; margin-bottom: 10px; }
+    p { font-size: 15px; color: #777; line-height: 1.5; }
+    .store-links { margin-top: 28px; display: none; flex-direction: column; gap: 12px; }
+    .store-btn {
+      display: block;
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      background: #F5B82E;
+      color: #1A1A1A;
+    }
+    .soon {
+      margin-top: 24px;
+      font-size: 13px;
+      color: #aaa;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="emoji">✨</div>
+    <h1>Ouverture de l'annonce…</h1>
+    <p>Si Pépite ne s'ouvre pas automatiquement,<br>télécharge l'application.</p>
+
+    <div class="store-links" id="storeLinks">
+      <a class="store-btn" id="iosBtn" href="#" style="display:none;">Télécharger sur l'App Store</a>
+      <a class="store-btn" id="androidBtn" href="#" style="display:none;">Télécharger sur Google Play</a>
+      <p class="soon" id="soonMsg"></p>
+    </div>
+  </div>
+
+  <script>
+    // TODO: remplacer par les vraies URLs quand l'app est publiée
+    var APP_STORE_URL = 'https://apps.apple.com/app/id'; // à compléter
+    var PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.hugosld.pepite';
+
+    var path = window.location.pathname;
+    var id = path.replace(/^\/listing\//, '');
+    var ua = navigator.userAgent;
+    var isIOS = /iPhone|iPad|iPod/.test(ua);
+    var isAndroid = /Android/.test(ua);
+
+    if (!id) {
+      window.location.href = '/telecharger.html';
+    } else {
+      // Tente d'ouvrir l'app via le deep link custom scheme
+      var deepLink = 'pepite://listing/' + id;
+      window.location.href = deepLink;
+
+      // Si l'app s'ouvre, la page passe en arrière-plan — on annule le fallback
+      var appOpened = false;
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) appOpened = true;
+      });
+
+      setTimeout(function () {
+        if (appOpened) return;
+
+        var storeLinks = document.getElementById('storeLinks');
+        storeLinks.style.display = 'flex';
+
+        if (isIOS) {
+          var btn = document.getElementById('iosBtn');
+          btn.href = APP_STORE_URL;
+          btn.style.display = 'block';
+        } else if (isAndroid) {
+          var btn = document.getElementById('androidBtn');
+          btn.href = PLAY_STORE_URL;
+          btn.style.display = 'block';
+        } else {
+          var msg = document.getElementById('soonMsg');
+          msg.textContent = 'Disponible bientôt sur iOS et Android.';
+          msg.style.display = 'block';
+        }
+      }, 1500);
+    }
+  </script>
+</body>
+</html>
