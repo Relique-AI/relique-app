@@ -6,6 +6,21 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { navigate, navigationRef } from '../navigation/navigationRef';
 
+if (Platform.OS === 'android') {
+  Notifications.setNotificationChannelAsync('default', {
+    name: 'Pépite',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#F5B82E',
+  });
+  Notifications.setNotificationChannelAsync('messages', {
+    name: 'Messages',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#F5B82E',
+  });
+}
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -80,6 +95,11 @@ export function usePushNotifications() {
 
   useEffect(() => {
     if (!user) return;
+
+    // Re-enregistrer le token à chaque lancement (remplace un éventuel token Expo Go)
+    Notifications.getPermissionsAsync().then(({ status }) => {
+      if (status === 'granted') registerForPushNotifications();
+    });
 
     // Gérer l'ouverture depuis une notif quand l'app était fermée
     Notifications.getLastNotificationResponseAsync().then((response) => {
