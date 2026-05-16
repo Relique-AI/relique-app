@@ -26,7 +26,7 @@ export type RootStackParamList = {
   Home: undefined;
   Camera: undefined;
   Review: { photos: CapturedPhoto[] };
-  Loading: { photos: CapturedPhoto[]; memory?: string };
+  Loading: { photos: CapturedPhoto[]; memory?: string; previousAnalysis?: AnalysisResult };
   Result: { analysis: AnalysisResult; photos: CapturedPhoto[]; memory?: string };
   Sell: { analysis: AnalysisResult; photos: CapturedPhoto[]; preUploadedPhotoUrls?: string[] };
 };

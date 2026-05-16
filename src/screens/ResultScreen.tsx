@@ -150,7 +150,7 @@ export function ResultScreen({ navigation, route }: Props) {
   };
 
   const handleReanalyse = () => {
-    navigation.navigate('Loading', { photos, memory: clarifyContext.trim() });
+    navigation.navigate('Loading', { photos, memory: clarifyContext.trim(), previousAnalysis: analysis });
   };
 
   const handleSell = () => {

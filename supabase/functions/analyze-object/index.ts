@@ -78,23 +78,45 @@ async function callGemini(
   photos: Array<{ base64: string }>,
   memory: string | undefined,
   retryHint: boolean,
+  previousAnalysis?: Record<string, unknown>,
 ): Promise<string> {
   const imageParts = photos.map((p) => ({
     inline_data: { mime_type: 'image/jpeg', data: p.base64 },
   }));
 
   let prompt = USER_PROMPT;
-  if (memory?.trim()) {
+
+  if (previousAnalysis && memory?.trim()) {
+    // Mode affinement : on part de l'analyse précédente et on incorpore les corrections
+    prompt =
+      `CONTEXTE : tu as déjà analysé cet objet et obtenu ces résultats :\n` +
+      `- Nom identifié : "${previousAnalysis.name}"\n` +
+      `- Catégorie : ${previousAnalysis.category}\n` +
+      `- Époque : ${previousAnalysis.era}, Origine : ${previousAnalysis.origin}\n` +
+      `- État : ${previousAnalysis.condition}\n` +
+      `- Fourchette de prix : ${previousAnalysis.priceMin}€ – ${previousAnalysis.priceMax}€\n\n` +
+      `L'utilisateur apporte maintenant cette correction/précision : "${memory.trim()}"\n\n` +
+      `INSTRUCTIONS OBLIGATOIRES :\n` +
+      `- Intègre DIRECTEMENT et LITTÉRALEMENT les informations fournies par l'utilisateur (nom exact, artiste, titre d'œuvre, référence, etc.) sans les remettre en question\n` +
+      `- Si l'utilisateur donne un nom précis, utilise-le TEL QUEL dans le champ "name"\n` +
+      `- Affine uniquement les champs impactés par la correction (prix, histoire, conseils de vente)\n` +
+      `- Conserve les champs qui restent valides de l'analyse précédente\n` +
+      `- NE pose JAMAIS de question sur une information que l'utilisateur vient de fournir\n` +
+      `- Renvoie clarifyingQuestions vide si toutes les infos sont présentes\n\n` +
+      prompt;
+  } else if (memory?.trim()) {
+    // Mode première précision : pas encore d'analyse précédente
     prompt =
       `L'utilisateur a fourni les précisions suivantes sur l'objet : "${memory.trim()}"\n\n` +
       `INSTRUCTIONS OBLIGATOIRES pour cette ré-estimation :\n` +
       `- Utilise ces informations pour identifier précisément l'objet (modèle exact, référence, année)\n` +
-      `- Recherche dans tes connaissances les caractéristiques techniques, la fiche produit et la cote de cet objet exact\n` +
+      `- Intègre DIRECTEMENT les informations fournies sans les remettre en question\n` +
       `- Affine l'estimation de prix en conséquence\n` +
       `- NE pose JAMAIS de question sur une information que l'utilisateur vient de fournir\n` +
       `- Si toutes les infos nécessaires sont présentes, renvoie clarifyingQuestions vide\n\n` +
       prompt;
   }
+
   if (retryHint) {
     prompt += '\nRéponds UNIQUEMENT avec du JSON valide, sans aucun texte autour.';
   }
@@ -127,7 +149,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { photos, memory } = await req.json();
+    const { photos, memory, previousAnalysis } = await req.json();
 
     if (!Array.isArray(photos) || photos.length === 0) {
       return new Response(JSON.stringify({ error: 'photos requis' }), {
@@ -137,7 +159,7 @@ Deno.serve(async (req) => {
     }
 
     // Premier appel
-    const text = await callGemini(photos, memory, false);
+    const text = await callGemini(photos, memory, false, previousAnalysis);
     try {
       const result = JSON.parse(extractJSON(text));
       return new Response(JSON.stringify({ result }), {
@@ -145,7 +167,7 @@ Deno.serve(async (req) => {
       });
     } catch {
       // Retry si JSON invalide
-      const retryText = await callGemini(photos, memory, true);
+      const retryText = await callGemini(photos, memory, true, previousAnalysis);
       const result = JSON.parse(extractJSON(retryText));
       return new Response(JSON.stringify({ result }), {
         headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },

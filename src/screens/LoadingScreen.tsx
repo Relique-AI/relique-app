@@ -31,7 +31,7 @@ type Props = {
 };
 
 export function LoadingScreen({ navigation, route }: Props) {
-  const { photos, memory } = route.params;
+  const { photos, memory, previousAnalysis } = route.params;
   const [messageIndex, setMessageIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
@@ -101,7 +101,7 @@ export function LoadingScreen({ navigation, route }: Props) {
       }, TIMEOUT_MS);
 
       try {
-        const analysis = await analyzeObject(photos, controller.signal, memory);
+        const analysis = await analyzeObject(photos, controller.signal, memory, previousAnalysis);
         clearTimeout(timeout);
         if (!cancelled) navigation.replace('Result', { analysis, photos, memory });
       } catch (err: unknown) {

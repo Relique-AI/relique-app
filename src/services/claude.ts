@@ -8,6 +8,7 @@ export async function analyzeObject(
   photos: CapturedPhoto[],
   signal?: AbortSignal,
   memory?: string,
+  previousAnalysis?: AnalysisResult,
 ): Promise<AnalysisResult> {
   const response = await fetch(FUNCTION_URL, {
     method: 'POST',
@@ -19,6 +20,7 @@ export async function analyzeObject(
     body: JSON.stringify({
       photos: photos.map((p) => ({ base64: p.base64 })),
       memory,
+      previousAnalysis,
     }),
     signal,
   });
