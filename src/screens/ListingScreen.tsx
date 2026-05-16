@@ -157,7 +157,7 @@ export function ListingScreen({ navigation, route }: Props) {
   const { user } = useAuth();
 
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const { promptContext, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
+  const { promptContext, isDenied, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
   const [listing, setListing] = useState<Listing | null>(null);
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -1425,7 +1425,7 @@ export function ListingScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </>
         )}
-      <NotificationPromptModal context={promptContext} onAccept={onAccept} onDismiss={onDismiss} />
+      <NotificationPromptModal context={promptContext} isDenied={isDenied} onAccept={onAccept} onDismiss={onDismiss} />
       </View>
     </View>
   );

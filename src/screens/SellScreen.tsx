@@ -103,7 +103,7 @@ export function SellScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { analysis, photos: initialPhotos, preUploadedPhotoUrls } = route.params;
   const { user, session } = useAuth();
-  const { promptContext, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
+  const { promptContext, isDenied, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
 
   const isPreUploaded = !!(preUploadedPhotoUrls?.length);
   const [photos, setPhotos] = useState<CapturedPhoto[]>(
@@ -530,7 +530,7 @@ export function SellScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-      <NotificationPromptModal context={promptContext} onAccept={onAccept} onDismiss={onDismiss} />
+      <NotificationPromptModal context={promptContext} isDenied={isDenied} onAccept={onAccept} onDismiss={onDismiss} />
     </SafeAreaView>
   );
 }

@@ -34,13 +34,17 @@ const COPY: Record<NotificationPromptContext, { title: string; body: string }> =
 
 type Props = {
   context: NotificationPromptContext | null;
+  isDenied?: boolean;
   onAccept: () => void;
   onDismiss: () => void;
 };
 
-export default function NotificationPromptModal({ context, onAccept, onDismiss }: Props) {
+export default function NotificationPromptModal({ context, isDenied = false, onAccept, onDismiss }: Props) {
   if (!context) return null;
   const { title, body } = COPY[context];
+
+  const deniedTitle = 'Activez les notifications dans vos réglages';
+  const deniedBody = 'Vous avez désactivé les notifications. Rendez-vous dans vos réglages iPhone pour les réactiver et ne plus rater de réponses.';
 
   return (
     <Modal transparent animationType="slide" visible={true} onRequestClose={onDismiss}>
@@ -49,10 +53,12 @@ export default function NotificationPromptModal({ context, onAccept, onDismiss }
       </TouchableWithoutFeedback>
       <View style={styles.sheet}>
         <View style={styles.handle} />
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.body}>{body}</Text>
+        <Text style={styles.title}>{isDenied ? deniedTitle : title}</Text>
+        <Text style={styles.body}>{isDenied ? deniedBody : body}</Text>
         <TouchableOpacity style={styles.acceptBtn} onPress={onAccept} activeOpacity={0.85}>
-          <Text style={styles.acceptText}>Activer les notifications</Text>
+          <Text style={styles.acceptText}>
+            {isDenied ? 'Ouvrir les réglages' : 'Activer les notifications'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.dismissBtn} onPress={onDismiss} activeOpacity={0.7}>
           <Text style={styles.dismissText}>Plus tard</Text>

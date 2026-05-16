@@ -170,7 +170,7 @@ export function ChatScreen({ navigation, route }: Props) {
   const { listing_id, receiver_id, listing_name } = route.params;
   const { user } = useAuth();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const { promptContext, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
+  const { promptContext, isDenied, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -973,7 +973,7 @@ export function ChatScreen({ navigation, route }: Props) {
         <ImageViewerModal uri={viewingImage} onClose={() => setViewingImage(null)} />
       )}
 
-      <NotificationPromptModal context={promptContext} onAccept={onAccept} onDismiss={onDismiss} />
+      <NotificationPromptModal context={promptContext} isDenied={isDenied} onAccept={onAccept} onDismiss={onDismiss} />
     </SafeAreaView>
   );
 }
