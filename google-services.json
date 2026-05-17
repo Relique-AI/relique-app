@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "10250278063",
+    "project_id": "pepite-55fe7",
+    "storage_bucket": "pepite-55fe7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:10250278063:android:53fef9c77a7e20eecdf05a",
+        "android_client_info": {
+          "package_name": "com.hugosld.pepite"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlxuapamMc5OfeYbnurNFKVKCXe8OVVx8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
