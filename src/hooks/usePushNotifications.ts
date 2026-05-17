@@ -147,14 +147,15 @@ export function usePushNotifications() {
       if (!token || !user) return;
       await supabase.from('profiles').update({ push_token: token }).eq('id', user.id);
     } catch (e) {
-      // getExpoPushTokenAsync peut échouer si FCM n'est pas configuré
-      // Fallback : token natif FCM direct
+      console.warn('[Push] getExpoPushTokenAsync failed:', e);
       try {
         const deviceToken = await Notifications.getDevicePushTokenAsync();
         if (!deviceToken.data || !user) return;
         const token = `fcm:${deviceToken.data}`;
         await supabase.from('profiles').update({ push_token: token }).eq('id', user.id);
-      } catch {}
+      } catch (e2) {
+        console.warn('[Push] getDevicePushTokenAsync failed:', e2);
+      }
     }
   };
 }

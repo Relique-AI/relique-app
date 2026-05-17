@@ -30,6 +30,7 @@
       "buildNumber": "22"
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "softwareKeyboardLayoutMode": "resize",
       "config": {
         "googleMaps": {
@@ -47,7 +48,7 @@
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 32
+      "versionCode": 33
     },
     "androidStatusBar": {
       "barStyle": "light-content",
