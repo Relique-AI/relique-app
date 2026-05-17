@@ -854,7 +854,7 @@ export function ChatScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {loading ? (
           <View style={styles.loader}>
             <ActivityIndicator color={colors.primary} />
