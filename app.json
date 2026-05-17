@@ -20,7 +20,9 @@
       "bundleIdentifier": "com.hugosld.pepite",
       "infoPlist": {
         "CFBundleDevelopmentRegion": "fr",
-        "CFBundleLocalizations": ["fr"],
+        "CFBundleLocalizations": [
+          "fr"
+        ],
         "NSCameraUsageDescription": "Pépite utilise la caméra pour scanner et analyser vos objets.",
         "NSPhotoLibraryUsageDescription": "Pépite accède à vos photos pour analyser vos objets.",
         "ITSAppUsesNonExemptEncryption": false
@@ -28,7 +30,7 @@
       "buildNumber": "22"
     },
     "android": {
-      "softwareKeyboardLayoutMode": "pan",
+      "softwareKeyboardLayoutMode": "resize",
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyAc9hk5_ZdAJ46rBjh4VnBiNcVUjcQM2g8"
@@ -45,7 +47,7 @@
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 28
+      "versionCode": 31
     },
     "androidStatusBar": {
       "barStyle": "light-content",
