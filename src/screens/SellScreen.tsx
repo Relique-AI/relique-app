@@ -505,24 +505,22 @@ export function SellScreen({ navigation, route }: Props) {
             </View>
           )}
 
-          <View style={{ height: 24 }} />
+          {/* Publier */}
+          <View style={[styles.publishSection, { paddingBottom: insets.bottom + 24 }]}>
+            <TouchableOpacity
+              style={[styles.cta, loading && styles.ctaDisabled]}
+              onPress={handlePublish}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.background} />
+              ) : (
+                <Text style={styles.ctaText}>Publier l'annonce</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </ScrollView>
-
-        {/* CTA */}
-        <View style={[styles.ctaBar, { paddingBottom: insets.bottom + 12 }]}>
-          <TouchableOpacity
-            style={[styles.cta, loading && styles.ctaDisabled]}
-            onPress={handlePublish}
-            disabled={loading}
-            activeOpacity={0.85}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.background} />
-            ) : (
-              <Text style={styles.ctaText}>Publier l'annonce</Text>
-            )}
-          </TouchableOpacity>
-        </View>
       </KeyboardAvoidingView>
       <NotificationPromptModal context={promptContext} isDenied={isDenied} onAccept={onAccept} onDismiss={onDismiss} />
     </SafeAreaView>
@@ -619,13 +617,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     opacity: 0.8,
   },
-  ctaBar: {
+  publishSection: {
     paddingHorizontal: spacing.section,
-    paddingVertical: 16,
-    paddingBottom: 0,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.surface,
+    paddingTop: 24,
   },
   cta: {
     backgroundColor: colors.primary,

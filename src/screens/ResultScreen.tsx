@@ -180,6 +180,13 @@ export function ResultScreen({ navigation, route }: Props) {
   if (analysis.unsellable) {
     return (
       <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleRestart} activeOpacity={0.75}>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Analyse de l'objet</Text>
+          <View style={{ width: 48 }} />
+        </View>
         <Animated.View style={[styles.cardContainer, { transform: [{ translateY: slideAnim }] }]}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             <Animated.View style={{ opacity: fadeAnims[0] }}>
@@ -189,20 +196,26 @@ export function ResultScreen({ navigation, route }: Props) {
               <Text style={styles.humourIcon}>✦</Text>
               <Text style={styles.humourText}>{analysis.humourMessage}</Text>
             </Animated.View>
-            <View style={{ height: 120 }} />
+            <View style={[styles.actionsSection, { paddingBottom: insets.bottom + 24 }]}>
+              <TouchableOpacity style={styles.primaryButtonFull} onPress={handleRestart} activeOpacity={0.85}>
+                <Text style={styles.primaryText}>Réessayer</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </Animated.View>
-        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
-          <TouchableOpacity style={[styles.primaryButton, { flex: 1 }]} onPress={handleRestart} activeOpacity={0.85}>
-            <Text style={styles.primaryText}>Réessayer</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={handleRestart} activeOpacity={0.75}>
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Analyse de l'objet</Text>
+        <View style={{ width: 48 }} />
+      </View>
       <Animated.View
         style={[styles.cardContainer, { transform: [{ translateY: slideAnim }] }]}
       >
@@ -341,45 +354,33 @@ export function ResultScreen({ navigation, route }: Props) {
             </Animated.View>
           )}
 
-          {/* Espace pour la barre fixe */}
-          <View style={{ height: 120 + insets.bottom }} />
+          {/* Actions */}
+          <View style={[styles.actionsSection, { paddingBottom: insets.bottom + 24 }]}>
+            <TouchableOpacity
+              style={[styles.saveButton, saving && { opacity: 0.6 }]}
+              onPress={handleSave}
+              activeOpacity={0.75}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <>
+                  <Ionicons name="bookmark-outline" size={16} color={colors.primary} />
+                  <Text style={styles.saveText}>Sauvegarder</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.primaryButtonFull}
+              onPress={handleSell}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.primaryText}>Mettre en vente</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </Animated.View>
-
-      {/* Barre d'actions fixe */}
-      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
-        <TouchableOpacity
-          style={[styles.saveButton, saving && { opacity: 0.6 }]}
-          onPress={handleSave}
-          activeOpacity={0.75}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <>
-              <Ionicons name="bookmark-outline" size={16} color={colors.primary} />
-              <Text style={styles.saveText}>Sauvegarder</Text>
-            </>
-          )}
-        </TouchableOpacity>
-        <View style={styles.bottomRow}>
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={handleRestart}
-            activeOpacity={0.75}
-          >
-            <Text style={styles.secondaryText}>Recommencer</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={handleSell}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.primaryText}>Mettre en vente</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -609,23 +610,43 @@ const styles = StyleSheet.create({
   },
   clarifyBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.background },
 
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'column',
-    gap: 8,
-    paddingHorizontal: spacing.section,
-    paddingTop: 12,
-    paddingBottom: 0,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.surface,
-  },
-  bottomRow: {
+  header: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.base,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surface,
+    backgroundColor: colors.background,
+  },
+  backBtn: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 17,
+    color: colors.textPrimary,
+  },
+  actionsSection: {
+    paddingHorizontal: spacing.section,
+    paddingTop: spacing.section,
     gap: 10,
+  },
+  primaryButtonFull: {
+    paddingVertical: 16,
+    borderRadius: 50,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 5,
   },
   saveButton: {
     flexDirection: 'row',
