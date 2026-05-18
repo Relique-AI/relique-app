@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
@@ -15,35 +15,47 @@ export function useNotificationPermission() {
   const { user } = useAuth();
   const [promptContext, setPromptContext] = useState<NotificationPromptContext | null>(null);
   const [isDenied, setIsDenied] = useState(false);
+  const onCompleteRef = useRef<(() => void) | null>(null);
 
-  const promptIfNeeded = useCallback(async (context: NotificationPromptContext) => {
+  const promptIfNeeded = useCallback(async (
+    context: NotificationPromptContext,
+    onComplete?: () => void,
+  ): Promise<boolean> => {
     const { status } = await Notifications.getPermissionsAsync();
-    if (status === 'granted') return;
+    if (status === 'granted') return false;
 
     if (status === 'denied') {
       const settingsShown = await AsyncStorage.getItem(SETTINGS_KEY);
-      if (settingsShown) return;
+      if (settingsShown) return false;
       await AsyncStorage.setItem(SETTINGS_KEY, 'true');
+      onCompleteRef.current = onComplete ?? null;
       setIsDenied(true);
       setPromptContext(context);
-      return;
+      return true;
     }
 
     // undetermined — show once per install
     const alreadyShown = await AsyncStorage.getItem(STORAGE_KEY);
-    if (alreadyShown) return;
+    if (alreadyShown) return false;
     await AsyncStorage.setItem(STORAGE_KEY, 'true');
+    onCompleteRef.current = onComplete ?? null;
     setIsDenied(false);
     setPromptContext(context);
+    return true;
   }, []);
 
   const onAccept = useCallback(async () => {
     setPromptContext(null);
 
     if (isDenied) {
+      onCompleteRef.current = null;
       Linking.openSettings();
       return;
     }
+
+    const cb = onCompleteRef.current;
+    onCompleteRef.current = null;
+    cb?.();
 
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('messages', {
@@ -71,6 +83,9 @@ export function useNotificationPermission() {
   const onDismiss = useCallback(() => {
     setPromptContext(null);
     setIsDenied(false);
+    const cb = onCompleteRef.current;
+    onCompleteRef.current = null;
+    cb?.();
   }, []);
 
   return { promptContext, isDenied, promptIfNeeded, onAccept, onDismiss };

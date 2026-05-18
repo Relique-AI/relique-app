@@ -7,6 +7,7 @@ import {
   Image,
   ScrollView,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -35,14 +36,22 @@ export function CameraScreen({ navigation }: Props) {
   }
 
   if (!permission.granted) {
+    const isDenied = !permission.canAskAgain;
     return (
       <SafeAreaView style={styles.permissionContainer}>
         <Text style={styles.permissionTitle}>Accès à la caméra</Text>
         <Text style={styles.permissionText}>
-          L'accès à la caméra est nécessaire pour scanner vos objets.
+          {isDenied
+            ? "Vous avez refusé l'accès à la caméra. Rendez-vous dans les réglages de votre téléphone pour l'activer."
+            : "L'accès à la caméra est nécessaire pour scanner vos objets."}
         </Text>
-        <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-          <Text style={styles.permissionButtonText}>Autoriser l'accès</Text>
+        <TouchableOpacity
+          style={styles.permissionButton}
+          onPress={isDenied ? () => Linking.openSettings() : requestPermission}
+        >
+          <Text style={styles.permissionButtonText}>
+            {isDenied ? 'Ouvrir les réglages' : 'Autoriser l\'accès'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backLink}>
           <Text style={styles.backLinkText}>Retour</Text>

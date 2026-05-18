@@ -244,19 +244,13 @@ export function SellScreen({ navigation, route }: Props) {
 
       if (error) throw error;
 
-      promptIfNeeded('listing');
+      const navigateToMarket = () => {
+        navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+        navigation.getParent()?.navigate('Marché');
+      };
 
-      Alert.alert(
-        'Annonce publiée !',
-        'Votre objet est maintenant visible sur le marché.',
-        [{
-          text: 'Voir le marché',
-          onPress: () => {
-            navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
-            navigation.getParent()?.navigate('Marché');
-          },
-        }],
-      );
+      const modalShown = await promptIfNeeded('listing', navigateToMarket);
+      if (!modalShown) navigateToMarket();
     } catch (err: unknown) {
       const msg =
         err instanceof Error

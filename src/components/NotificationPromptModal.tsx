@@ -44,7 +44,7 @@ export default function NotificationPromptModal({ context, isDenied = false, onA
   const { title, body } = COPY[context];
 
   const deniedTitle = 'Activez les notifications dans vos réglages';
-  const deniedBody = 'Vous avez désactivé les notifications. Rendez-vous dans vos réglages iPhone pour les réactiver et ne plus rater de réponses.';
+  const deniedBody = 'Vous avez désactivé les notifications. Rendez-vous dans les réglages de votre téléphone pour les réactiver et ne plus rater de réponses.';
 
   return (
     <Modal transparent animationType="slide" visible={true} onRequestClose={onDismiss}>
