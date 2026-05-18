@@ -199,6 +199,7 @@ export function ListingScreen({ navigation, route }: Props) {
 
   const isOwner = listing?.seller_id === user?.id;
   const lastLoadedId = useRef<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -742,7 +743,7 @@ export function ListingScreen({ navigation, route }: Props) {
   return (
     <View style={styles.root}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
 
         {/* Carrousel photos */}
         <View style={styles.photoSection}>
@@ -994,9 +995,9 @@ export function ListingScreen({ navigation, route }: Props) {
                       value={answerText}
                       onChangeText={setAnswerText}
                       placeholder="Votre réponse..."
-      
                       multiline
                       autoFocus
+                      onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
                     />
                     <TouchableOpacity style={styles.aSendBtn} onPress={() => submitAnswer(q.id)}>
                       <Ionicons name="send" size={16} color={colors.background} />
@@ -1018,9 +1019,9 @@ export function ListingScreen({ navigation, route }: Props) {
                 value={newQuestion}
                 onChangeText={setNewQuestion}
                 placeholder="Poser une question..."
-
                 multiline
                 maxLength={300}
+                onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
               />
               <TouchableOpacity
                 style={[styles.qSendBtn, (!newQuestion.trim() || submittingQ) && { opacity: 0.4 }]}

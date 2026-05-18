@@ -25,7 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import NotificationPromptModal from '../components/NotificationPromptModal';
 import { useNotificationPermission } from '../hooks/useNotificationPermission';
 import { ConditionBadge } from '../components/ConditionBadge';
-import { SHIPPING_RATES, PARCEL_SIZES as PARCEL_SIZES_DATA } from '../utils/shippingRates';
+import { PARCEL_SIZES as PARCEL_SIZES_DATA } from '../utils/shippingRates';
 
 const { width } = Dimensions.get('window');
 
@@ -370,6 +370,34 @@ export function SellScreen({ navigation, route }: Props) {
             />
           </View>
 
+          {/* Conseils pour mieux vendre */}
+          {analysis.sellingTips.length > 0 && (
+            <View style={styles.tipsSection}>
+              <TouchableOpacity
+                style={styles.tipsAccordionHeader}
+                onPress={() => setTipsOpen((o) => !o)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.tipsAccordionTitle}>Conseils pour mieux vendre</Text>
+                <Ionicons
+                  name={tipsOpen ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+              {tipsOpen && (
+                <View style={styles.tipsAccordionContent}>
+                  {analysis.sellingTips.map((tip, i) => (
+                    <View key={i} style={styles.tipRow}>
+                      <View style={styles.tipBullet} />
+                      <Text style={styles.tipText}>{tip}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Prix */}
           <View style={styles.field}>
             <Text style={styles.label}>Prix de vente (€)</Text>
@@ -385,68 +413,27 @@ export function SellScreen({ navigation, route }: Props) {
             />
           </View>
 
-          {/* Localisation */}
-          <View style={[styles.field, { zIndex: 100 }]}>
-            <Text style={styles.label}>Localisation (optionnel)</Text>
-            <View>
-              <AppTextInput
-                style={styles.input}
-                value={location}
-                onChangeText={handleLocationChange}
-                placeholder="Ex : Paris, Lyon..."
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                onFocus={() => locationSuggestions.length > 0 && setShowSuggestions(true)}
-              />
-              {showSuggestions && (
-                <View style={styles.suggestionsBox}>
-                  {locationSuggestions.map((s, i) => (
-                    <TouchableOpacity
-                      key={i}
-                      style={[styles.suggestionRow, i < locationSuggestions.length - 1 && styles.suggestionRowBorder]}
-                      onPress={() => selectSuggestion(s)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="location-outline" size={14} color={colors.primary} />
-                      <Text style={styles.suggestionText}>{s.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-          </View>
-
           {/* Livraison */}
           <View style={styles.field}>
             <Text style={styles.label}>Modes de livraison</Text>
             <Text style={styles.shippingSubtitle}>Sélectionnez les options que vous proposez à l'acheteur</Text>
-            {SHIPPING_OPTIONS.map((opt) => {
-              const rate = opt.id === 'hand' ? null : (SHIPPING_RATES[opt.id]?.[parcelSize] ?? null);
-              const detail = opt.id === 'hand'
-                ? "Gratuit · À organiser directement"
-                : parcelSize === 'xl'
-                  ? "Frais à convenir avec l'acheteur"
-                  : rate !== null ? `${rate.toFixed(2)} € (format ${PARCEL_SIZES.find(p => p.id === parcelSize)?.label ?? ''})` : 'Tarif selon format du colis';
-              return (
-                <TouchableOpacity
-                  key={opt.id}
-                  style={[styles.shippingRow, shippingOptions.includes(opt.id) && styles.shippingRowActive]}
-                  onPress={() => toggleShipping(opt.id)}
-                  activeOpacity={0.75}
-                >
-                  <View style={[styles.shippingCheck, shippingOptions.includes(opt.id) && styles.shippingCheckActive]}>
-                    {shippingOptions.includes(opt.id) && (
-                      <Ionicons name="checkmark" size={13} color={colors.background} />
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.shippingLabel, shippingOptions.includes(opt.id) && styles.shippingLabelActive]}>
-                      {opt.label}
-                    </Text>
-                    <Text style={styles.shippingDetail}>{detail}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+            {SHIPPING_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                style={[styles.shippingRow, shippingOptions.includes(opt.id) && styles.shippingRowActive]}
+                onPress={() => toggleShipping(opt.id)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.shippingCheck, shippingOptions.includes(opt.id) && styles.shippingCheckActive]}>
+                  {shippingOptions.includes(opt.id) && (
+                    <Ionicons name="checkmark" size={13} color={colors.background} />
+                  )}
+                </View>
+                <Text style={[styles.shippingLabel, shippingOptions.includes(opt.id) && styles.shippingLabelActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* Format du colis */}
@@ -477,33 +464,36 @@ export function SellScreen({ navigation, route }: Props) {
             </View>
           )}
 
-          {/* Conseils de vente IA */}
-          {analysis.sellingTips.length > 0 && (
-            <View style={styles.field}>
-              <TouchableOpacity
-                style={styles.tipsHeader}
-                onPress={() => setTipsOpen((o) => !o)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.label}>Conseils de vente IA</Text>
-                <Ionicons
-                  name={tipsOpen ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={colors.textSecondary}
-                />
-              </TouchableOpacity>
-              {tipsOpen && (
-                <View style={styles.tipsList}>
-                  {analysis.sellingTips.map((tip, i) => (
-                    <View key={i} style={styles.tipRow}>
-                      <View style={styles.tipBullet} />
-                      <Text style={styles.tipText}>{tip}</Text>
-                    </View>
+          {/* Localisation */}
+          <View style={[styles.field, { zIndex: 100 }]}>
+            <Text style={styles.label}>Localisation</Text>
+            <View>
+              <AppTextInput
+                style={styles.input}
+                value={location}
+                onChangeText={handleLocationChange}
+                placeholder="Ex : Paris, Lyon..."
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                onFocus={() => locationSuggestions.length > 0 && setShowSuggestions(true)}
+              />
+              {showSuggestions && (
+                <View style={styles.suggestionsBox}>
+                  {locationSuggestions.map((s, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={[styles.suggestionRow, i < locationSuggestions.length - 1 && styles.suggestionRowBorder]}
+                      onPress={() => selectSuggestion(s)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="location-outline" size={14} color={colors.primary} />
+                      <Text style={styles.suggestionText}>{s.label}</Text>
+                    </TouchableOpacity>
                   ))}
                 </View>
               )}
             </View>
-          )}
+          </View>
+
 
           {/* Publier */}
           <View style={[styles.publishSection, { paddingBottom: insets.bottom + 24 }]}>
@@ -699,8 +689,25 @@ const styles = StyleSheet.create({
   shippingLabelActive: { color: colors.textPrimary },
   shippingDetail: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 
-  tipsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tipsList: { marginTop: 12, gap: 10 },
+  tipsSection: { paddingHorizontal: spacing.section },
+  tipsAccordionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.surface,
+    marginTop: spacing.section,
+  },
+  tipsAccordionTitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  tipsAccordionContent: {
+    gap: 12,
+    paddingBottom: spacing.base,
+  },
   tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   tipBullet: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, marginTop: 7, flexShrink: 0 },
   tipText: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary, flex: 1, lineHeight: 21 },

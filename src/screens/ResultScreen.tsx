@@ -64,9 +64,10 @@ export function ResultScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { analysis, photos, memory } = route.params;
   const { isGuest, exitGuestMode, user, session } = useAuth();
-  const [tipsOpen, setTipsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clarifyContext, setClarifyContext] = useState('');
+  const scrollRef = useRef<ScrollView>(null);
+  const [clarifyCardY, setClarifyCardY] = useState(0);
 
   // Animation de glissement vers le haut
   const slideAnim = useRef(new Animated.Value(height * 0.6)).current;
@@ -220,6 +221,7 @@ export function ResultScreen({ navigation, route }: Props) {
         style={[styles.cardContainer, { transform: [{ translateY: slideAnim }] }]}
       >
         <ScrollView
+          ref={scrollRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -294,35 +296,9 @@ export function ResultScreen({ navigation, route }: Props) {
             </Text>
           </Animated.View>
 
-          {/* Accordéon conseils */}
-          <Animated.View style={[styles.section, { opacity: fadeAnims[4] }]}>
-            <TouchableOpacity
-              style={styles.accordionHeader}
-              onPress={() => setTipsOpen((o) => !o)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.accordionTitle}>Conseils pour mieux vendre</Text>
-              <Ionicons
-                name={tipsOpen ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color={colors.textSecondary}
-              />
-            </TouchableOpacity>
-            {tipsOpen && (
-              <View style={styles.accordionContent}>
-                {analysis.sellingTips.map((tip, i) => (
-                  <View key={i} style={styles.tipRow}>
-                    <View style={styles.tipBullet} />
-                    <Text style={styles.tipText}>{tip}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </Animated.View>
-
           {/* Questions de clarification */}
           {(analysis.clarifyingQuestions ?? []).length > 0 && (
-            <Animated.View style={[styles.section, { opacity: fadeAnims[4] }]}>
+            <Animated.View style={[styles.section, { opacity: fadeAnims[4] }]} onLayout={(e) => setClarifyCardY(e.nativeEvent.layout.y)}>
               <View style={styles.clarifyCard}>
                   <View style={styles.clarifyHeader}>
                     <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
@@ -340,6 +316,7 @@ export function ResultScreen({ navigation, route }: Props) {
                     placeholderTextColor={colors.textSecondary}
                     multiline
                     textAlignVertical="top"
+                    onFocus={() => scrollRef.current?.scrollTo({ y: clarifyCardY, animated: true })}
                   />
                   <TouchableOpacity
                     style={[styles.clarifyBtn, !clarifyContext.trim() && { opacity: 0.4 }]}
