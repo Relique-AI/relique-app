@@ -548,7 +548,21 @@ export function ListingScreen({ navigation, route }: Props) {
           if (body?.error) errMsg = body.error;
         } catch {}
         if (errMsg.includes('non configuré') || errMsg.includes('Vendeur') || errMsg.includes('configuré')) {
-          Alert.alert('Paiement indisponible', 'Ce vendeur n\'a pas encore configuré son compte de paiement. Contactez-le directement.');
+          Alert.alert(
+            'Achat temporairement indisponible',
+            'Ce vendeur n\'a pas encore activé les paiements sur Pépite. Tu peux lui envoyer un message pour l\'en informer ou convenir d\'un arrangement.',
+            [
+              {
+                text: 'Envoyer un message',
+                onPress: () => navigation.navigate('Chat', {
+                  listing_id: listing.id,
+                  receiver_id: listing.seller_id,
+                  listing_name: listing.title,
+                }),
+              },
+              { text: 'Fermer', style: 'cancel' },
+            ]
+          );
         } else {
           Alert.alert('Erreur', errMsg);
         }
