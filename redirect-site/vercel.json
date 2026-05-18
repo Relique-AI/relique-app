@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/listing/(.*)", "destination": "/listing.html" }
+    { "source": "/listing/(.*)", "destination": "/listing.html" },
+    { "source": "/telecharger", "destination": "/telecharger.html" }
   ]
 }
