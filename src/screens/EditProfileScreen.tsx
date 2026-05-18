@@ -257,7 +257,7 @@ export function EditProfileScreen({ navigation }: Props) {
                 <Text style={styles.benefitIcon}>🎁</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.benefitWho}>Pour toi</Text>
-                  <Text style={styles.benefitDesc}>1 achat à −50% de frais par filleul actif</Text>
+                  <Text style={styles.benefitDesc}>3 achats à −50% de frais dès que ton filleul fait son premier achat</Text>
                 </View>
               </View>
               <View style={styles.benefitDivider} />
