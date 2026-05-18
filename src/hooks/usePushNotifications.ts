@@ -38,33 +38,44 @@ function doNavigate(data: Record<string, any>) {
     listing_name: data.listing_name ?? '',
   } : null;
 
+  // Two-step navigation: first switch to the tab (initializes its stack with the
+  // initial screen), then push the sub-screen after one tick. This prevents a
+  // soft-lock where the tab's initial screen (Inbox/Market/Profile) is missing
+  // from the back stack when the app is cold-started via a notification.
+  const toTabScreen = (tab: string, screen?: string, params?: object) => {
+    navigate(tab);
+    if (screen) {
+      setTimeout(() => navigate(tab, { screen, params }), 50);
+    }
+  };
+
   if (data?.type === 'message' && chatParams) {
-    navigate('Messages', { screen: 'Chat', params: chatParams });
+    toTabScreen('Messages', 'Chat', chatParams);
   } else if (data?.type === 'message') {
     navigate('Messages');
   } else if (
     (data?.type === 'offer_received' || data?.type === 'offer_accepted' ||
      data?.type === 'offer_declined' || data?.type === 'offer_counter') && chatParams
   ) {
-    navigate('Messages', { screen: 'Chat', params: chatParams });
+    toTabScreen('Messages', 'Chat', chatParams);
   } else if (data?.type === 'question' && data?.listing_id) {
-    navigate('Profil', { screen: 'Listing', params: { id: data.listing_id } });
+    toTabScreen('Profil', 'Listing', { id: data.listing_id });
   } else if (data?.type === 'question_answer' && data?.listing_id) {
-    navigate('Marché', { screen: 'Listing', params: { id: data.listing_id } });
+    toTabScreen('Marché', 'Listing', { id: data.listing_id });
   } else if (data?.type === 'new_listing' && data?.listing_id) {
-    navigate('Marché', { screen: 'Listing', params: { id: data.listing_id } });
+    toTabScreen('Marché', 'Listing', { id: data.listing_id });
   } else if (data?.type === 'sale' && data?.listing_id) {
-    navigate('Profil', { screen: 'Listing', params: { id: data.listing_id } });
+    toTabScreen('Profil', 'Listing', { id: data.listing_id });
   } else if (data?.type === 'shipped' && data?.listing_id) {
-    navigate('Marché', { screen: 'Listing', params: { id: data.listing_id } });
+    toTabScreen('Marché', 'Listing', { id: data.listing_id });
   } else if ((data?.type === 'delivered' || data?.type === 'label_ready') && data?.listing_id) {
-    navigate('Profil', { screen: 'Listing', params: { id: data.listing_id } });
+    toTabScreen('Profil', 'Listing', { id: data.listing_id });
   } else if (data?.type === 'referral') {
     navigate('Profil');
   } else if (data?.type === 'referral_reward') {
-    navigate('Profil', { screen: 'EditProfile' });
+    toTabScreen('Profil', 'EditProfile');
   } else if (data?.type === 'report') {
-    navigate('Profil', { screen: 'Admin' });
+    toTabScreen('Profil', 'Admin');
   } else if (data?.type === 'moderation') {
     navigate('Profil');
   }
