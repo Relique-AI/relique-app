@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react-native';
+import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { useFonts } from 'expo-font';
 
@@ -16,7 +17,7 @@ import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { JetBrainsMono_400Regular, JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
 import { NavigationContainer } from '@react-navigation/native';
 import { navigationRef } from './src/navigation/navigationRef';
-import { useEffect, useCallback, Component } from 'react';
+import { useEffect, useCallback, useRef, Component } from 'react';
 import { View, Text, TouchableOpacity, Linking } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -86,6 +87,30 @@ function AppWithNotifications() {
   );
 }
 
+function NavigationWithTracking() {
+  const posthog = usePostHog();
+  const routeNameRef = useRef<string | undefined>();
+
+  return (
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => {
+        routeNameRef.current = navigationRef.getCurrentRoute()?.name;
+      }}
+      onStateChange={() => {
+        const currentRoute = navigationRef.getCurrentRoute();
+        const currentRouteName = currentRoute?.name;
+        if (currentRouteName && routeNameRef.current !== currentRouteName) {
+          posthog?.screen(currentRouteName);
+        }
+        routeNameRef.current = currentRouteName;
+      }}
+    >
+      <AppWithNotifications />
+    </NavigationContainer>
+  );
+}
+
 function App() {
   const [fontsLoaded] = useFonts({
     Fraunces_400Regular,
@@ -105,11 +130,14 @@ function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AppErrorBoundary>
-          <AuthProvider>
-            <NavigationContainer ref={navigationRef}>
-              <AppWithNotifications />
-            </NavigationContainer>
-          </AuthProvider>
+          <PostHogProvider
+            apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY!}
+            options={{ host: process.env.EXPO_PUBLIC_POSTHOG_HOST }}
+          >
+            <AuthProvider>
+              <NavigationWithTracking />
+            </AuthProvider>
+          </PostHogProvider>
         </AppErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>

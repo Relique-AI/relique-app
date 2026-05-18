@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { usePostHog } from 'posthog-react-native';
 import {
   View,
   Text,
@@ -64,6 +65,8 @@ export function ResultScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { analysis, photos, memory } = route.params;
   const { isGuest, exitGuestMode, user, session } = useAuth();
+  const posthog = usePostHog();
+  const recognitionSessionId = useRef(`${Date.now()}-${Math.random().toString(36).slice(2, 9)}`).current;
   const [saving, setSaving] = useState(false);
   const [clarifyContext, setClarifyContext] = useState('');
   const scrollRef = useRef<ScrollView>(null);
@@ -77,6 +80,14 @@ export function ResultScreen({ navigation, route }: Props) {
   ).current;
 
   useEffect(() => {
+    posthog?.capture('ai_recognition_completed', {
+      recognition_session_id: recognitionSessionId,
+      is_sellable: !analysis.unsellable,
+      category: analysis.category,
+      condition: analysis.condition,
+      price_suggested: analysis.priceSuggested,
+    });
+
     // Glissement au printemps depuis le bas
     Animated.spring(slideAnim, {
       toValue: 0,
@@ -166,7 +177,7 @@ export function ResultScreen({ navigation, route }: Props) {
       );
       return;
     }
-    navigation.navigate('Sell', { analysis, photos });
+    navigation.navigate('Sell', { analysis, photos, recognitionSessionId });
   };
 
   const handleRestart = () => {

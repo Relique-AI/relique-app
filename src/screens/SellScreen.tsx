@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { usePostHog } from 'posthog-react-native';
 import {
   View,
   Text,
@@ -101,8 +102,9 @@ async function uploadPhoto(
 
 export function SellScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { analysis, photos: initialPhotos, preUploadedPhotoUrls } = route.params;
+  const { analysis, photos: initialPhotos, preUploadedPhotoUrls, recognitionSessionId } = route.params;
   const { user, session } = useAuth();
+  const posthog = usePostHog();
   const { promptContext, isDenied, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
 
   const isPreUploaded = !!(preUploadedPhotoUrls?.length);
@@ -134,6 +136,7 @@ export function SellScreen({ navigation, route }: Props) {
   const hasPostal = shippingOptions.some(o => o !== 'hand');
   const [tipsOpen, setTipsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
 
   const handleLocationChange = (text: string) => {
     setLocation(text);
@@ -244,6 +247,14 @@ export function SellScreen({ navigation, route }: Props) {
 
       if (error) throw error;
 
+      posthog?.capture('listing_published', {
+        recognition_session_id: recognitionSessionId ?? null,
+        was_draft_first: false,
+        price: priceNum,
+        shipping_options: shippingOptions,
+        has_location: !!location.trim(),
+      });
+
       const navigateToMarket = () => {
         navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
         navigation.getParent()?.navigate('Marché');
@@ -259,6 +270,51 @@ export function SellScreen({ navigation, route }: Props) {
       Alert.alert('Erreur', msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!user || !session || savingDraft) return;
+    setSavingDraft(true);
+    try {
+      const imageUrls = isPreUploaded
+        ? photos.map(p => p.uri)
+        : await Promise.all(photos.map(p => uploadPhoto(p.uri, user.id, session.access_token)));
+
+      const { error } = await supabase.from('listings').insert({
+        seller_id: user.id,
+        name: name.trim() || analysis.name,
+        category: category.trim(),
+        era: analysis.era,
+        origin: analysis.origin,
+        condition,
+        condition_note: analysis.conditionNote,
+        story: description.trim(),
+        price_min: analysis.priceMin,
+        price_max: analysis.priceMax,
+        price_suggested: analysis.priceSuggested,
+        price_final: parseFloat(price.replace(',', '.')) || analysis.priceSuggested,
+        selling_tips: analysis.sellingTips,
+        images: imageUrls,
+        status: 'draft',
+        location: location.trim() || null,
+        shipping_options: shippingOptions,
+        shipping_price: 0,
+        parcel_size: hasPostal ? parcelSize : null,
+      });
+
+      if (error) throw error;
+
+      posthog?.capture('listing_saved_draft', {
+        recognition_session_id: recognitionSessionId ?? null,
+      });
+
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : (err as any)?.message ?? JSON.stringify(err);
+      Alert.alert('Erreur', msg);
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -500,13 +556,25 @@ export function SellScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={[styles.cta, loading && styles.ctaDisabled]}
               onPress={handlePublish}
-              disabled={loading}
+              disabled={loading || savingDraft}
               activeOpacity={0.85}
             >
               {loading ? (
                 <ActivityIndicator color={colors.background} />
               ) : (
                 <Text style={styles.ctaText}>Publier l'annonce</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.ctaSecondary, savingDraft && styles.ctaDisabled]}
+              onPress={handleSaveDraft}
+              disabled={loading || savingDraft}
+              activeOpacity={0.85}
+            >
+              {savingDraft ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={styles.ctaSecondaryText}>Sauvegarder le brouillon</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -624,6 +692,16 @@ const styles = StyleSheet.create({
   },
   ctaDisabled: { opacity: 0.6 },
   ctaText: { fontFamily: fonts.bodySemiBold, fontSize: 17, color: colors.background },
+  ctaSecondary: {
+    height: 52,
+    borderRadius: 50,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  ctaSecondaryText: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.primary },
 
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   categoryChip: {
