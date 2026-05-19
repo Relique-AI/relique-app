@@ -150,6 +150,9 @@ export function ResultScreen({ navigation, route }: Props) {
         photo_urls: photoUrls,
       });
       if (error) throw error;
+      posthog?.capture('listing_saved_draft', {
+        recognition_session_id: recognitionSessionId,
+      });
       Alert.alert(
         'Estimation sauvegardée !',
         'Retrouvez-la dans votre profil sous "Brouillons" pour la mettre en vente quand vous le souhaitez.',
