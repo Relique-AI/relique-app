@@ -200,6 +200,20 @@ export function ListingScreen({ navigation, route }: Props) {
   const isOwner = listing?.seller_id === user?.id;
   const lastLoadedId = useRef<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const questionWrapRef = useRef<View>(null);
+  const answerWrapRef = useRef<View>(null);
+
+  const scrollToInputWrap = (wrapRef: React.RefObject<View | null>) => {
+    setTimeout(() => {
+      wrapRef.current?.measureLayout(
+        scrollRef.current as any,
+        (_x: number, y: number) => {
+          scrollRef.current?.scrollTo({ y: Math.max(0, y - 150), animated: true });
+        },
+        () => {},
+      );
+    }, 150);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -557,7 +571,7 @@ export function ListingScreen({ navigation, route }: Props) {
                 onPress: () => navigation.navigate('Chat', {
                   listing_id: listing.id,
                   receiver_id: listing.seller_id,
-                  listing_name: listing.title,
+                  listing_name: listing.name,
                 }),
               },
               { text: 'Fermer', style: 'cancel' },
@@ -1004,6 +1018,7 @@ export function ListingScreen({ navigation, route }: Props) {
               ) : isOwner ? (
                 answeringId === q.id ? (
                   <View style={styles.aInputRow}>
+                    <View ref={answerWrapRef} style={{ flex: 1 }}>
                     <AppTextInput
                       style={styles.aInput}
                       value={answerText}
@@ -1011,8 +1026,9 @@ export function ListingScreen({ navigation, route }: Props) {
                       placeholder="Votre réponse..."
                       multiline
                       autoFocus
-                      onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                      onFocus={() => scrollToInputWrap(answerWrapRef)}
                     />
+                    </View>
                     <TouchableOpacity style={styles.aSendBtn} onPress={() => submitAnswer(q.id)}>
                       <Ionicons name="send" size={16} color={colors.background} />
                     </TouchableOpacity>
@@ -1028,6 +1044,7 @@ export function ListingScreen({ navigation, route }: Props) {
 
           {!isOwner && (
             <View style={styles.qInputRow}>
+              <View ref={questionWrapRef} style={{ flex: 1 }}>
               <AppTextInput
                 style={styles.qInput}
                 value={newQuestion}
@@ -1035,8 +1052,9 @@ export function ListingScreen({ navigation, route }: Props) {
                 placeholder="Poser une question..."
                 multiline
                 maxLength={300}
-                onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                onFocus={() => scrollToInputWrap(questionWrapRef)}
               />
+              </View>
               <TouchableOpacity
                 style={[styles.qSendBtn, (!newQuestion.trim() || submittingQ) && { opacity: 0.4 }]}
                 onPress={submitQuestion}
