@@ -36,6 +36,7 @@ export type RootStackParamList = {
 export type MarketStackParamList = {
   Market: undefined;
   Listing: { id: string };
+  SellerProfile: { seller_id: string };
   Chat: { listing_id: string; receiver_id: string; listing_name: string };
   Inbox: undefined;
 };
@@ -46,6 +47,7 @@ export type BrowseStackParamList = {
   Browse: undefined;
   BrowseListings: { category: string };
   Listing: { id: string };
+  SellerProfile: { seller_id: string };
 };
 
 // ─── Profile stack ───────────────────────────────────────────────────────────
@@ -55,6 +57,7 @@ export type ProfileStackParamList = {
   EditProfile: undefined;
   EditListing: { id: string };
   Listing: { id: string };
+  SellerProfile: { seller_id: string };
   Chat: { listing_id: string; receiver_id: string; listing_name: string };
   Wallet: undefined;
   Settings: undefined;
@@ -72,6 +75,7 @@ export type MessagesStackParamList = {
   Inbox: undefined;
   Chat: { listing_id: string; receiver_id: string; listing_name: string };
   Listing: { id: string };
+  SellerProfile: { seller_id: string };
 };
 
 // ─── Bottom tabs ─────────────────────────────────────────────────────────────

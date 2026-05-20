@@ -41,6 +41,7 @@ import { AdminScreen } from '../screens/AdminScreen';
 import { AlertsScreen } from '../screens/AlertsScreen';
 import { StripeOnboardingScreen } from '../screens/StripeOnboardingScreen';
 import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
+import { SellerProfileScreen } from '../screens/SellerProfileScreen';
 
 // ─── Stacks ──────────────────────────────────────────────────────────────────
 
@@ -108,6 +109,11 @@ function BrowseNavigator() {
         component={EditListingScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
+      <BrowseStack.Screen
+        name="SellerProfile"
+        component={SellerProfileScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
     </BrowseStack.Navigator>
   );
 }
@@ -137,6 +143,11 @@ function MarketNavigator() {
         component={InboxScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
+      <MarketStack.Screen
+        name="SellerProfile"
+        component={SellerProfileScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
     </MarketStack.Navigator>
   );
 }
@@ -159,6 +170,11 @@ function MessagesNavigator() {
       <MessagesStack.Screen
         name="EditListing"
         component={EditListingScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <MessagesStack.Screen
+        name="SellerProfile"
+        component={SellerProfileScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
     </MessagesStack.Navigator>
@@ -223,6 +239,11 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="StripeOnboarding"
         component={StripeOnboardingScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <ProfileStack.Screen
+        name="SellerProfile"
+        component={SellerProfileScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
     </ProfileStack.Navigator>

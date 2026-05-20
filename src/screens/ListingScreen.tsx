@@ -964,12 +964,19 @@ export function ListingScreen({ navigation, route }: Props) {
           )}
 
           {/* Vendeur */}
-          <View style={styles.sellerRow}>
+          <TouchableOpacity
+            style={styles.sellerRow}
+            activeOpacity={0.75}
+            onPress={() => navigation.navigate('SellerProfile', { seller_id: listing.seller_id })}
+          >
             <View style={styles.sellerAvatar}>
               <Ionicons name="person" size={20} color={colors.textSecondary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.sellerName}>{sellerName}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={styles.sellerName}>{sellerName}</Text>
+                <Ionicons name="chevron-forward" size={13} color={colors.textMuted} />
+              </View>
               <Text style={styles.sellerDate}>Publié le {publishedAt}</Text>
               {sellerRating && (
                 <View style={styles.ratingRow}>
@@ -986,11 +993,11 @@ export function ListingScreen({ navigation, route }: Props) {
               )}
             </View>
             {!isOwner && listing.status === 'sold' && !alreadyReviewed && (
-              <TouchableOpacity style={styles.reviewBtn} onPress={() => setShowReviewModal(true)}>
+              <TouchableOpacity style={styles.reviewBtn} onPress={(e) => { e.stopPropagation?.(); setShowReviewModal(true); }}>
                 <Text style={styles.reviewBtnText}>Laisser un avis</Text>
               </TouchableOpacity>
             )}
-          </View>
+          </TouchableOpacity>
 
           {/* Questions / Réponses */}
           <View style={styles.divider} />
