@@ -1,7 +1,10 @@
+import * as SplashScreen from 'expo-splash-screen';
 import * as Sentry from '@sentry/react-native';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { useFonts } from 'expo-font';
+
+SplashScreen.preventAutoHideAsync();
 
 Sentry.init({
   dsn: 'https://6cdab45561f2c28fb4371cc3f789fe53@o4511387816165376.ingest.de.sentry.io/4511387820163152',
@@ -122,9 +125,11 @@ function App() {
     JetBrainsMono_500Medium,
   });
 
-  if (!fontsLoaded) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
-  }
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

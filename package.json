@@ -39,6 +39,7 @@
     "expo-image-picker": "~17.0.11",
     "expo-notifications": "~0.32.17",
     "expo-secure-store": "~15.0.8",
+    "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "jsonwebtoken": "^9.0.3",
     "posthog-react-native": "^4.45.7",

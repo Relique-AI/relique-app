@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
+
+const USERNAME_CACHE_KEY = 'pepite_has_username';
 
 interface AuthContextValue {
   user: User | null;
@@ -48,23 +51,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setUser(data.session?.user ?? null);
       if (data.session?.user) {
+        // Applique le cache immédiatement pour afficher l'app sans attendre
+        const cached = await AsyncStorage.getItem(USERNAME_CACHE_KEY);
+        if (cached !== null) setHasUsername(cached === 'true');
+        setLoading(false);
+        // Requête profil en arrière-plan
         const userId = data.session.user.id;
-        // Race against a 5s timeout to prevent infinite loading when iOS resumes
-        // with a stale network connection that hangs Supabase queries.
-        await Promise.race([
-          (async () => {
+        (async () => {
+          try {
             const { data: profile } = await supabase
               .from('profiles')
               .select('username, is_admin')
               .eq('id', userId)
               .single();
-            setHasUsername(!!profile?.username);
+            const has = !!profile?.username;
+            setHasUsername(has);
             setIsAdmin(!!profile?.is_admin);
-          })(),
-          new Promise<void>((resolve) => setTimeout(resolve, 5000)),
-        ]);
+            AsyncStorage.setItem(USERNAME_CACHE_KEY, String(has));
+          } catch {}
+        })();
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     }).catch(() => setLoading(false));
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, s) => {
@@ -78,47 +86,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(s?.user ?? null);
       if (s?.user) {
         setIsGuest(false);
-        setProfileLoading(true);
         const meta = s.user.user_metadata ?? {};
         const userId = s.user.id;
-        await Promise.race([
-          (async () => {
-            await supabase.rpc('ensure_profile');
-            if (meta.username) {
-              await supabase.from('profiles').update({ username: meta.username }).eq('id', userId).is('username', null);
-            }
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('username, is_admin, referred_by')
-              .eq('id', userId)
-              .single();
-            if (meta.referral_code && !profile?.referred_by) {
-              const code = (meta.referral_code as string).toUpperCase();
-              const { data: referrer } = await supabase.from('profiles').select('id').eq('referral_code', code).neq('id', userId).single();
-              if (referrer) {
-                await supabase.from('profiles').update({ referred_by: referrer.id, referral_credits: 3 }).eq('id', userId);
-                await supabase.from('referrals').insert({ referrer_id: referrer.id, referred_id: userId });
-                const newUsername = profile?.username || (meta.username as string | undefined) || 'Un nouvel utilisateur';
-                supabase.functions.invoke('send-push', {
-                  body: {
-                    receiver_id: referrer.id,
-                    sender_name: '✦ Nouveau filleul !',
-                    message_preview: `${newUsername} vient de rejoindre Pépite avec ton code. Tu seras crédité de 3 achats à -50% dès son premier achat !`,
-                    type: 'referral',
-                  },
-                });
-              }
-            }
-            setHasUsername(!!profile?.username || !!meta.username);
-            setIsAdmin(!!profile?.is_admin);
-          })(),
-          new Promise<void>((resolve) => setTimeout(resolve, 8000)),
-        ]);
+        // Mise à jour du profil en arrière-plan — ne bloque plus l'UI
         setProfileLoading(false);
+        (async () => {
+          try {
+            await Promise.race([
+              (async () => {
+                await supabase.rpc('ensure_profile');
+                if (meta.username) {
+                  await supabase.from('profiles').update({ username: meta.username }).eq('id', userId).is('username', null);
+                }
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('username, is_admin, referred_by')
+                  .eq('id', userId)
+                  .single();
+                if (meta.referral_code && !profile?.referred_by) {
+                  const code = (meta.referral_code as string).toUpperCase();
+                  const { data: referrer } = await supabase.from('profiles').select('id').eq('referral_code', code).neq('id', userId).single();
+                  if (referrer) {
+                    await supabase.from('profiles').update({ referred_by: referrer.id, referral_credits: 3 }).eq('id', userId);
+                    await supabase.from('referrals').insert({ referrer_id: referrer.id, referred_id: userId });
+                    const newUsername = profile?.username || (meta.username as string | undefined) || 'Un nouvel utilisateur';
+                    supabase.functions.invoke('send-push', {
+                      body: {
+                        receiver_id: referrer.id,
+                        sender_name: '✦ Nouveau filleul !',
+                        message_preview: `${newUsername} vient de rejoindre Pépite avec ton code. Tu seras crédité de 3 achats à -50% dès son premier achat !`,
+                        type: 'referral',
+                      },
+                    });
+                  }
+                }
+                const has = !!(profile?.username || meta.username);
+                setHasUsername(has);
+                setIsAdmin(!!profile?.is_admin);
+                AsyncStorage.setItem(USERNAME_CACHE_KEY, String(has));
+              })(),
+              new Promise<void>((resolve) => setTimeout(resolve, 8000)),
+            ]);
+          } catch {}
+        })();
       } else {
         setHasUsername(false);
         setIsAdmin(false);
         setProfileLoading(false);
+        AsyncStorage.removeItem(USERNAME_CACHE_KEY);
       }
     });
 

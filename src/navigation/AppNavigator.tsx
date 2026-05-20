@@ -358,9 +358,9 @@ function MainTabs() {
 
 const Root = createStackNavigator();
 export function AppNavigator() {
-  const { user, loading, profileLoading, hasUsername, isGuest, isRecovery } = useAuth();
+  const { user, loading, hasUsername, isGuest, isRecovery } = useAuth();
 
-  if (loading || profileLoading) {
+  if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={colors.primary} size="large" />
