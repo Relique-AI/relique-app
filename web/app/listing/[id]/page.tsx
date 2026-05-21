@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { supabase, CONDITION_COLORS, type Listing } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase-server";
 
 export const revalidate = 60;
 
@@ -43,13 +44,18 @@ export default async function ListingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const listing = await getListing(id);
+  const [listing, { data: { user } }] = await Promise.all([
+    getListing(id),
+    createClient().then((c) => c.auth.getUser()),
+  ]);
   if (!listing) notFound();
 
   const conditionColor = CONDITION_COLORS[listing.condition] ?? "#E0D4BA";
   const images = listing.images ?? [];
   const seller = listing.profiles;
   const appLink = `pepite://listing/${listing.id}`;
+  const isOwnListing = user?.id === listing.seller_id;
+  const canContact = user && !isOwnListing;
 
   return (
     <>
@@ -142,18 +148,36 @@ export default async function ListingPage({
 
             {/* CTA */}
             <div className="flex flex-col gap-3 pt-2">
+              {listing.status === "active" && !isOwnListing && (
+                <Link
+                  href={user ? `/achat/${listing.id}` : `/auth?next=/achat/${listing.id}`}
+                  className="w-full bg-primary text-background font-semibold py-4 rounded-full text-center hover:bg-primary-dim transition-colors"
+                >
+                  Acheter en ligne
+                </Link>
+              )}
+              {canContact && (
+                <Link
+                  href={`/messages/${listing.id}/${listing.seller_id}`}
+                  className="w-full border border-primary/40 text-primary py-3.5 rounded-full text-center text-sm hover:bg-primary/5 transition-colors font-semibold"
+                >
+                  Contacter le vendeur
+                </Link>
+              )}
+              {!user && listing.status === "active" && (
+                <Link
+                  href={`/auth?next=/listing/${listing.id}`}
+                  className="w-full border border-border-strong text-text-muted py-3.5 rounded-full text-center text-sm hover:border-primary/40 hover:text-text-primary transition-colors"
+                >
+                  Se connecter pour contacter →
+                </Link>
+              )}
               <a
                 href={appLink}
-                className="w-full bg-primary text-background font-semibold py-4 rounded-full text-center hover:bg-primary-dim transition-colors"
+                className="w-full border border-border text-text-muted py-3 rounded-full text-center text-xs hover:border-border-strong transition-colors"
               >
-                Acheter dans l'app
+                Ouvrir dans l'app
               </a>
-              <Link
-                href="/telecharger"
-                className="w-full border border-border-strong text-text-primary py-3.5 rounded-full text-center text-sm hover:border-primary/40 transition-colors"
-              >
-                Télécharger Pépite
-              </Link>
             </div>
 
             <p className="text-xs text-text-muted text-center">

@@ -9,11 +9,14 @@ export function Footer() {
           <span className="font-serif text-text-secondary">Pépite</span>
         </div>
         <div className="flex items-center gap-6">
-          <Link href="/mentions-legales" className="hover:text-text-primary transition-colors">
-            Mentions légales
+          <Link href="/legal/cgu" className="hover:text-text-primary transition-colors">
+            CGU
           </Link>
-          <Link href="/confidentialite" className="hover:text-text-primary transition-colors">
+          <Link href="/legal/confidentialite" className="hover:text-text-primary transition-colors">
             Confidentialité
+          </Link>
+          <Link href="/legal/mentions" className="hover:text-text-primary transition-colors">
+            Mentions légales
           </Link>
           <Link href="/telecharger" className="hover:text-text-primary transition-colors">
             Télécharger l'app

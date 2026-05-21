@@ -26,13 +26,9 @@ export default async function HomePage() {
         <section className="relative overflow-hidden border-b border-border">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(245,184,46,0.12),transparent)]" />
           <div className="max-w-4xl mx-auto px-6 py-24 md:py-36 text-center relative">
-            <div className="inline-flex items-center gap-2 text-primary text-sm font-semibold bg-primary-light border border-primary/20 rounded-full px-4 py-1.5 mb-8">
-              <span>✦</span>
-              <span>L'IA au service de la seconde main</span>
-            </div>
             <h1 className="font-serif text-5xl md:text-7xl text-text-primary leading-tight mb-6">
-              Vendez vos trésors,<br />
-              <span className="text-primary italic">trouvez des pépites</span>
+              Tes objets valent<br />
+              <span className="text-primary italic">plus que tu ne crois</span>
             </h1>
             <p className="text-text-muted text-lg md:text-xl max-w-2xl mx-auto leading-relaxed mb-10">
               Photographiez un objet, notre IA l'estime en secondes. Publiez,

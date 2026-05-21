@@ -29,3 +29,14 @@ body {
   font-family: var(--font-inter), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* Legal pages */
+.prose-legal ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  space-y: 0.5rem;
+}
+.prose-legal ul li {
+  margin-bottom: 0.35rem;
+  color: #F1EAD9;
+}
