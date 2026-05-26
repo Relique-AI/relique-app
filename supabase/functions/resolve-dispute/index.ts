@@ -115,6 +115,14 @@ Deno.serve(async (req) => {
     })
     .eq('id', dispute_id);
 
+  // Marquer la transaction comme remboursée
+  if (action !== 'close_seller') {
+    await admin
+      .from('transactions')
+      .update({ shipping_status: 'refunded' })
+      .eq('id', dispute.transaction_id);
+  }
+
   // Notifier l'acheteur
   try {
     const { data: buyerProfile } = await admin

@@ -8,8 +8,10 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Platform,
+  Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -73,6 +75,8 @@ const DISPUTE_STATUS_LABELS: Record<string, string> = {
 
 export function AdminScreen({ navigation }: Props) {
   const [tab, setTab] = useState<'reports' | 'disputes'>('reports');
+  const [partialRefundModal, setPartialRefundModal] = useState<{ dispute: Dispute } | null>(null);
+  const [partialRefundInput, setPartialRefundInput] = useState('');
   const [reports, setReports] = useState<Report[]>([]);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,7 +206,7 @@ export function AdminScreen({ navigation }: Props) {
     );
   };
 
-  const resolveDispute = async (dispute: Dispute, action: 'full_refund' | 'partial_refund' | 'close_seller') => {
+  const resolveDispute = async (dispute: Dispute, action: 'full_refund' | 'partial_refund' | 'close_seller', prefilledAmount?: number) => {
     const execute = async (refundAmount?: number, adminNote?: string) => {
       const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke('resolve-dispute', {
@@ -232,35 +236,8 @@ export function AdminScreen({ navigation }: Props) {
         ],
       );
     } else if (action === 'partial_refund') {
-      if (Platform.OS === 'ios') {
-        Alert.prompt(
-          'Remboursement partiel',
-          `Montant en euros (max ${(dispute.amount / 100).toFixed(2)} €) :`,
-          [
-            { text: 'Annuler', style: 'cancel' },
-            {
-              text: 'Confirmer',
-              onPress: (value) => {
-                const euros = parseFloat(value ?? '0');
-                if (isNaN(euros) || euros <= 0) { Alert.alert('Montant invalide'); return; }
-                execute(Math.round(euros * 100));
-              },
-            },
-          ],
-          'plain-text',
-          '',
-          'decimal-pad',
-        );
-      } else {
-        Alert.alert(
-          'Remboursement partiel',
-          `Fonctionnalité disponible uniquement sur iOS (montant à saisir). Maximum : ${(dispute.amount / 100).toFixed(2)} €.`,
-          [
-            { text: 'Annuler', style: 'cancel' },
-            { text: 'Utiliser le montant total', onPress: () => execute(undefined, undefined) },
-          ],
-        );
-      }
+      setPartialRefundInput('');
+      setPartialRefundModal({ dispute });
     } else {
       Alert.alert(
         'Clore en faveur du vendeur',
@@ -434,6 +411,47 @@ export function AdminScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Modal remboursement partiel */}
+      <Modal visible={!!partialRefundModal} transparent animationType="fade" onRequestClose={() => setPartialRefundModal(null)}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Remboursement partiel</Text>
+            <Text style={styles.modalSub}>
+              Max : {partialRefundModal ? (partialRefundModal.dispute.amount / 100).toFixed(2) : '0'} €
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              value={partialRefundInput}
+              onChangeText={setPartialRefundInput}
+              placeholder="Montant en euros (ex: 12.50)"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="decimal-pad"
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setPartialRefundModal(null)} activeOpacity={0.75}>
+                <Text style={styles.modalBtnCancelText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalBtnConfirm}
+                activeOpacity={0.75}
+                onPress={() => {
+                  const euros = parseFloat(partialRefundInput.replace(',', '.'));
+                  if (!partialRefundModal || isNaN(euros) || euros <= 0) { Alert.alert('Montant invalide'); return; }
+                  const max = partialRefundModal.dispute.amount / 100;
+                  if (euros > max) { Alert.alert('Montant trop élevé', `Maximum : ${max.toFixed(2)} €`); return; }
+                  const dispute = partialRefundModal.dispute;
+                  setPartialRefundModal(null);
+                  resolveDispute(dispute, 'partial_refund', Math.round(euros * 100));
+                }}
+              >
+                <Text style={styles.modalBtnConfirmText}>Confirmer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -569,4 +587,23 @@ const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyIcon: { fontSize: 40, color: colors.primary },
   emptyText: { fontFamily: fonts.body, fontSize: 16, color: colors.textSecondary },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+  modalBox: { backgroundColor: colors.surface, borderRadius: 20, padding: 24, gap: 12 },
+  modalTitle: { fontFamily: fonts.bodySemiBold, fontSize: 17, color: colors.textPrimary },
+  modalSub: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
+  modalInput: {
+    backgroundColor: colors.background, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    fontFamily: fonts.body, fontSize: 15, color: colors.textPrimary,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  modalActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  modalBtnCancel: {
+    flex: 1, paddingVertical: 12, borderRadius: 50, borderWidth: 1, borderColor: colors.chipBackground, alignItems: 'center',
+  },
+  modalBtnCancelText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textSecondary },
+  modalBtnConfirm: {
+    flex: 1, paddingVertical: 12, borderRadius: 50, backgroundColor: colors.primary, alignItems: 'center',
+  },
+  modalBtnConfirmText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.background },
 });

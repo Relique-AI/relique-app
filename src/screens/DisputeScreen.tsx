@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
   reasonLabelActive: { color: colors.primary },
   reasonDesc: { fontFamily: fonts.body, fontSize: 11, color: colors.textSecondary, lineHeight: 15 },
 
-  textArea: { minHeight: 110, textAlignVertical: 'top' },
+  textArea: { minHeight: 110, textAlignVertical: 'top', color: colors.textPrimary },
   charCount: {
     fontFamily: fonts.body, fontSize: 11, color: colors.textSecondary,
     textAlign: 'right', marginTop: 4, marginBottom: 16,

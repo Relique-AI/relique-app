@@ -838,6 +838,20 @@ export function ListingScreen({ navigation, route }: Props) {
         {listing.status === 'sold' && transaction != null && transaction.buyer_id === user?.id && (() => {
           const ss = transaction.shipping_status;
           if (ss === 'delivered') return null;
+
+          // Remboursé suite à litige
+          if (ss === 'refunded') {
+            return (
+              <View style={[styles.statusBanner, styles.statusBannerRefunded]}>
+                <Ionicons name="shield-checkmark-outline" size={18} color="#1a6b3a" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.statusBannerTitle, { color: '#1a6b3a' }]}>Remboursé</Text>
+                  <Text style={[styles.statusBannerSub, { color: '#1a6b3a' }]}>Le remboursement a été initié suite au litige</Text>
+                </View>
+              </View>
+            );
+          }
+
           const isHand = transaction.shipping_method === 'hand';
           const isShipped = ss === 'shipped';
           const bannerStyle = isShipped ? styles.statusBannerShipped : styles.statusBannerPending;
@@ -1438,7 +1452,12 @@ export function ListingScreen({ navigation, route }: Props) {
           </>
         ) : listing.status === 'sold' ? (
           transaction != null && transaction.buyer_id === user?.id ? (
-            transaction.shipping_status === 'delivered' ? (
+            transaction.shipping_status === 'refunded' ? (
+              <View style={[styles.btnSold, { opacity: 0.6 }]}>
+                <Ionicons name="shield-checkmark-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
+                <Text style={styles.btnSoldText}>Remboursé</Text>
+              </View>
+            ) : transaction.shipping_status === 'delivered' ? (
               <View style={[styles.btnSold, { opacity: 0.6 }]}>
                 <Ionicons name="checkmark-circle-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
                 <Text style={styles.btnSoldText}>Réception confirmée</Text>
@@ -1830,6 +1849,7 @@ const styles = StyleSheet.create({
   },
   statusBannerPending: { backgroundColor: '#fff8e6' },
   statusBannerShipped: { backgroundColor: '#eaf7ef' },
+  statusBannerRefunded: { backgroundColor: '#eaf7ef' },
   statusBannerTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14 },
   statusBannerSub: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 

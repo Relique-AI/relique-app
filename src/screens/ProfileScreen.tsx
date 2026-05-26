@@ -437,7 +437,7 @@ export function ProfileScreen({ navigation, route }: Props) {
     const shippingStatus = item.shipping_status;
     const existingDispute = disputeStatuses[item.id];
     const daysSince = (Date.now() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24);
-    const canDispute = !isPending && !existingDispute && daysSince <= 7 &&
+    const canDispute = !isPending && !existingDispute && shippingStatus !== 'refunded' && daysSince <= 7 &&
       ['delivered', 'shipped', 'to_hand', 'to_ship', 'completed'].includes(shippingStatus ?? '');
     return (
       <TouchableOpacity
@@ -483,11 +483,16 @@ export function ProfileScreen({ navigation, route }: Props) {
                 <Text style={[styles.statusText, styles.statusTextActive]}>Livré</Text>
               </View>
             )}
+            {shippingStatus === 'refunded' && (
+              <View style={[styles.statusBadge, { backgroundColor: 'rgba(33,150,100,0.15)' }]}>
+                <Text style={[styles.statusText, { color: '#1a6b3a' }]}>Remboursé</Text>
+              </View>
+            )}
           </View>
-          {item.tracking_number && shippingStatus !== 'delivered' && (
+          {item.tracking_number && shippingStatus !== 'delivered' && shippingStatus !== 'refunded' && (
             <Text style={styles.trackingText}>Suivi : {item.tracking_number}</Text>
           )}
-          {(shippingStatus === 'to_hand' || (isPostal && shippingStatus === 'shipped')) && (
+          {shippingStatus !== 'refunded' && (shippingStatus === 'to_hand' || (isPostal && shippingStatus === 'shipped')) && (
             <TouchableOpacity
               style={styles.confirmReceiptBtn}
               onPress={() => confirmReceipt(item.id)}
