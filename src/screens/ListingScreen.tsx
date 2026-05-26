@@ -176,10 +176,12 @@ export function ListingScreen({ navigation, route }: Props) {
   const [transaction, setTransaction] = useState<{
     id: string;
     buyer_id: string;
+    amount: number;
     shipping_status: string | null;
     shipping_method: string | null;
     delivery_address: string | null;
     tracking_number: string | null;
+    created_at: string;
   } | null>(null);
   const [showShipModal, setShowShipModal] = useState(false);
   const [shipTrackingInput, setShipTrackingInput] = useState('');
@@ -261,13 +263,19 @@ export function ListingScreen({ navigation, route }: Props) {
     setReferralCredits(data?.referral_credits ?? 0);
   };
 
+  const [disputeStatus, setDisputeStatus] = useState<string | null>(null);
+
   const loadTransaction = async (listingId: string) => {
     const { data } = await supabase
       .from('transactions')
-      .select('id, buyer_id, shipping_status, shipping_method, delivery_address, tracking_number')
+      .select('id, buyer_id, amount, shipping_status, shipping_method, delivery_address, tracking_number, created_at')
       .eq('listing_id', listingId)
       .maybeSingle();
     setTransaction(data ?? null);
+    if (data?.buyer_id === user?.id) {
+      const { data: dispute } = await supabase.from('disputes').select('status').eq('transaction_id', data.id).maybeSingle();
+      setDisputeStatus(dispute?.status ?? null);
+    }
   };
 
   const confirmReceptionFromListing = () => {
@@ -852,6 +860,35 @@ export function ListingScreen({ navigation, route }: Props) {
               </View>
             </View>
           );
+        })()}
+
+        {/* Bouton litige acheteur */}
+        {listing.status === 'sold' && transaction?.buyer_id === user?.id && (() => {
+          const daysSince = (Date.now() - new Date(transaction.created_at).getTime()) / (1000 * 60 * 60 * 24);
+          if (disputeStatus) {
+            return (
+              <View style={styles.disputeRow}>
+                <Ionicons name="shield-checkmark-outline" size={14} color={colors.textSecondary} />
+                <Text style={styles.disputeRowText}>
+                  Litige · {disputeStatus === 'open' ? 'En attente' : disputeStatus === 'under_review' ? 'En cours d\'examen' : 'Résolu'}
+                </Text>
+              </View>
+            );
+          }
+          if (daysSince <= 7) {
+            return (
+              <TouchableOpacity
+                style={styles.disputeRow}
+                onPress={() => navigation.navigate('DisputeScreen' as any, { transaction_id: transaction.id, listing_name: listing.name, amount: transaction.amount ?? 0 })}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="shield-outline" size={14} color={colors.primary} />
+                <Text style={[styles.disputeRowText, { color: colors.primary }]}>Signaler un problème · Protection 7 jours</Text>
+                <Ionicons name="chevron-forward" size={13} color={colors.primary} />
+              </TouchableOpacity>
+            );
+          }
+          return null;
         })()}
 
         {/* Corps */}
@@ -1795,6 +1832,14 @@ const styles = StyleSheet.create({
   statusBannerShipped: { backgroundColor: '#eaf7ef' },
   statusBannerTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14 },
   statusBannerSub: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+
+  disputeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 20, paddingVertical: 11,
+    backgroundColor: `${colors.primary}08`,
+    borderTopWidth: 1, borderTopColor: `${colors.primary}15`,
+  },
+  disputeRowText: { flex: 1, fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary },
 
   // Modal expédition
   shipAddressBox: {

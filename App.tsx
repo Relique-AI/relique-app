@@ -138,6 +138,7 @@ function App() {
           <PostHogProvider
             apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY!}
             options={{ host: process.env.EXPO_PUBLIC_POSTHOG_HOST, flushAt: 1, flushInterval: 0 }}
+            autocapture={{ captureScreens: false }}
           >
             <AuthProvider>
               <NavigationWithTracking />

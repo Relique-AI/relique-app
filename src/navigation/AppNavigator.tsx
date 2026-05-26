@@ -149,6 +149,11 @@ function MarketNavigator() {
         component={SellerProfileScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
+      <MarketStack.Screen
+        name="DisputeScreen"
+        component={DisputeScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
     </MarketStack.Navigator>
   );
 }
@@ -176,6 +181,11 @@ function MessagesNavigator() {
       <MessagesStack.Screen
         name="SellerProfile"
         component={SellerProfileScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <MessagesStack.Screen
+        name="DisputeScreen"
+        component={DisputeScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
     </MessagesStack.Navigator>

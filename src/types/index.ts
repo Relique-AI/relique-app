@@ -39,6 +39,7 @@ export type MarketStackParamList = {
   SellerProfile: { seller_id: string };
   Chat: { listing_id: string; receiver_id: string; listing_name: string };
   Inbox: undefined;
+  DisputeScreen: { transaction_id: string; listing_name: string; amount: number };
 };
 
 // ─── Browse stack ─────────────────────────────────────────────────────────────
@@ -77,6 +78,7 @@ export type MessagesStackParamList = {
   Chat: { listing_id: string; receiver_id: string; listing_name: string };
   Listing: { id: string };
   SellerProfile: { seller_id: string };
+  DisputeScreen: { transaction_id: string; listing_name: string; amount: number };
 };
 
 // ─── Bottom tabs ─────────────────────────────────────────────────────────────

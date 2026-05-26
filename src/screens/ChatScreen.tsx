@@ -202,6 +202,18 @@ export function ChatScreen({ navigation, route }: Props) {
 
   const isBuyer = listing !== null && listing.seller_id !== user?.id;
 
+  const [disputeInfo, setDisputeInfo] = useState<{ transaction_id: string; amount: number; created_at: string; dispute_status: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!user || !isBuyer || listing?.status !== 'sold') return;
+    supabase.from('transactions').select('id, amount, created_at').eq('listing_id', listing_id).eq('buyer_id', user.id).maybeSingle()
+      .then(async ({ data: tx }) => {
+        if (!tx) return;
+        const { data: dispute } = await supabase.from('disputes').select('status').eq('transaction_id', tx.id).maybeSingle();
+        setDisputeInfo({ transaction_id: tx.id, amount: tx.amount, created_at: tx.created_at, dispute_status: dispute?.status ?? null });
+      });
+  }, [listing?.status, isBuyer, user, listing_id]);
+
   // Scroll to bottom once after initial load
   useEffect(() => {
     if (!loading && messages.length > 0 && !initialScrolled.current) {
@@ -246,7 +258,7 @@ export function ChatScreen({ navigation, route }: Props) {
         (payload) => {
           const msg = payload.new as Message;
           if (msg.sender_id === user?.id || msg.receiver_id === user?.id) {
-            setMessages((prev) => [...prev, msg]);
+            setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]);
             if (msg.receiver_id === user?.id) markAsRead();
             if (msg.type === 'offer' && msg.offer_id) {
               supabase.from('offers').select('*').eq('id', msg.offer_id).single()
@@ -854,6 +866,35 @@ export function ChatScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
 
+      {/* Bannière litige acheteur */}
+      {disputeInfo && (() => {
+        const daysSince = (Date.now() - new Date(disputeInfo.created_at).getTime()) / (1000 * 60 * 60 * 24);
+        if (disputeInfo.dispute_status) {
+          return (
+            <View style={styles.disputeBanner}>
+              <Ionicons name="shield-checkmark-outline" size={14} color={colors.textSecondary} />
+              <Text style={styles.disputeBannerText}>
+                Litige ouvert · {disputeInfo.dispute_status === 'open' ? 'En attente' : disputeInfo.dispute_status === 'under_review' ? 'En cours d\'examen' : 'Résolu'}
+              </Text>
+            </View>
+          );
+        }
+        if (daysSince <= 7) {
+          return (
+            <TouchableOpacity
+              style={styles.disputeBanner}
+              onPress={() => navigation.navigate('DisputeScreen', { transaction_id: disputeInfo.transaction_id, listing_name: listing_name, amount: disputeInfo.amount })}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="shield-outline" size={14} color={colors.primary} />
+              <Text style={[styles.disputeBannerText, { color: colors.primary }]}>Signaler un problème · Protection 7 jours</Text>
+              <Ionicons name="chevron-forward" size={13} color={colors.primary} />
+            </TouchableOpacity>
+          );
+        }
+        return null;
+      })()}
+
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {loading ? (
           <View style={styles.loader}>
@@ -988,6 +1029,22 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.surface,
+  },
+  disputeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: spacing.section,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: `${colors.primary}08`,
+  },
+  disputeBannerText: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   backBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1, alignItems: 'center' },
