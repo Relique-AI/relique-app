@@ -567,6 +567,14 @@ export function ProfileScreen({ navigation, route }: Props) {
             {profile?.username ?? user?.email?.split('@')[0] ?? 'Mon profil'}
           </Text>
           <Text style={styles.headerEmail}>{user?.email}</Text>
+          {user && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('SellerProfile', { seller_id: user.id })}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.viewPublicProfileLink}>Voir mon profil public →</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.headerActions}>
@@ -771,6 +779,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.textPrimary },
   headerEmail: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  viewPublicProfileLink: { fontFamily: fonts.body, fontSize: 11, color: colors.primary, marginTop: 4 },
   headerActions: { flexDirection: 'row', gap: 8 },
   headerBtn: {
     width: 44,

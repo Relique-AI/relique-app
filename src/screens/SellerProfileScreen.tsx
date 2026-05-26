@@ -28,8 +28,8 @@ type Review = {
   rating: number;
   comment: string | null;
   created_at: string;
-  reviewer: { username: string | null } | null;
-  listing: { name: string } | null;
+  reviewer_id: string;
+  reviewer?: { username: string | null } | null;
 };
 
 const { width } = Dimensions.get('window');
@@ -74,9 +74,9 @@ export function SellerProfileScreen({ navigation, route }: Props) {
   };
 
   const loadReviews = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('reviews')
-      .select('id, rating, comment, created_at, reviewer:profiles!reviewer_id(username), listing:listings!listing_id(name)')
+      .select('id, rating, comment, created_at, reviewer_id')
       .eq('seller_id', seller_id)
       .order('created_at', { ascending: false });
     if (data && data.length > 0) {
@@ -337,11 +337,6 @@ export function SellerProfileScreen({ navigation, route }: Props) {
                     ))}
                   </View>
                 </View>
-                {review.listing?.name && (
-                  <Text style={styles.reviewListing}>
-                    <Ionicons name="pricetag-outline" size={11} color={colors.textMuted} /> {review.listing.name}
-                  </Text>
-                )}
                 {review.comment ? (
                   <Text style={styles.reviewComment}>{review.comment}</Text>
                 ) : (
