@@ -40,6 +40,7 @@ import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { AdminScreen } from '../screens/AdminScreen';
 import { AlertsScreen } from '../screens/AlertsScreen';
 import { StripeOnboardingScreen } from '../screens/StripeOnboardingScreen';
+import { DisputeScreen } from '../screens/DisputeScreen';
 import { ResetPasswordScreen } from '../screens/ResetPasswordScreen';
 import { SellerProfileScreen } from '../screens/SellerProfileScreen';
 
@@ -239,6 +240,11 @@ function ProfileNavigator() {
       <ProfileStack.Screen
         name="StripeOnboarding"
         component={StripeOnboardingScreen}
+        options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
+      />
+      <ProfileStack.Screen
+        name="DisputeScreen"
+        component={DisputeScreen}
         options={{ cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS }}
       />
       <ProfileStack.Screen

@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,18 +35,49 @@ type Report = {
   reporter_username: string | null;
 };
 
+type Dispute = {
+  id: string;
+  transaction_id: string;
+  listing_id: string;
+  reason: string;
+  description: string;
+  status: string;
+  amount: number;
+  created_at: string;
+  listing_name: string;
+  listing_image: string | null;
+  buyer_username: string | null;
+  seller_username: string | null;
+};
+
 const REASON_LABELS: Record<string, string> = {
   inappropriate: 'Contenu inapproprié',
   scam: 'Arnaque / Fraude',
   prohibited: 'Objet interdit',
 };
 
+const DISPUTE_REASON_LABELS: Record<string, string> = {
+  not_received: 'Objet non reçu',
+  not_as_described: 'Non conforme',
+  damaged: 'Endommagé',
+  other: 'Autre',
+};
+
+const DISPUTE_STATUS_LABELS: Record<string, string> = {
+  open: 'Ouvert',
+  under_review: 'En cours d\'examen',
+  resolved_buyer: 'Résolu — acheteur',
+  resolved_seller: 'Résolu — vendeur',
+  closed: 'Clôturé',
+};
+
 export function AdminScreen({ navigation }: Props) {
+  const [tab, setTab] = useState<'reports' | 'disputes'>('reports');
   const [reports, setReports] = useState<Report[]>([]);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadReports = async () => {
-    setLoading(true);
     const { data } = await supabase
       .from('reports')
       .select(`
@@ -68,10 +101,46 @@ export function AdminScreen({ navigation }: Props) {
         reporter_username: r.profiles?.username ?? 'Anonyme',
       })));
     }
+  };
+
+  const loadDisputes = async () => {
+    const { data } = await supabase
+      .from('disputes')
+      .select(`
+        id, transaction_id, listing_id, reason, description, status, created_at,
+        listings(name, images),
+        transactions(amount),
+        buyer:profiles!disputes_buyer_id_fkey(username),
+        seller:profiles!disputes_seller_id_fkey(username)
+      `)
+      .in('status', ['open', 'under_review'])
+      .order('created_at', { ascending: false });
+
+    if (data) {
+      setDisputes(data.map((d: any) => ({
+        id: d.id,
+        transaction_id: d.transaction_id,
+        listing_id: d.listing_id,
+        reason: d.reason,
+        description: d.description,
+        status: d.status,
+        amount: d.transactions?.amount ?? 0,
+        created_at: d.created_at,
+        listing_name: d.listings?.name ?? 'Annonce supprimée',
+        listing_image: d.listings?.images?.[0] ?? null,
+        buyer_username: d.buyer?.username ?? 'Inconnu',
+        seller_username: d.seller?.username ?? 'Inconnu',
+      })));
+    }
+  };
+
+  const loadAll = async () => {
+    setLoading(true);
+    await Promise.all([loadReports(), loadDisputes()]);
     setLoading(false);
   };
 
-  useFocusEffect(useCallback(() => { loadReports(); }, []));
+  useFocusEffect(useCallback(() => { loadAll(); }, []));
 
   const dismissReport = async (id: string) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -133,7 +202,78 @@ export function AdminScreen({ navigation }: Props) {
     );
   };
 
-  const renderItem = ({ item }: { item: Report }) => (
+  const resolveDispute = async (dispute: Dispute, action: 'full_refund' | 'partial_refund' | 'close_seller') => {
+    const execute = async (refundAmount?: number, adminNote?: string) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('resolve-dispute', {
+        body: {
+          dispute_id: dispute.id,
+          action,
+          refund_amount: refundAmount,
+          admin_note: adminNote,
+        },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error || data?.error) {
+        Alert.alert('Erreur', data?.error ?? error?.message ?? 'Une erreur est survenue.');
+        return;
+      }
+      setDisputes((prev) => prev.filter((d) => d.id !== dispute.id));
+      Alert.alert('Succès', 'Le litige a été résolu.');
+    };
+
+    if (action === 'full_refund') {
+      Alert.alert(
+        'Remboursement total',
+        `Rembourser ${(dispute.amount / 100).toFixed(2)} € à l'acheteur pour « ${dispute.listing_name} » ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Confirmer', onPress: () => execute(undefined, undefined) },
+        ],
+      );
+    } else if (action === 'partial_refund') {
+      if (Platform.OS === 'ios') {
+        Alert.prompt(
+          'Remboursement partiel',
+          `Montant en euros (max ${(dispute.amount / 100).toFixed(2)} €) :`,
+          [
+            { text: 'Annuler', style: 'cancel' },
+            {
+              text: 'Confirmer',
+              onPress: (value) => {
+                const euros = parseFloat(value ?? '0');
+                if (isNaN(euros) || euros <= 0) { Alert.alert('Montant invalide'); return; }
+                execute(Math.round(euros * 100));
+              },
+            },
+          ],
+          'plain-text',
+          '',
+          'decimal-pad',
+        );
+      } else {
+        Alert.alert(
+          'Remboursement partiel',
+          `Fonctionnalité disponible uniquement sur iOS (montant à saisir). Maximum : ${(dispute.amount / 100).toFixed(2)} €.`,
+          [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Utiliser le montant total', onPress: () => execute(undefined, undefined) },
+          ],
+        );
+      }
+    } else {
+      Alert.alert(
+        'Clore en faveur du vendeur',
+        `Le litige pour « ${dispute.listing_name} » sera clôturé en faveur du vendeur. Aucun remboursement.`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Confirmer', style: 'destructive', onPress: () => execute() },
+        ],
+      );
+    }
+  };
+
+  const renderReport = ({ item }: { item: Report }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         {item.listing_image ? (
@@ -160,11 +300,7 @@ export function AdminScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.btnDismiss}
-          onPress={() => dismissReport(item.id)}
-          activeOpacity={0.75}
-        >
+        <TouchableOpacity style={styles.btnDismiss} onPress={() => dismissReport(item.id)} activeOpacity={0.75}>
           <Text style={styles.btnDismissText}>Ignorer</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -179,6 +315,70 @@ export function AdminScreen({ navigation }: Props) {
     </View>
   );
 
+  const renderDispute = ({ item }: { item: Dispute }) => (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        {item.listing_image ? (
+          <Image source={{ uri: item.listing_image }} style={styles.thumb} />
+        ) : (
+          <View style={[styles.thumb, styles.thumbPlaceholder]}>
+            <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={styles.listingName} numberOfLines={1}>{item.listing_name}</Text>
+          <Text style={styles.meta}>
+            {(item.amount / 100).toFixed(2)} € · {new Date(item.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+          </Text>
+          <Text style={styles.meta}>
+            Acheteur : <Text style={{ color: colors.textPrimary }}>{item.buyer_username}</Text>
+            {'  '}Vendeur : <Text style={{ color: colors.textPrimary }}>{item.seller_username}</Text>
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.disputeReasonRow}>
+        <View style={styles.reasonBadge}>
+          <Ionicons name="alert-circle" size={13} color={colors.primary} />
+          <Text style={[styles.reasonText, { color: colors.primary }]}>
+            {DISPUTE_REASON_LABELS[item.reason] ?? item.reason}
+          </Text>
+        </View>
+        <Text style={styles.statusBadge}>{DISPUTE_STATUS_LABELS[item.status] ?? item.status}</Text>
+      </View>
+
+      <Text style={styles.disputeDesc} numberOfLines={4}>{item.description}</Text>
+
+      <View style={styles.disputeActions}>
+        <TouchableOpacity
+          style={styles.btnRefundFull}
+          onPress={() => resolveDispute(item, 'full_refund')}
+          activeOpacity={0.75}
+        >
+          <Text style={styles.btnRefundText}>Remb. total</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.btnRefundPartial}
+          onPress={() => resolveDispute(item, 'partial_refund')}
+          activeOpacity={0.75}
+        >
+          <Text style={styles.btnRefundText}>Remb. partiel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.btnCloseSeller}
+          onPress={() => resolveDispute(item, 'close_seller')}
+          activeOpacity={0.75}
+        >
+          <Text style={styles.btnCloseSellerText}>Vendeur</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const currentData = tab === 'reports' ? reports : disputes;
+  const isEmpty = currentData.length === 0;
+  const emptyMsg = tab === 'reports' ? 'Aucun signalement en attente' : 'Aucun litige en cours';
+
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.topBar}>
@@ -189,18 +389,47 @@ export function AdminScreen({ navigation }: Props) {
         <View style={{ width: 48 }} />
       </View>
 
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === 'reports' && styles.tabBtnActive]}
+          onPress={() => setTab('reports')}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.tabLabel, tab === 'reports' && styles.tabLabelActive]}>
+            Signalements {reports.length > 0 ? `(${reports.length})` : ''}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, tab === 'disputes' && styles.tabBtnActive]}
+          onPress={() => setTab('disputes')}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.tabLabel, tab === 'disputes' && styles.tabLabelActive]}>
+            Litiges {disputes.length > 0 ? `(${disputes.length})` : ''}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ flex: 1 }} />
-      ) : reports.length === 0 ? (
+      ) : isEmpty ? (
         <View style={styles.empty}>
           <Text style={styles.emptyIcon}>✦</Text>
-          <Text style={styles.emptyText}>Aucun signalement en attente</Text>
+          <Text style={styles.emptyText}>{emptyMsg}</Text>
         </View>
-      ) : (
+      ) : tab === 'reports' ? (
         <FlatList
           data={reports}
           keyExtractor={(r) => r.id}
-          renderItem={renderItem}
+          renderItem={renderReport}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <FlatList
+          data={disputes}
+          keyExtractor={(d) => d.id}
+          renderItem={renderDispute}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         />
@@ -222,6 +451,24 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   title: { fontFamily: fonts.bodySemiBold, fontSize: 17, color: colors.textPrimary },
+
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabBtnActive: { borderBottomColor: colors.primary },
+  tabLabel: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary },
+  tabLabelActive: { fontFamily: fonts.bodySemiBold, color: colors.primary },
+
   list: { padding: spacing.section, gap: 16, paddingBottom: 40 },
 
   card: {
@@ -234,7 +481,7 @@ const styles = StyleSheet.create({
   thumb: { width: 56, height: 56, borderRadius: 10, resizeMode: 'cover' },
   thumbPlaceholder: { backgroundColor: colors.chipBackground, alignItems: 'center', justifyContent: 'center' },
   listingName: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary, marginBottom: 2 },
-  meta: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary },
+  meta: { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 1 },
 
   reasonBadge: {
     flexDirection: 'row',
@@ -269,6 +516,55 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
   btnRemoveText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.background },
+
+  disputeReasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statusBadge: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.textSecondary,
+    backgroundColor: colors.chipBackground,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  disputeDesc: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 19,
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    padding: 10,
+  },
+  disputeActions: { flexDirection: 'row', gap: 8 },
+  btnRefundFull: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 50,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  btnRefundPartial: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 50,
+    backgroundColor: `${colors.primary}55`,
+    alignItems: 'center',
+  },
+  btnCloseSeller: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: colors.chipBackground,
+    alignItems: 'center',
+  },
+  btnRefundText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.background },
+  btnCloseSellerText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textSecondary },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyIcon: { fontSize: 40, color: colors.primary },

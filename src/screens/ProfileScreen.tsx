@@ -66,6 +66,7 @@ export function ProfileScreen({ navigation, route }: Props) {
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [pendingShipments, setPendingShipments] = useState<Record<string, { transaction_id: string; delivery_address: string | null; label_url: string | null }>>({});
   const [deliveredListingIds, setDeliveredListingIds] = useState<Set<string>>(new Set());
+  const [disputeStatuses, setDisputeStatuses] = useState<Record<string, string>>({}); // transaction_id → status
   const [trackingModal, setTrackingModal] = useState<{ transactionId: string; deliveryAddress: string | null } | null>(null);
   const [trackingInput, setTrackingInput] = useState('');
   const [savedEstimations, setSavedEstimations] = useState<SavedEstimation[]>([]);
@@ -121,12 +122,23 @@ export function ProfileScreen({ navigation, route }: Props) {
 
   const loadPurchases = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('transactions')
-      .select('id, amount, fee, status, shipping_method, delivery_address, shipping_status, tracking_number, created_at, listing_id, listings(name, images)')
-      .eq('buyer_id', user.id)
-      .order('created_at', { ascending: false });
-    if (data) setPurchases(data as unknown as Purchase[]);
+    const [txRes, disputeRes] = await Promise.all([
+      supabase
+        .from('transactions')
+        .select('id, amount, fee, status, shipping_method, delivery_address, shipping_status, tracking_number, created_at, listing_id, listings(name, images)')
+        .eq('buyer_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('disputes')
+        .select('transaction_id, status')
+        .eq('buyer_id', user.id),
+    ]);
+    if (txRes.data) setPurchases(txRes.data as unknown as Purchase[]);
+    if (disputeRes.data) {
+      const map: Record<string, string> = {};
+      for (const d of disputeRes.data as any[]) map[d.transaction_id] = d.status;
+      setDisputeStatuses(map);
+    }
   }, [user]);
 
   const loadSavedEstimations = useCallback(async () => {
@@ -423,6 +435,10 @@ export function ProfileScreen({ navigation, route }: Props) {
     const isPending = item.status === 'pending';
     const isPostal = item.shipping_method && item.shipping_method !== 'hand';
     const shippingStatus = item.shipping_status;
+    const existingDispute = disputeStatuses[item.id];
+    const daysSince = (Date.now() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24);
+    const canDispute = !isPending && !existingDispute && daysSince <= 7 &&
+      ['delivered', 'shipped', 'to_hand', 'to_ship', 'completed'].includes(shippingStatus ?? '');
     return (
       <TouchableOpacity
         style={styles.myCard}
@@ -481,6 +497,27 @@ export function ProfileScreen({ navigation, route }: Props) {
                 {shippingStatus === 'to_hand' ? 'Confirmer la remise' : 'Confirmer réception'}
               </Text>
             </TouchableOpacity>
+          )}
+          {canDispute && (
+            <TouchableOpacity
+              style={styles.disputeBtn}
+              onPress={() => navigation.navigate('DisputeScreen', {
+                transaction_id: item.id,
+                listing_name: item.listings?.name ?? 'Commande',
+                amount: item.amount,
+              })}
+            >
+              <Ionicons name="warning-outline" size={13} color={colors.danger} />
+              <Text style={styles.disputeBtnText}>Signaler un problème</Text>
+            </TouchableOpacity>
+          )}
+          {existingDispute && (
+            <View style={styles.disputeStatusBadge}>
+              <Ionicons name="shield-outline" size={12} color={colors.textSecondary} />
+              <Text style={styles.disputeStatusText}>
+                Litige {existingDispute === 'open' ? 'ouvert' : existingDispute === 'under_review' ? 'en cours d\'examen' : existingDispute === 'resolved_buyer' ? 'résolu ✓' : existingDispute === 'resolved_seller' ? 'clôturé' : existingDispute}
+              </Text>
+            </View>
           )}
         </View>
         <Text style={styles.purchaseDate}>{date}</Text>
@@ -894,6 +931,18 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   confirmReceiptText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.background },
+  disputeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: 1, borderColor: `${colors.danger}50`,
+    borderRadius: 20, paddingVertical: 5, paddingHorizontal: 10,
+    marginTop: 6, alignSelf: 'flex-start',
+  },
+  disputeBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.danger },
+  disputeStatusBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginTop: 6, alignSelf: 'flex-start',
+  },
+  disputeStatusText: { fontFamily: fonts.body, fontSize: 11, color: colors.textSecondary },
 
   // Tracking modal
   modalOverlay: {

@@ -67,6 +67,7 @@ export type ProfileStackParamList = {
   Alerts: undefined;
   Purchases: undefined;
   StripeOnboarding: undefined;
+  DisputeScreen: { transaction_id: string; listing_name: string; amount: number };
 };
 
 // ─── Messages stack ───────────────────────────────────────────────────────────

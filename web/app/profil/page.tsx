@@ -18,12 +18,14 @@ type Transaction = {
   seller: { username: string | null } | null;
 };
 
+const DISPUTE_ELIGIBLE_STATUSES = ["delivered", "shipped", "to_hand", "to_ship", "completed"];
+
 export default async function ProfilPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth?next=/profil");
 
-  const [profileRes, listingsRes, soldRes, purchasesRes] = await Promise.all([
+  const [profileRes, listingsRes, soldRes, purchasesRes, disputesRes] = await Promise.all([
     supabase.from("profiles").select("username, avatar_url, created_at").eq("id", user.id).single(),
     supabase.from("listings").select("*, profiles(username, avatar_url)").eq("seller_id", user.id).eq("status", "active").order("created_at", { ascending: false }),
     supabase.from("listings").select("id", { count: "exact", head: true }).eq("seller_id", user.id).eq("status", "sold"),
@@ -33,12 +35,19 @@ export default async function ProfilPage() {
       .eq("buyer_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("disputes")
+      .select("transaction_id, status")
+      .eq("buyer_id", user.id),
   ]);
 
   const profile = profileRes.data;
   const listings = (listingsRes.data ?? []) as Listing[];
   const soldCount = soldRes.count ?? 0;
   const purchases = (purchasesRes.data ?? []) as unknown as Transaction[];
+  const disputeMap = Object.fromEntries(
+    (disputesRes.data ?? []).map((d: { transaction_id: string; status: string }) => [d.transaction_id, d.status])
+  );
 
   const memberSince = profile?.created_at
     ? new Date(profile.created_at).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
@@ -140,37 +149,68 @@ export default async function ProfilPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {purchases.map((tx) => (
-              <Link
-                key={tx.id}
-                href={tx.listing ? `/listing/${tx.listing.id}` : "#"}
-                className="flex items-center gap-4 bg-surface border border-border rounded-xl p-4 hover:border-border-strong transition-colors"
-              >
-                <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-surface-raised flex-shrink-0">
-                  {tx.listing?.images?.[0] ? (
-                    <Image src={tx.listing.images[0]} alt={tx.listing.name ?? ""} fill sizes="56px" className="object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xl">✦</div>
+            {purchases.map((tx) => {
+              const daysSince = (Date.now() - new Date(tx.created_at).getTime()) / (1000 * 60 * 60 * 24);
+              const existingDisputeStatus = disputeMap[tx.id];
+              const canDispute =
+                !existingDisputeStatus &&
+                daysSince <= 7 &&
+                DISPUTE_ELIGIBLE_STATUSES.includes(tx.shipping_status);
+
+              return (
+                <div
+                  key={tx.id}
+                  className="bg-surface border border-border rounded-xl p-4 hover:border-border-strong transition-colors"
+                >
+                  <Link
+                    href={tx.listing ? `/listing/${tx.listing.id}` : "#"}
+                    className="flex items-center gap-4"
+                  >
+                    <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-surface-raised flex-shrink-0">
+                      {tx.listing?.images?.[0] ? (
+                        <Image src={tx.listing.images[0]} alt={tx.listing.name ?? ""} fill sizes="56px" className="object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl">✦</div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-text-primary font-semibold text-sm truncate">{tx.listing?.name ?? "Annonce supprimée"}</p>
+                      <p className="text-text-muted text-xs mt-0.5">
+                        Vendeur : {tx.seller?.username ?? "—"} · {new Date(tx.created_at).toLocaleDateString("fr-FR")}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-text-primary font-bold text-sm">{(tx.amount / 100).toFixed(2)} €</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full mt-1 inline-block ${
+                        tx.shipping_status === "delivered" || tx.shipping_status === "completed"
+                          ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                          : "bg-primary/10 text-primary border border-primary/20"
+                      }`}>
+                        {SHIPPING_STATUS_LABELS[tx.shipping_status] ?? tx.shipping_status}
+                      </span>
+                    </div>
+                  </Link>
+
+                  {(canDispute || existingDisputeStatus) && (
+                    <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                      {existingDisputeStatus ? (
+                        <span className="text-xs text-text-muted bg-surface-raised px-3 py-1 rounded-full border border-border">
+                          Litige : {existingDisputeStatus === "open" ? "Ouvert" : existingDisputeStatus === "under_review" ? "En cours" : existingDisputeStatus === "resolved_buyer" ? "Résolu — remboursé" : existingDisputeStatus === "resolved_seller" ? "Résolu — vendeur" : "Clôturé"}
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/litige/${tx.id}`}
+                          className="text-xs text-danger border border-danger/30 px-3 py-1.5 rounded-full hover:bg-danger/10 transition-colors"
+                        >
+                          Signaler un problème
+                        </Link>
+                      )}
+                      <span className="text-xs text-text-muted">Protection acheteur · 7 jours</span>
+                    </div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-text-primary font-semibold text-sm truncate">{tx.listing?.name ?? "Annonce supprimée"}</p>
-                  <p className="text-text-muted text-xs mt-0.5">
-                    Vendeur : {tx.seller?.username ?? "—"} · {new Date(tx.created_at).toLocaleDateString("fr-FR")}
-                  </p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-text-primary font-bold text-sm">{(tx.amount / 100).toFixed(2)} €</p>
-                  <span className={`text-xs px-2 py-0.5 rounded-full mt-1 inline-block ${
-                    tx.shipping_status === "delivered" || tx.shipping_status === "completed"
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                      : "bg-primary/10 text-primary border border-primary/20"
-                  }`}>
-                    {SHIPPING_STATUS_LABELS[tx.shipping_status] ?? tx.shipping_status}
-                  </span>
-                </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         )}
 
