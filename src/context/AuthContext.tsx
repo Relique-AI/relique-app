@@ -13,6 +13,7 @@ interface AuthContextValue {
   isGuest: boolean;
   isRecovery: boolean;
   clearRecovery: () => void;
+  handleRecovery: (accessToken: string, refreshToken: string) => Promise<void>;
   enterGuestMode: () => void;
   exitGuestMode: () => void;
   refreshProfile: () => Promise<void>;
@@ -35,6 +36,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const enterGuestMode = () => setIsGuest(true);
   const exitGuestMode = () => setIsGuest(false);
   const clearRecovery = () => setIsRecovery(false);
+
+  const handleRecovery = async (accessToken: string, refreshToken: string) => {
+    await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    setIsRecovery(true);
+  };
 
   const refreshProfile = async () => {
     const { data: { user: u } } = await supabase.auth.getUser();
@@ -203,7 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, profileLoading, isAdmin, isGuest, isRecovery, clearRecovery, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, profileLoading, isAdmin, isGuest, isRecovery, clearRecovery, handleRecovery, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

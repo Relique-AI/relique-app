@@ -25,7 +25,7 @@ import { View, Text, TouchableOpacity, Linking } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider } from './src/context/AuthContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -68,6 +68,7 @@ class AppErrorBoundary extends Component<{ children: any }, { hasError: boolean 
 }
 
 function DeepLinkHandler() {
+  const { handleRecovery } = useAuth();
   const handleUrl = useCallback(async (url: string) => {
     // PKCE flow: ?code=XXX
     const codeMatch = url.match(/[?&]code=([^&]+)/);
@@ -80,10 +81,14 @@ function DeepLinkHandler() {
     if (hashIndex !== -1) {
       const params = Object.fromEntries(new URLSearchParams(url.slice(hashIndex + 1)));
       if (params.access_token && params.refresh_token) {
-        await supabase.auth.setSession({ access_token: params.access_token, refresh_token: params.refresh_token });
+        if (params.type === 'recovery') {
+          await handleRecovery(params.access_token, params.refresh_token);
+        } else {
+          await supabase.auth.setSession({ access_token: params.access_token, refresh_token: params.refresh_token });
+        }
       }
     }
-  }, []);
+  }, [handleRecovery]);
 
   useEffect(() => {
     Linking.getInitialURL().then((url) => { if (url) handleUrl(url); });
