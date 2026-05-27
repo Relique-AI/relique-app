@@ -69,10 +69,19 @@ class AppErrorBoundary extends Component<{ children: any }, { hasError: boolean 
 
 function DeepLinkHandler() {
   const handleUrl = useCallback(async (url: string) => {
+    // PKCE flow: ?code=XXX
     const codeMatch = url.match(/[?&]code=([^&]+)/);
-    const code = codeMatch?.[1];
-    if (code) {
-      await supabase.auth.exchangeCodeForSession(decodeURIComponent(code));
+    if (codeMatch?.[1]) {
+      await supabase.auth.exchangeCodeForSession(decodeURIComponent(codeMatch[1]));
+      return;
+    }
+    // Implicit flow: #access_token=XXX&refresh_token=XXX&type=recovery
+    const hashIndex = url.indexOf('#');
+    if (hashIndex !== -1) {
+      const params = Object.fromEntries(new URLSearchParams(url.slice(hashIndex + 1)));
+      if (params.access_token && params.refresh_token) {
+        await supabase.auth.setSession({ access_token: params.access_token, refresh_token: params.refresh_token });
+      }
     }
   }, []);
 
