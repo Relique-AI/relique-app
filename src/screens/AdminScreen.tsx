@@ -236,8 +236,12 @@ export function AdminScreen({ navigation }: Props) {
         ],
       );
     } else if (action === 'partial_refund') {
-      setPartialRefundInput('');
-      setPartialRefundModal({ dispute });
+      if (prefilledAmount !== undefined) {
+        execute(prefilledAmount, undefined);
+      } else {
+        setPartialRefundInput('');
+        setPartialRefundModal({ dispute });
+      }
     } else {
       Alert.alert(
         'Clore en faveur du vendeur',

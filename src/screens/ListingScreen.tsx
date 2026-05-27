@@ -272,7 +272,7 @@ export function ListingScreen({ navigation, route }: Props) {
       .eq('listing_id', listingId)
       .maybeSingle();
     setTransaction(data ?? null);
-    if (data?.buyer_id === user?.id) {
+    if (data) {
       const { data: dispute } = await supabase.from('disputes').select('status').eq('transaction_id', data.id).maybeSingle();
       setDisputeStatus(dispute?.status ?? null);
     }
@@ -905,6 +905,16 @@ export function ListingScreen({ navigation, route }: Props) {
           return null;
         })()}
 
+        {/* Bannière litige vendeur */}
+        {listing.status === 'sold' && isOwner && disputeStatus && (
+          <View style={[styles.disputeRow, { backgroundColor: 'rgba(224,135,102,0.08)', borderTopColor: 'rgba(224,135,102,0.2)' }]}>
+            <Ionicons name="alert-circle-outline" size={14} color={colors.danger} />
+            <Text style={[styles.disputeRowText, { color: colors.danger }]}>
+              Litige · {disputeStatus === 'open' ? 'En attente d\'examen' : disputeStatus === 'under_review' ? 'En cours d\'examen' : 'Résolu'}
+            </Text>
+          </View>
+        )}
+
         {/* Corps */}
         <View style={styles.body}>
 
@@ -1406,7 +1416,12 @@ export function ListingScreen({ navigation, route }: Props) {
       {/* Barre d'actions */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
         {isOwner && listing.status === 'sold' ? (
-          transaction?.shipping_status === 'delivered' ? (
+          transaction?.shipping_status === 'refunded' ? (
+            <View style={[styles.btnSold, { opacity: 0.6 }]}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
+              <Text style={styles.btnSoldText}>Litige — Remboursé</Text>
+            </View>
+          ) : transaction?.shipping_status === 'delivered' ? (
             <View style={[styles.btnSold, { opacity: 0.6 }]}>
               <Ionicons name="checkmark-circle-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
               <Text style={styles.btnSoldText}>Livré · Réception confirmée</Text>
