@@ -66,6 +66,7 @@ export function ProfileScreen({ navigation, route }: Props) {
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
   const [pendingShipments, setPendingShipments] = useState<Record<string, { transaction_id: string; delivery_address: string | null; label_url: string | null }>>({});
   const [deliveredListingIds, setDeliveredListingIds] = useState<Set<string>>(new Set());
+  const [refundedListingIds, setRefundedListingIds] = useState<Set<string>>(new Set());
   const [disputeStatuses, setDisputeStatuses] = useState<Record<string, string>>({}); // transaction_id → status
   const [trackingModal, setTrackingModal] = useState<{ transactionId: string; deliveryAddress: string | null } | null>(null);
   const [trackingInput, setTrackingInput] = useState('');
@@ -157,19 +158,23 @@ export function ProfileScreen({ navigation, route }: Props) {
       .from('transactions')
       .select('id, listing_id, delivery_address, label_url, shipping_status')
       .eq('seller_id', user.id)
-      .in('shipping_status', ['to_ship', 'to_hand', 'delivered']);
+      .in('shipping_status', ['to_ship', 'to_hand', 'delivered', 'refunded']);
     if (data) {
       const pending: Record<string, { transaction_id: string; delivery_address: string | null; label_url: string | null }> = {};
       const delivered = new Set<string>();
+      const refunded = new Set<string>();
       for (const t of data as any[]) {
         if (t.shipping_status === 'to_ship') {
           pending[t.listing_id] = { transaction_id: t.id, delivery_address: t.delivery_address, label_url: t.label_url ?? null };
         } else if (t.shipping_status === 'delivered') {
           delivered.add(t.listing_id);
+        } else if (t.shipping_status === 'refunded') {
+          refunded.add(t.listing_id);
         }
       }
       setPendingShipments(pending);
       setDeliveredListingIds(delivered);
+      setRefundedListingIds(refunded);
     }
   }, [user]);
 
@@ -329,6 +334,7 @@ export function ProfileScreen({ navigation, route }: Props) {
     const unanswered = questionCounts[item.id] ?? 0;
     const pendingShipment = pendingShipments[item.id];
     const isDelivered = deliveredListingIds.has(item.id);
+    const isRefunded = refundedListingIds.has(item.id);
     return (
       <TouchableOpacity
         style={styles.myCard}
@@ -353,6 +359,11 @@ export function ProfileScreen({ navigation, route }: Props) {
                 {isSold ? 'Vendu' : 'En ligne'}
               </Text>
             </View>
+            {isRefunded && (
+              <View style={[styles.statusBadge, { backgroundColor: 'rgba(33,150,100,0.15)' }]}>
+                <Text style={[styles.statusText, { color: '#1a6b3a' }]}>Remboursé</Text>
+              </View>
+            )}
             {unanswered > 0 && (
               <View style={styles.questionBadge}>
                 <Ionicons name="help-circle" size={12} color={colors.primary} />
