@@ -3,14 +3,11 @@ import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 
-const USERNAME_CACHE_KEY = 'pepite_has_username';
-
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
   profileLoading: boolean;
-  hasUsername: boolean;
   isAdmin: boolean;
   isGuest: boolean;
   isRecovery: boolean;
@@ -30,7 +27,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
-  const [hasUsername, setHasUsername] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [isRecovery, setIsRecovery] = useState(false);
@@ -42,7 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { user: u } } = await supabase.auth.getUser();
     if (!u) return;
     const { data } = await supabase.from('profiles').select('username, is_admin').eq('id', u.id).single();
-    setHasUsername(!!data?.username);
     setIsAdmin(!!data?.is_admin);
   };
 
@@ -51,9 +46,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setUser(data.session?.user ?? null);
       if (data.session?.user) {
-        // Applique le cache immédiatement pour afficher l'app sans attendre
-        const cached = await AsyncStorage.getItem(USERNAME_CACHE_KEY);
-        if (cached !== null) setHasUsername(cached === 'true');
         setLoading(false);
         // Requête profil en arrière-plan
         const userId = data.session.user.id;
@@ -64,10 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .select('username, is_admin')
               .eq('id', userId)
               .single();
-            const has = !!profile?.username;
-            setHasUsername(has);
             setIsAdmin(!!profile?.is_admin);
-            AsyncStorage.setItem(USERNAME_CACHE_KEY, String(has));
           } catch {}
         })();
       } else {
@@ -120,20 +109,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     });
                   }
                 }
-                const has = !!(profile?.username || meta.username);
-                setHasUsername(has);
                 setIsAdmin(!!profile?.is_admin);
-                AsyncStorage.setItem(USERNAME_CACHE_KEY, String(has));
               })(),
               new Promise<void>((resolve) => setTimeout(resolve, 8000)),
             ]);
           } catch {}
         })();
       } else {
-        setHasUsername(false);
         setIsAdmin(false);
         setProfileLoading(false);
-        AsyncStorage.removeItem(USERNAME_CACHE_KEY);
       }
     });
 
@@ -183,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, profileLoading, hasUsername, isAdmin, isGuest, isRecovery, clearRecovery, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, profileLoading, isAdmin, isGuest, isRecovery, clearRecovery, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

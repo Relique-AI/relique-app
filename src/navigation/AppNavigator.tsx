@@ -36,7 +36,6 @@ import { LegalScreen } from '../screens/LegalScreen';
 import { PrivacyPolicyScreen } from '../screens/PrivacyPolicyScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { EditListingScreen } from '../screens/EditListingScreen';
-import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { AdminScreen } from '../screens/AdminScreen';
 import { AlertsScreen } from '../screens/AlertsScreen';
 import { StripeOnboardingScreen } from '../screens/StripeOnboardingScreen';
@@ -395,7 +394,7 @@ function MainTabs() {
 
 const Root = createStackNavigator();
 export function AppNavigator() {
-  const { user, loading, hasUsername, isGuest, isRecovery } = useAuth();
+  const { user, loading, isGuest, isRecovery } = useAuth();
 
   if (loading) {
     return (
@@ -411,8 +410,6 @@ export function AppNavigator() {
         <Root.Screen name="ResetPassword" component={ResetPasswordScreen} />
       ) : !user && !isGuest ? (
         <Root.Screen name="Auth" component={AuthScreen} />
-      ) : user && !hasUsername ? (
-        <Root.Screen name="Onboarding" component={OnboardingScreen} />
       ) : (
         <Root.Screen name="Main" component={MainTabs} />
       )}
