@@ -148,7 +148,7 @@ export function AuthScreen() {
       const referralMsg = referrerUsername
         ? ` Vous avez été parrainé par ${referrerUsername} — votre parrain en a été informé. Vous bénéficiez de 3 achats à −50% de frais !`
         : '';
-      setSuccess(`Compte créé ! Vérifiez votre email pour confirmer votre inscription.${referralMsg}`);
+      setSuccess(`Bienvenue sur Pépite !${referralMsg}`);
     }
   };
 
