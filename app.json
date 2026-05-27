@@ -25,7 +25,14 @@
         ],
         "NSCameraUsageDescription": "Pépite utilise la caméra pour scanner et analyser vos objets.",
         "NSPhotoLibraryUsageDescription": "Pépite accède à vos photos pour analyser vos objets.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.689265772861-fv5j3h2v3emgtja2ge37053u7b083koq"
+            ]
+          }
+        ]
       },
       "buildNumber": "22"
     },
