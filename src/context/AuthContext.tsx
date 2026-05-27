@@ -176,6 +176,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: 'pepite://auth/callback',
       },
     });
+    if (!error) {
+      supabase.functions.invoke('send-welcome', { body: { email, username } });
+    }
     return error?.message ?? null;
   };
 
