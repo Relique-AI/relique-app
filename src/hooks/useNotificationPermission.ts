@@ -46,16 +46,8 @@ export function useNotificationPermission() {
 
   const onAccept = useCallback(async () => {
     setPromptContext(null);
-
-    if (isDenied) {
-      onCompleteRef.current = null;
-      Linking.openSettings();
-      return;
-    }
-
     const cb = onCompleteRef.current;
     onCompleteRef.current = null;
-    cb?.();
 
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('messages', {
@@ -66,8 +58,18 @@ export function useNotificationPermission() {
       });
     }
 
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== 'granted' || !user) return;
+    // Toujours tenter le dialogue natif d'abord (Android retourne 'denied'
+    // avant même la première demande — requestPermissionsAsync affiche le vrai dialogue)
+    const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
+
+    if (status !== 'granted') {
+      // Dialogue natif refusé et Android ne peut plus le redemander → réglages
+      if (!canAskAgain) Linking.openSettings();
+      return;
+    }
+
+    cb?.();
+    if (!user) return;
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
@@ -78,7 +80,7 @@ export function useNotificationPermission() {
       .from('profiles')
       .update({ push_token: token })
       .eq('id', user.id);
-  }, [isDenied, user]);
+  }, [user]);
 
   const onDismiss = useCallback(() => {
     setPromptContext(null);

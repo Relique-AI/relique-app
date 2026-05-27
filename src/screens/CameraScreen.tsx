@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,30 +28,35 @@ export function CameraScreen({ navigation }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [flash, setFlash] = useState<'on' | 'off'>('off');
+  const [permissionRequested, setPermissionRequested] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
-  // Écran d'autorisation
-  if (!permission) {
+  // Demande automatique au montage — affiche le dialogue natif directement
+  useEffect(() => {
+    if (permission && !permission.granted && !permissionRequested) {
+      setPermissionRequested(true);
+      requestPermission();
+    }
+  }, [permission, permissionRequested]);
+
+  // Écran vide pendant le chargement ou la demande initiale
+  if (!permission || (!permission.granted && !permissionRequested)) {
     return <View style={styles.bg} />;
   }
 
+  // Après la demande, si toujours refusé → uniquement là on propose les réglages
   if (!permission.granted) {
-    const isDenied = !permission.canAskAgain;
     return (
       <SafeAreaView style={styles.permissionContainer}>
         <Text style={styles.permissionTitle}>Accès à la caméra</Text>
         <Text style={styles.permissionText}>
-          {isDenied
-            ? "Vous avez refusé l'accès à la caméra. Rendez-vous dans les réglages de votre téléphone pour l'activer."
-            : "L'accès à la caméra est nécessaire pour scanner vos objets."}
+          L'accès à la caméra est nécessaire pour scanner vos objets. Activez-le dans les réglages de votre téléphone.
         </Text>
         <TouchableOpacity
           style={styles.permissionButton}
-          onPress={isDenied ? () => Linking.openSettings() : requestPermission}
+          onPress={() => Linking.openSettings()}
         >
-          <Text style={styles.permissionButtonText}>
-            {isDenied ? 'Ouvrir les réglages' : 'Autoriser l\'accès'}
-          </Text>
+          <Text style={styles.permissionButtonText}>Ouvrir les réglages</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backLink}>
           <Text style={styles.backLinkText}>Retour</Text>
