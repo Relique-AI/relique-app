@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 interface AuthContextValue {
   user: User | null;
@@ -17,6 +18,7 @@ interface AuthContextValue {
   refreshProfile: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, username?: string, referralCode?: string) => Promise<string | null>;
+  signInWithGoogle: () => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -92,6 +94,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   .select('username, is_admin, referred_by')
                   .eq('id', userId)
                   .single();
+
+                // Auto-générer un pseudo pour les nouveaux comptes Google
+                if (!profile?.username && !meta.username) {
+                  const displayName = (meta.full_name || meta.name || meta.email || 'utilisateur') as string;
+                  const base = displayName
+                    .toLowerCase()
+                    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+                    .replace(/[^a-z0-9]/g, '_')
+                    .replace(/_+/g, '_')
+                    .replace(/^_|_$/g, '')
+                    .slice(0, 15) || 'utilisateur';
+                  const suffix = Math.floor(Math.random() * 9000) + 1000;
+                  await supabase.from('profiles').update({ username: `${base}_${suffix}` }).eq('id', userId).is('username', null);
+                }
+
                 if (meta.referral_code && !profile?.referred_by) {
                   const code = (meta.referral_code as string).toUpperCase();
                   const { data: referrer } = await supabase.from('profiles').select('id').eq('referral_code', code).neq('id', userId).single();
@@ -162,12 +179,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error?.message ?? null;
   };
 
+  const signInWithGoogle = async (): Promise<string | null> => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      if (response.type === 'cancelled') return null;
+      const idToken = response.data?.idToken;
+      if (!idToken) return 'Token Google indisponible.';
+      const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken });
+      return error?.message ?? null;
+    } catch (e: any) {
+      if (e.code === statusCodes.SIGN_IN_CANCELLED) return null;
+      if (e.code === statusCodes.IN_PROGRESS) return null;
+      return e.message ?? 'Erreur de connexion Google.';
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, profileLoading, isAdmin, isGuest, isRecovery, clearRecovery, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, profileLoading, isAdmin, isGuest, isRecovery, clearRecovery, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

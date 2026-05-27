@@ -18,7 +18,7 @@ import { AppTextInput } from '../components/AppTextInput';
 type Tab = 'login' | 'signup' | 'forgot';
 
 export function AuthScreen() {
-  const { signIn, signUp, enterGuestMode } = useAuth();
+  const { signIn, signUp, signInWithGoogle, enterGuestMode } = useAuth();
   const [tab, setTab] = useState<Tab>('login');
 
   const glowAnim = useRef(new Animated.Value(0.5)).current;
@@ -311,9 +311,33 @@ export function AuthScreen() {
 
           </View>
           {tab !== 'forgot' && (
-            <TouchableOpacity style={styles.guestBtn} onPress={enterGuestMode} activeOpacity={0.7}>
-              <Text style={styles.guestText}>Découvrir sans compte →</Text>
-            </TouchableOpacity>
+            <>
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>ou</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.googleBtn, loading && styles.ctaDisabled]}
+                onPress={async () => {
+                  setError(null);
+                  setLoading(true);
+                  const err = await signInWithGoogle();
+                  setLoading(false);
+                  if (err) setError(err);
+                }}
+                disabled={loading}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.googleIcon}>G</Text>
+                <Text style={styles.googleText}>Continuer avec Google</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.guestBtn} onPress={enterGuestMode} activeOpacity={0.7}>
+                <Text style={styles.guestText}>Découvrir sans compte →</Text>
+              </TouchableOpacity>
+            </>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -436,6 +460,22 @@ const styles = StyleSheet.create({
   inputOk: { borderColor: colors.success },
   guestBtn: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
   guestText: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 4 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.chipBackground },
+  dividerText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 50,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: colors.chipBackground,
+  },
+  googleIcon: { fontFamily: fonts.bodySemiBold, fontSize: 17, color: colors.textPrimary },
+  googleText: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary },
   fieldHint: {
     fontFamily: fonts.body,
     fontSize: 12,
