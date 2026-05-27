@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -46,6 +46,28 @@ export function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const usernameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const checkUsername = useCallback((value: string) => {
+    if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
+    const trimmed = value.trim();
+    if (trimmed.length < 3 || !/^[a-zA-Z0-9_.-]+$/.test(trimmed)) {
+      setUsernameStatus('idle');
+      return;
+    }
+    setUsernameStatus('checking');
+    usernameTimerRef.current = setTimeout(async () => {
+      const { supabase: sb } = await import('../services/supabase');
+      const { data } = await sb.from('profiles').select('id').eq('username', trimmed).maybeSingle();
+      setUsernameStatus(data ? 'taken' : 'available');
+    }, 500);
+  }, []);
+
+  const handleUsernameChange = (value: string) => {
+    setUsername(value);
+    if (tab === 'signup') checkUsername(value);
+  };
 
   const handleSubmit = async () => {
     setError(null);
@@ -90,6 +112,21 @@ export function AuthScreen() {
 
     setLoading(true);
     let referrerUsername: string | null = null;
+
+    if (tab === 'signup') {
+      const { supabase: sb } = await import('../services/supabase');
+      const { data: existing } = await sb
+        .from('profiles')
+        .select('id')
+        .eq('username', username.trim())
+        .maybeSingle();
+      if (existing) {
+        setError('Ce pseudo est déjà pris. Choisissez-en un autre.');
+        setLoading(false);
+        setUsernameStatus('taken');
+        return;
+      }
+    }
     if (tab === 'signup' && referralCode.trim()) {
       const { supabase: sb } = await import('../services/supabase');
       const { data: referrer } = await sb
@@ -149,7 +186,7 @@ export function AuthScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.tabItem, tab === 'signup' && styles.tabItemActive]}
-                onPress={() => { setTab('signup'); setError(null); setSuccess(null); }}
+                onPress={() => { setTab('signup'); setError(null); setSuccess(null); setUsernameStatus('idle'); }}
               >
                 <Text style={[styles.tabText, tab === 'signup' && styles.tabTextActive]}>Créer un compte</Text>
               </TouchableOpacity>
@@ -184,16 +221,18 @@ export function AuthScreen() {
               <View style={styles.fieldGroup}>
                 <Text style={styles.label}>Pseudo</Text>
                 <AppTextInput
-                  style={styles.input}
+                  style={[styles.input, usernameStatus === 'taken' && styles.inputError, usernameStatus === 'available' && styles.inputOk]}
                   value={username}
-                  onChangeText={setUsername}
+                  onChangeText={handleUsernameChange}
                   placeholder="ex : chineuse_paris, vintage_paul"
-  
                   autoCapitalize="none"
                   autoCorrect={false}
                   maxLength={30}
                 />
-                <Text style={styles.fieldHint}>Lettres, chiffres, _ . - · 3 à 30 caractères</Text>
+                {usernameStatus === 'checking' && <Text style={styles.fieldHint}>Vérification…</Text>}
+                {usernameStatus === 'available' && <Text style={[styles.fieldHint, { color: colors.success }]}>✓ Pseudo disponible</Text>}
+                {usernameStatus === 'taken' && <Text style={[styles.fieldHint, { color: colors.danger }]}>✗ Ce pseudo est déjà pris</Text>}
+                {usernameStatus === 'idle' && <Text style={styles.fieldHint}>Lettres, chiffres, _ . - · 3 à 30 caractères</Text>}
               </View>
             )}
 
@@ -393,6 +432,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.chipBackground,
   },
+  inputError: { borderColor: colors.danger },
+  inputOk: { borderColor: colors.success },
   guestBtn: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
   guestText: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary },
   fieldHint: {
