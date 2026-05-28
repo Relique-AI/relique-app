@@ -11,8 +11,8 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://vpjauyzkebfayybbymqi.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwamF1eXprZWJmYXl5YmJ5bXFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODIzNDgsImV4cCI6MjA5Mjk1ODM0OH0.KljgN81hdEkGTuNR4WfREVp1BHjolkUTTtx3Us8AuGk",
         "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51TRsheEn6Dd2QHHQW1sqfqTxa98pDEqHsRHagLbBFyLq0PGEAUfqfsVQMfTZiRxNWDhYwD2AhPhQdsnS7STO6CnD00wXoG5NWJ",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "689265772861-99c9a1uq1na1ji5a2l4rvmpq7jesf4nu.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "689265772861-fv5j3h2v3emgtja2ge37053u7b083koq.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "544328548843-tmlnio57mm2kg9sru3h90an9b6i8prhv.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "544328548843-sc0uq8k7f737h0f0hgq4gte2nslvcae4.apps.googleusercontent.com"
       },
       "android": {
         "buildType": "apk"
@@ -25,8 +25,8 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://vpjauyzkebfayybbymqi.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwamF1eXprZWJmYXl5YmJ5bXFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODIzNDgsImV4cCI6MjA5Mjk1ODM0OH0.KljgN81hdEkGTuNR4WfREVp1BHjolkUTTtx3Us8AuGk",
         "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51TRsheEn6Dd2QHHQW1sqfqTxa98pDEqHsRHagLbBFyLq0PGEAUfqfsVQMfTZiRxNWDhYwD2AhPhQdsnS7STO6CnD00wXoG5NWJ",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "689265772861-99c9a1uq1na1ji5a2l4rvmpq7jesf4nu.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "689265772861-fv5j3h2v3emgtja2ge37053u7b083koq.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "544328548843-tmlnio57mm2kg9sru3h90an9b6i8prhv.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "544328548843-sc0uq8k7f737h0f0hgq4gte2nslvcae4.apps.googleusercontent.com"
       },
       "android": {
         "buildType": "apk"
