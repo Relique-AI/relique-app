@@ -12,7 +12,24 @@
           "package_name": "com.hugosld.pepite"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "10250278063-3creeuaaaesh8eot2v5ch1oiqpktilbo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hugosld.pepite",
+            "certificate_hash": "6580ecae1dcbccc99b7109f07690c0e8a12daa0c"
+          }
+        },
+        {
+          "client_id": "10250278063-iltpv2ss5thb5dnbfu3itgt3ids6tqhl.apps.googleusercontent.com",
+          "client_type": 3
+        },
+        {
+          "client_id": "544328548843-tmlnio57mm2kg9sru3h90an9b6i8prhv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBlxuapamMc5OfeYbnurNFKVKCXe8OVVx8"
@@ -20,7 +37,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "10250278063-iltpv2ss5thb5dnbfu3itgt3ids6tqhl.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
