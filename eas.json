@@ -12,7 +12,7 @@
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwamF1eXprZWJmYXl5YmJ5bXFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODIzNDgsImV4cCI6MjA5Mjk1ODM0OH0.KljgN81hdEkGTuNR4WfREVp1BHjolkUTTtx3Us8AuGk",
         "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51TRsheEn6Dd2QHHQW1sqfqTxa98pDEqHsRHagLbBFyLq0PGEAUfqfsVQMfTZiRxNWDhYwD2AhPhQdsnS7STO6CnD00wXoG5NWJ",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "10250278063-iltpv2ss5thb5dnbfu3itgt3ids6tqhl.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "544328548843-sc0uq8k7f737h0f0hgq4gte2nslvcae4.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "10250278063-3g9984imukoe0th37bs16ap9qlkdnho5.apps.googleusercontent.com"
       },
       "android": {
         "buildType": "apk"
@@ -26,7 +26,7 @@
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwamF1eXprZWJmYXl5YmJ5bXFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODIzNDgsImV4cCI6MjA5Mjk1ODM0OH0.KljgN81hdEkGTuNR4WfREVp1BHjolkUTTtx3Us8AuGk",
         "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51TRsheEn6Dd2QHHQW1sqfqTxa98pDEqHsRHagLbBFyLq0PGEAUfqfsVQMfTZiRxNWDhYwD2AhPhQdsnS7STO6CnD00wXoG5NWJ",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "10250278063-iltpv2ss5thb5dnbfu3itgt3ids6tqhl.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "544328548843-sc0uq8k7f737h0f0hgq4gte2nslvcae4.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "10250278063-3g9984imukoe0th37bs16ap9qlkdnho5.apps.googleusercontent.com"
       },
       "android": {
         "buildType": "apk"

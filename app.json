@@ -18,6 +18,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.hugosld.pepite",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "CFBundleDevelopmentRegion": "fr",
         "CFBundleLocalizations": [
@@ -94,8 +95,8 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosClientId": "544328548843-sc0uq8k7f737h0f0hgq4gte2nslvcae4",
-          "iosUrlScheme": "com.googleusercontent.apps.544328548843-sc0uq8k7f737h0f0hgq4gte2nslvcae4"
+          "iosClientId": "10250278063-3g9984imukoe0th37bs16ap9qlkdnho5",
+          "iosUrlScheme": "com.googleusercontent.apps.10250278063-3g9984imukoe0th37bs16ap9qlkdnho5"
         }
       ]
     ],
