@@ -34,9 +34,12 @@ Deno.serve(async (req) => {
     }
 
     const userId = user.id;
-    const anonymizedEmail = `deleted_${userId}@pepite-deleted.com`;
 
-    // 1. Changer l'email + bannir le compte (libère l'email original pour réinscription)
+    // 1. Supprimer toutes les identités OAuth (Google, Apple…) via fonction SECURITY DEFINER
+    await supabaseAdmin.rpc('admin_delete_user_identities', { target_user_id: userId });
+
+    // 2. Changer l'email + bannir (libère l'email original, empêche toute reconnexion)
+    const anonymizedEmail = `deleted_${userId}@pepite-deleted.com`;
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       email: anonymizedEmail,
       ban_duration: '876600h',
@@ -50,14 +53,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Anonymiser le profil
+    // 3. Anonymiser le profil
     await supabaseAdmin.from('profiles').update({
       username: 'Utilisateur supprimé',
       avatar_url: null,
       push_token: null,
     }).eq('id', userId);
 
-    // 3. Dépublier toutes les annonces actives
+    // 4. Dépublier toutes les annonces actives
     await supabaseAdmin.from('listings')
       .update({ status: 'removed' })
       .eq('seller_id', userId)

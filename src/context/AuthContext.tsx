@@ -191,6 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async (): Promise<string | null> => {
     try {
       await GoogleSignin.hasPlayServices();
+      await GoogleSignin.signOut();
       const response = await GoogleSignin.signIn();
       if (response.type === 'cancelled') return null;
       const idToken = response.data?.idToken;
