@@ -36,6 +36,7 @@ import { AnalysisResult } from '../types';
 import { AppTextInput } from '../components/AppTextInput';
 import { PaymentFlowSheet } from '../components/PaymentFlowSheet';
 import { getShippingCost } from '../utils/shippingRates';
+import { imgUrl } from '../utils/images';
 import NotificationPromptModal from '../components/NotificationPromptModal';
 import { useNotificationPermission } from '../hooks/useNotificationPermission';
 
@@ -191,6 +192,7 @@ export function ListingScreen({ navigation, route }: Props) {
   const [similarListings, setSimilarListings] = useState<Listing[]>([]);
   const [locationCoords, setLocationCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [mapModalVisible, setMapModalVisible] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
 
   type Question = { id: string; asker_id: string; question: string; answer: string | null; created_at: string; profiles: { username: string } | null };
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -246,7 +248,6 @@ export function ListingScreen({ navigation, route }: Props) {
       loadSellerListings(data.seller_id);
       loadSellerRating(data.seller_id);
       loadSimilarListings(data.category, data.seller_id);
-      if (data.location) geocodeLocation(data.location);
       if (data.status === 'sold') loadTransaction(data.id);
       if (user && data.seller_id !== user.id) loadReferralCredits();
     }
@@ -793,7 +794,7 @@ export function ListingScreen({ navigation, route }: Props) {
           >
             {images.length > 0 ? images.map((uri, i) => (
               <TouchableOpacity key={i} activeOpacity={1} onPress={() => { setZoomIndex(i); setZoomVisible(true); }}>
-                <Image source={{ uri }} style={styles.photo} />
+                <Image source={{ uri: imgUrl(uri, 900) }} style={styles.photo} />
               </TouchableOpacity>
             )) : (
               <View style={[styles.photo, styles.photoPlaceholder]}>
@@ -984,34 +985,21 @@ export function ListingScreen({ navigation, route }: Props) {
               <Text style={styles.sectionLabel}>Localisation</Text>
               <TouchableOpacity
                 style={styles.mapCard}
-                onPress={() => locationCoords ? setMapModalVisible(true) : openMaps()}
+                onPress={async () => {
+                  if (locationCoords) { setMapModalVisible(true); return; }
+                  setGeocoding(true);
+                  await geocodeLocation(listing.location!);
+                  setGeocoding(false);
+                  setMapModalVisible(true);
+                }}
                 activeOpacity={0.85}
+                disabled={geocoding}
               >
-                {locationCoords ? (
-                  <MapErrorBoundary fallback={<View style={styles.mapPlaceholder}><Ionicons name="map-outline" size={32} color={colors.textSecondary} /></View>}>
-                    <MapView
-                      style={styles.mapPreview}
-                      provider={PROVIDER_DEFAULT}
-                      initialRegion={{
-                        latitude: locationCoords.lat,
-                        longitude: locationCoords.lon,
-                        latitudeDelta: 0.02,
-                        longitudeDelta: 0.02,
-                      }}
-                      scrollEnabled={false}
-                      zoomEnabled={false}
-                      pitchEnabled={false}
-                      rotateEnabled={false}
-                      pointerEvents="none"
-                    >
-                      <Marker coordinate={{ latitude: locationCoords.lat, longitude: locationCoords.lon }} />
-                    </MapView>
-                  </MapErrorBoundary>
-                ) : (
-                  <View style={styles.mapPlaceholder}>
-                    <Ionicons name="map-outline" size={32} color={colors.textSecondary} />
-                  </View>
-                )}
+                <View style={styles.mapPlaceholder}>
+                  {geocoding
+                    ? <ActivityIndicator color={colors.primary} />
+                    : <Ionicons name="map-outline" size={32} color={colors.textSecondary} />}
+                </View>
                 <View style={styles.mapFooter}>
                   <Ionicons name="location" size={14} color={colors.primary} />
                   <Text style={styles.mapLocationText} numberOfLines={1}>{listing.location}</Text>
@@ -1150,7 +1138,7 @@ export function ListingScreen({ navigation, route }: Props) {
                     onPress={() => navigation.push('Listing', { id: item.id })}
                   >
                     {item.images?.[0] ? (
-                      <Image source={{ uri: item.images[0] }} style={styles.sellerCardImg} />
+                      <Image source={{ uri: imgUrl(item.images[0], 300) }} style={styles.sellerCardImg} />
                     ) : (
                       <View style={[styles.sellerCardImg, styles.sellerCardImgPlaceholder]}>
                         <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
@@ -1178,7 +1166,7 @@ export function ListingScreen({ navigation, route }: Props) {
                     onPress={() => navigation.push('Listing', { id: item.id })}
                   >
                     {item.images?.[0] ? (
-                      <Image source={{ uri: item.images[0] }} style={styles.sellerCardImg} />
+                      <Image source={{ uri: imgUrl(item.images[0], 300) }} style={styles.sellerCardImg} />
                     ) : (
                       <View style={[styles.sellerCardImg, styles.sellerCardImgPlaceholder]}>
                         <Ionicons name="image-outline" size={20} color={colors.textSecondary} />

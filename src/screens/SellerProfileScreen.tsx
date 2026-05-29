@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { imgUrl } from '../utils/images';
 import {
   View,
   Text,
@@ -276,7 +277,7 @@ export function SellerProfileScreen({ navigation, route }: Props) {
                   onPress={() => navigation.push('Listing', { id: item.id })}
                 >
                   {item.images?.[0] ? (
-                    <Image source={{ uri: item.images[0] }} style={styles.cardImg} />
+                    <Image source={{ uri: imgUrl(item.images[0], 300) }} style={styles.cardImg} />
                   ) : (
                     <View style={[styles.cardImg, styles.cardImgPlaceholder]}>
                       <Ionicons name="image-outline" size={22} color={colors.textMuted} />
