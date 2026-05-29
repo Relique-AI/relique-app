@@ -319,7 +319,10 @@ export function ListingScreen({ navigation, route }: Props) {
       loadSellerRating(data.seller_id);
       loadSimilarListings(data.category, data.seller_id);
       if (data.status === 'sold') loadTransaction(data.id);
-      if (user && data.seller_id !== user.id) loadReferralCredits();
+      if (user && data.seller_id !== user.id) {
+        loadReferralCredits();
+        supabase.from('listing_views').insert({ user_id: user.id, listing_id: data.id, category: data.category }).then(() => {});
+      }
     }
     setLoading(false);
   };
