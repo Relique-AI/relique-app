@@ -64,6 +64,10 @@ export function AuthForm() {
       await supabase.from("profiles").upsert({ id: data.user.id, username });
     }
 
+    if (data.user) {
+      supabase.functions.invoke("send-welcome", { body: { email, username } });
+    }
+
     setLoading(false);
     setSuccess("Vérifie ta boîte mail pour confirmer ton compte.");
   }
