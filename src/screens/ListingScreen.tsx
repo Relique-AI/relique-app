@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   Image,
   ActivityIndicator,
@@ -21,6 +22,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  runOnJS,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -47,7 +49,7 @@ type Props = {
   route: RouteProp<{ Listing: { id: string } }, 'Listing'>;
 };
 
-const { width } = Dimensions.get('window');
+const { width, height: screenHeight } = Dimensions.get('window');
 
 const REASON_LABELS: Record<string, string> = {
   inappropriate: 'Contenu inapproprié',
@@ -83,51 +85,113 @@ function InfoChip({ label, onPress }: { label: string; onPress?: () => void }) {
   );
 }
 
-function ZoomableImage({ uri }: { uri: string }) {
+function ZoomableImage({
+  uri,
+  onZoomChange,
+  onNextPhoto,
+  onPrevPhoto,
+}: {
+  uri: string;
+  onZoomChange?: (isZoomed: boolean) => void;
+  onNextPhoto?: () => void;
+  onPrevPhoto?: () => void;
+}) {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const savedX = useSharedValue(0);
   const savedY = useSharedValue(0);
+  const overflowX = useSharedValue(0);
+
+  // Stable refs so gesture worklets always call the latest callbacks
+  const onZoomChangeRef = useRef(onZoomChange);
+  const onNextPhotoRef = useRef(onNextPhoto);
+  const onPrevPhotoRef = useRef(onPrevPhoto);
+  useEffect(() => {
+    onZoomChangeRef.current = onZoomChange;
+    onNextPhotoRef.current = onNextPhoto;
+    onPrevPhotoRef.current = onPrevPhoto;
+  });
+  const notifyZoomChange = useCallback((v: boolean) => onZoomChangeRef.current?.(v), []);
+  const notifyNext = useCallback(() => onNextPhotoRef.current?.(), []);
+  const notifyPrev = useCallback(() => onPrevPhotoRef.current?.(), []);
+
+  const resetZoom = () => {
+    'worklet';
+    scale.value = withSpring(1);
+    translateX.value = withSpring(0);
+    translateY.value = withSpring(0);
+    savedScale.value = 1;
+    savedX.value = 0;
+    savedY.value = 0;
+    overflowX.value = 0;
+  };
 
   const pinch = Gesture.Pinch()
     .onUpdate((e) => { scale.value = Math.max(1, savedScale.value * e.scale); })
     .onEnd(() => {
       savedScale.value = scale.value;
       if (scale.value < 1.05) {
-        scale.value = withSpring(1);
-        translateX.value = withSpring(0);
-        translateY.value = withSpring(0);
-        savedScale.value = 1;
-        savedX.value = 0;
-        savedY.value = 0;
+        resetZoom();
+        runOnJS(notifyZoomChange)(false);
+      } else {
+        runOnJS(notifyZoomChange)(true);
       }
     });
 
+  // Pan activates only when zoomed — when scale=1 the FlatList handles swiping
   const pan = Gesture.Pan()
+    .manualActivation(true)
+    .onTouchesMove((_e, manager) => {
+      if (scale.value > 1) {
+        manager.activate();
+      } else {
+        manager.fail();
+      }
+    })
     .onUpdate((e) => {
-      translateX.value = savedX.value + e.translationX;
+      const maxX = (scale.value - 1) * width / 2;
+      const targetX = savedX.value + e.translationX;
+      if (targetX > maxX) {
+        overflowX.value = targetX - maxX;
+        translateX.value = maxX;
+      } else if (targetX < -maxX) {
+        overflowX.value = targetX + maxX;
+        translateX.value = -maxX;
+      } else {
+        overflowX.value = 0;
+        translateX.value = targetX;
+      }
       translateY.value = savedY.value + e.translationY;
     })
     .onEnd(() => {
-      savedX.value = translateX.value;
-      savedY.value = translateY.value;
+      const THRESHOLD = 50;
+      if (overflowX.value > THRESHOLD) {
+        overflowX.value = 0;
+        runOnJS(notifyPrev)();
+      } else if (overflowX.value < -THRESHOLD) {
+        overflowX.value = 0;
+        runOnJS(notifyNext)();
+      } else {
+        const maxX = (scale.value - 1) * width / 2;
+        const clampedX = Math.max(-maxX, Math.min(maxX, translateX.value));
+        translateX.value = withSpring(clampedX);
+        savedX.value = clampedX;
+        savedY.value = translateY.value;
+      }
     });
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
     .onEnd(() => {
       if (scale.value > 1) {
-        scale.value = withSpring(1);
-        translateX.value = withSpring(0);
-        translateY.value = withSpring(0);
-        savedScale.value = 1;
-        savedX.value = 0;
-        savedY.value = 0;
+        resetZoom();
+        runOnJS(notifyZoomChange)(false);
       } else {
         scale.value = withSpring(2.5);
         savedScale.value = 2.5;
+        runOnJS(notifyZoomChange)(true);
       }
     });
 
@@ -173,6 +237,12 @@ export function ListingScreen({ navigation, route }: Props) {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [zoomVisible, setZoomVisible] = useState(false);
   const [zoomIndex, setZoomIndex] = useState(0);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const zoomFlatListRef = useRef<FlatList<string>>(null);
+  const goToNextRef = useRef<() => void>(() => {});
+  const goToPrevRef = useRef<() => void>(() => {});
+  const stableGoToNext = useCallback(() => goToNextRef.current(), []);
+  const stableGoToPrev = useCallback(() => goToPrevRef.current(), []);
   const [showPaymentFlow, setShowPaymentFlow] = useState(false);
   const [transaction, setTransaction] = useState<{
     id: string;
@@ -758,6 +828,25 @@ export function ListingScreen({ navigation, route }: Props) {
     : questions.filter((q) => q.answer !== null || q.asker_id === user?.id);
 
   const images = listing.images ?? [];
+
+  // Keep navigation refs updated with latest closure values
+  goToNextRef.current = () => {
+    if (zoomIndex < images.length - 1) {
+      const next = zoomIndex + 1;
+      setZoomIndex(next);
+      setIsZoomed(false);
+      zoomFlatListRef.current?.scrollToIndex({ index: next, animated: true });
+    }
+  };
+  goToPrevRef.current = () => {
+    if (zoomIndex > 0) {
+      const prev = zoomIndex - 1;
+      setZoomIndex(prev);
+      setIsZoomed(false);
+      zoomFlatListRef.current?.scrollToIndex({ index: prev, animated: true });
+    }
+  };
+
   const sellerName = listing.profiles?.username ?? 'Vendeur';
   const publishedAt = new Date(listing.created_at).toLocaleDateString('fr-FR', {
     day: 'numeric', month: 'long', year: 'numeric',
@@ -793,7 +882,7 @@ export function ListingScreen({ navigation, route }: Props) {
             }
           >
             {images.length > 0 ? images.map((uri, i) => (
-              <TouchableOpacity key={i} activeOpacity={1} onPress={() => { setZoomIndex(i); setZoomVisible(true); }}>
+              <TouchableOpacity key={i} activeOpacity={1} onPress={() => { setZoomIndex(i); setIsZoomed(false); setZoomVisible(true); }}>
                 <Image source={{ uri: imgUrl(uri, 900) }} style={styles.photo} />
               </TouchableOpacity>
             )) : (
@@ -1247,23 +1336,49 @@ export function ListingScreen({ navigation, route }: Props) {
       {/* Modal zoom photo */}
       <Modal visible={zoomVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setZoomVisible(false)}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-        <View style={styles.zoomOverlay}>
-          <TouchableOpacity style={styles.zoomClose} onPress={() => setZoomVisible(false)}>
-            <Ionicons name="close" size={28} color="#fff" />
-          </TouchableOpacity>
-          <View style={styles.zoomContent}>
-            <ZoomableImage uri={images[zoomIndex]} />
+          <View style={styles.zoomOverlay}>
+            <TouchableOpacity style={styles.zoomClose} onPress={() => setZoomVisible(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+            <FlatList
+              ref={zoomFlatListRef}
+              data={images}
+              horizontal
+              pagingEnabled
+              scrollEnabled={!isZoomed}
+              showsHorizontalScrollIndicator={false}
+              initialScrollIndex={zoomIndex}
+              getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+              keyExtractor={(_, i) => String(i)}
+              onMomentumScrollEnd={(e) => {
+                setZoomIndex(Math.round(e.nativeEvent.contentOffset.x / width));
+                setIsZoomed(false);
+              }}
+              renderItem={({ item }) => (
+                <View style={{ width, height: screenHeight, justifyContent: 'center' }}>
+                  <ZoomableImage
+                    uri={imgUrl(item, 900)}
+                    onZoomChange={setIsZoomed}
+                    onNextPhoto={stableGoToNext}
+                    onPrevPhoto={stableGoToPrev}
+                  />
+                </View>
+              )}
+            />
+            {images.length > 1 && (
+              <View style={styles.zoomDots}>
+                {images.map((_, i) => (
+                  <TouchableOpacity key={i} onPress={() => {
+                    setZoomIndex(i);
+                    setIsZoomed(false);
+                    zoomFlatListRef.current?.scrollToIndex({ index: i, animated: true });
+                  }}>
+                    <View style={[styles.dot, i === zoomIndex && styles.dotActive]} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
-          {images.length > 1 && (
-            <View style={styles.zoomDots}>
-              {images.map((_, i) => (
-                <TouchableOpacity key={i} onPress={() => setZoomIndex(i)}>
-                  <View style={[styles.dot, i === zoomIndex && styles.dotActive]} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
         </GestureHandlerRootView>
       </Modal>
 
@@ -1577,10 +1692,9 @@ const styles = StyleSheet.create({
   chip: { backgroundColor: colors.chipBackground, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 12 },
   chipClickable: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: 'rgba(245,184,46,0.3)' },
   chipText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
-  zoomOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)', justifyContent: 'center' },
+  zoomOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)' },
   zoomClose: { position: 'absolute', top: 52, right: 20, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  zoomContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  zoomDots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingBottom: 40 },
+  zoomDots: { position: 'absolute', bottom: 40, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   locationText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
