@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { DeleteAccountButton } from "./DeleteAccountButton";
 import { createClient } from "@/lib/supabase-server";
 import { CONDITION_COLORS, type Listing } from "@/lib/supabase";
 import { ListingCard } from "@/components/ListingCard";
@@ -213,6 +214,11 @@ export default async function ProfilPage() {
             })}
           </div>
         )}
+
+        {/* Danger zone */}
+        <div className="mt-16 pt-8 border-t border-border flex justify-center">
+          <DeleteAccountButton />
+        </div>
 
       </main>
       <Footer />
