@@ -1138,7 +1138,7 @@ export function ListingScreen({ navigation, route }: Props) {
                     onPress={() => navigation.push('Listing', { id: item.id })}
                   >
                     {item.images?.[0] ? (
-                      <Image source={{ uri: item.images[0] }} style={styles.sellerCardImg} />
+                      <Image source={{ uri: imgUrl(item.images[0], 300) }} style={styles.sellerCardImg} />
                     ) : (
                       <View style={[styles.sellerCardImg, styles.sellerCardImgPlaceholder]}>
                         <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
@@ -1166,7 +1166,7 @@ export function ListingScreen({ navigation, route }: Props) {
                     onPress={() => navigation.push('Listing', { id: item.id })}
                   >
                     {item.images?.[0] ? (
-                      <Image source={{ uri: item.images[0] }} style={styles.sellerCardImg} />
+                      <Image source={{ uri: imgUrl(item.images[0], 300) }} style={styles.sellerCardImg} />
                     ) : (
                       <View style={[styles.sellerCardImg, styles.sellerCardImgPlaceholder]}>
                         <Ionicons name="image-outline" size={20} color={colors.textSecondary} />

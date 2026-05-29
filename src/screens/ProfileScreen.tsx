@@ -344,7 +344,7 @@ export function ProfileScreen({ navigation, route }: Props) {
       >
         <View style={styles.myCardLeft}>
           {item.images?.[0] ? (
-            <Image source={{ uri: item.images[0] }} style={styles.myCardImg} />
+            <Image source={{ uri: imgUrl(item.images[0], 200) }} style={styles.myCardImg} />
           ) : (
             <View style={[styles.myCardImg, styles.myCardImgPlaceholder]}>
               <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
@@ -426,7 +426,7 @@ export function ProfileScreen({ navigation, route }: Props) {
     >
       <View style={[styles.favCard, { width: CARD_WIDTH }]}>
         {item.images?.[0] ? (
-          <Image source={{ uri: item.images[0] }} style={[styles.favImg, { height: CARD_WIDTH }]} />
+          <Image source={{ uri: imgUrl(item.images[0], 400) }} style={[styles.favImg, { height: CARD_WIDTH }]} />
         ) : (
           <View style={[styles.favImg, { height: CARD_WIDTH }, styles.favImgPlaceholder]}>
             <Ionicons name="image-outline" size={28} color={colors.textSecondary} />
@@ -459,7 +459,7 @@ export function ProfileScreen({ navigation, route }: Props) {
       >
         <View style={styles.myCardLeft}>
           {item.listings?.images?.[0] ? (
-            <Image source={{ uri: item.listings.images[0] }} style={styles.myCardImg} />
+            <Image source={{ uri: imgUrl(item.listings.images[0], 200) }} style={styles.myCardImg} />
           ) : (
             <View style={[styles.myCardImg, styles.myCardImgPlaceholder]}>
               <Ionicons name="bag-outline" size={20} color={colors.textSecondary} />

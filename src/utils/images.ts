@@ -5,5 +5,5 @@ export function imgUrl(url: string | null | undefined, width: number, quality = 
   if (!url) return '';
   if (!url.includes(SUPABASE_STORAGE)) return url;
   const path = url.replace(SUPABASE_STORAGE, '');
-  return `${SUPABASE_TRANSFORM}${path}?width=${width}&quality=${quality}`;
+  return `${SUPABASE_TRANSFORM}${path}?width=${width}&quality=${quality}&resize=contain`;
 }
