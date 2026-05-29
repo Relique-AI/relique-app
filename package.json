@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "release:ios": "node scripts/bump-minor.js && eas build --platform ios --profile preview",
     "submit:ios": "eas submit --platform ios --latest",
-    "release:android": "eas build --platform android --profile preview"
+    "release:android": "eas build --platform android --profile preview",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo-google-fonts/fraunces": "^0.4.1",
@@ -55,6 +56,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "patch-package": "^8.0.1",
     "sharp": "^0.34.5",
     "typescript": "~5.9.2"
   },

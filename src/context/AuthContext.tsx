@@ -194,7 +194,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await GoogleSignin.hasPlayServices();
       await GoogleSignin.signOut();
       const rawNonce = Array.from(Crypto.getRandomBytes(16)).map(b => b.toString(16).padStart(2, '0')).join('');
-      const response = await GoogleSignin.signIn({ nonce: rawNonce });
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+      const response = await GoogleSignin.signIn({ nonce: hashedNonce });
       if (response.type === 'cancelled') return null;
       const idToken = response.data?.idToken;
       if (!idToken) return 'Token Google indisponible.';
