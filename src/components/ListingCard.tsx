@@ -6,7 +6,6 @@ import { colors, fonts } from '../theme';
 import { Listing } from '../services/supabase';
 import { ConditionBadge } from './ConditionBadge';
 import { AnalysisResult } from '../types';
-import { imgUrl } from '../utils/images';
 
 interface Props {
   listing: Listing;
@@ -17,7 +16,7 @@ interface Props {
 }
 
 export const ListingCard = memo(function ListingCard({ listing, width, isFavorited, onPress, onFavoriteToggle }: Props) {
-  const imageUri = imgUrl(listing.images?.[0], Math.round(width * 2));
+  const imageUri = listing.images?.[0];
   const condition = listing.condition as AnalysisResult['condition'];
 
   return (
