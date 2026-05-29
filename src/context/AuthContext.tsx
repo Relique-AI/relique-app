@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import * as Crypto from 'expo-crypto';
 
 interface AuthContextValue {
   user: User | null;
@@ -192,11 +193,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await GoogleSignin.hasPlayServices();
       await GoogleSignin.signOut();
-      const response = await GoogleSignin.signIn();
+      const rawNonce = Array.from(Crypto.getRandomBytes(16)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+      const response = await GoogleSignin.signIn({ nonce: hashedNonce });
       if (response.type === 'cancelled') return null;
       const idToken = response.data?.idToken;
       if (!idToken) return 'Token Google indisponible.';
-      const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken });
+      const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken, nonce: rawNonce });
       return error?.message ?? null;
     } catch (e: any) {
       if (e.code === statusCodes.SIGN_IN_CANCELLED) return null;
