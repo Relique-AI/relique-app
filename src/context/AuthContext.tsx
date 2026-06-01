@@ -192,11 +192,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await GoogleSignin.hasPlayServices();
       await GoogleSignin.signOut();
-      const response = await GoogleSignin.signIn();
+      const rawNonceBytes = new Uint8Array(16);
+      crypto.getRandomValues(rawNonceBytes);
+      const rawNonce = Array.from(rawNonceBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawNonce));
+      const hashedNonce = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const response = await GoogleSignin.signIn({ nonce: hashedNonce });
       if (response.type === 'cancelled') return null;
       const idToken = response.data?.idToken;
       if (!idToken) return 'Token Google indisponible.';
-      const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken });
+      const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken, nonce: rawNonce });
       return error?.message ?? null;
     } catch (e: any) {
       if (e.code === statusCodes.SIGN_IN_CANCELLED) return null;

@@ -24,13 +24,14 @@ type Props = {
   navigation: StackNavigationProp<MarketStackParamList, 'Market'>;
 };
 
-type SortOption = 'recent' | 'price_asc' | 'price_desc';
+type SortOption = 'pour_toi' | 'recent' | 'price_asc' | 'price_desc';
 
 const PAGE_SIZE = 20;
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.section * 2 - 12) / 2;
 
 const SORT_LABELS: Record<SortOption, string> = {
+  pour_toi: 'Pour toi',
   recent: 'Récent',
   price_asc: 'Prix ↑',
   price_desc: 'Prix ↓',
@@ -41,7 +42,7 @@ export function MarketScreen({ navigation }: Props) {
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [sort, setSort] = useState<SortOption>('recent');
+  const [sort, setSort] = useState<SortOption>(user ? 'pour_toi' : 'recent');
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -65,24 +66,42 @@ export function MarketScreen({ navigation }: Props) {
     const from = pageRef.current * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    let query = supabase
-      .from('listings')
-      .select('*, profiles(username)')
-      .eq('status', 'active')
-      .range(from, to);
+    let items: Listing[] = [];
 
-    if (search.trim()) {
-      query = query.or(`name.ilike.%${search.trim()}%,category.ilike.%${search.trim()}%`);
-    }
-    if (category !== 'Tous') {
-      query = query.ilike('category', `%${category}%`);
-    }
-    if (sortBy === 'recent') query = query.order('created_at', { ascending: false });
-    else if (sortBy === 'price_asc') query = query.order('price_final', { ascending: true });
-    else query = query.order('price_final', { ascending: false });
+    if (sortBy === 'pour_toi' && user && !search.trim() && category === 'Tous') {
+      const { data: ranked } = await supabase.rpc('get_personalized_listings', {
+        p_limit: PAGE_SIZE,
+        p_offset: from,
+      });
+      const ids: string[] = (ranked ?? []).map((r: { listing_id: string }) => r.listing_id);
+      if (ids.length > 0) {
+        const { data } = await supabase
+          .from('listings')
+          .select('*, profiles(username)')
+          .in('id', ids);
+        const idOrder: Record<string, number> = Object.fromEntries(ids.map((id, i) => [id, i]));
+        items = ((data ?? []) as Listing[]).sort((a, b) => (idOrder[a.id] ?? 99) - (idOrder[b.id] ?? 99));
+      }
+    } else {
+      let query = supabase
+        .from('listings')
+        .select('*, profiles(username)')
+        .eq('status', 'active')
+        .range(from, to);
 
-    const { data } = await query;
-    const items = (data ?? []) as Listing[];
+      if (search.trim()) {
+        query = query.or(`name.ilike.%${search.trim()}%,category.ilike.%${search.trim()}%`);
+      }
+      if (category !== 'Tous') {
+        query = query.ilike('category', `%${category}%`);
+      }
+      if (sortBy === 'price_asc') query = query.order('price_final', { ascending: true });
+      else if (sortBy === 'price_desc') query = query.order('price_final', { ascending: false });
+      else query = query.order('created_at', { ascending: false });
+
+      const { data } = await query;
+      items = (data ?? []) as Listing[];
+    }
 
     setListings((prev) => (reset ? items : [...prev, ...items]));
     setHasMore(items.length === PAGE_SIZE);
