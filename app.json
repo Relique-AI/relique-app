@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pépite",
     "slug": "relique",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -28,7 +28,7 @@
         "NSPhotoLibraryUsageDescription": "Pépite accède à vos photos pour analyser vos objets.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "25"
+      "buildNumber": "27"
     },
     "android": {
       "googleServicesFile": "./google-services.json",
