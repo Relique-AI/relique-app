@@ -3,6 +3,7 @@
     { "source": "/listing/(.*)", "destination": "/listing.html" },
     { "source": "/telecharger", "destination": "/telecharger.html" },
     { "source": "/legal/cgu", "destination": "/cgu.html" },
-    { "source": "/legal/confidentialite", "destination": "/confidentialite.html" }
+    { "source": "/legal/confidentialite", "destination": "/confidentialite.html" },
+    { "source": "/suppression-compte", "destination": "/suppression-compte.html" }
   ]
 }
