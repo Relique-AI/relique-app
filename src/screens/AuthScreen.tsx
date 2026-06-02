@@ -11,6 +11,7 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuth } from '../context/AuthContext';
 import { colors, fonts, spacing } from '../theme';
 import { AppTextInput } from '../components/AppTextInput';
@@ -18,7 +19,7 @@ import { AppTextInput } from '../components/AppTextInput';
 type Tab = 'login' | 'signup' | 'forgot';
 
 export function AuthScreen() {
-  const { signIn, signUp, signInWithGoogle, enterGuestMode } = useAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithApple, enterGuestMode } = useAuth();
   const [tab, setTab] = useState<Tab>('login');
 
   const glowAnim = useRef(new Animated.Value(0.5)).current;
@@ -334,6 +335,22 @@ export function AuthScreen() {
                 <Text style={styles.googleText}>Continuer avec Google</Text>
               </TouchableOpacity>
 
+              {Platform.OS === 'ios' && (
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  cornerRadius={50}
+                  style={styles.appleBtn}
+                  onPress={async () => {
+                    setError(null);
+                    setLoading(true);
+                    const err = await signInWithApple();
+                    setLoading(false);
+                    if (err) setError(err);
+                  }}
+                />
+              )}
+
               <TouchableOpacity style={styles.guestBtn} onPress={enterGuestMode} activeOpacity={0.7}>
                 <Text style={styles.guestText}>Découvrir sans compte →</Text>
               </TouchableOpacity>
@@ -476,6 +493,7 @@ const styles = StyleSheet.create({
   },
   googleIcon: { fontFamily: fonts.bodySemiBold, fontSize: 17, color: colors.textPrimary },
   googleText: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary },
+  appleBtn: { width: '100%', height: 52 },
   fieldHint: {
     fontFamily: fonts.body,
     fontSize: 12,

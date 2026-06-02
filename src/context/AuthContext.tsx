@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 interface AuthContextValue {
   user: User | null;
@@ -20,6 +21,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (email: string, password: string, username?: string, referralCode?: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
+  signInWithApple: () => Promise<string | null>;
   signOut: () => Promise<void>;
 }
 
@@ -210,12 +212,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInWithApple = async (): Promise<string | null> => {
+    try {
+      const rawNonceBytes = new Uint8Array(16);
+      crypto.getRandomValues(rawNonceBytes);
+      const rawNonce = Array.from(rawNonceBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawNonce));
+      const hashedNonce = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: hashedNonce,
+      });
+      if (!credential.identityToken) return 'Token Apple indisponible.';
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+        nonce: rawNonce,
+      });
+      return error?.message ?? null;
+    } catch (e: any) {
+      if (e.code === 'ERR_REQUEST_CANCELED') return null;
+      return e.message ?? 'Erreur de connexion Apple.';
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, profileLoading, isAdmin, isGuest, isRecovery, clearRecovery, handleRecovery, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, profileLoading, isAdmin, isGuest, isRecovery, clearRecovery, handleRecovery, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signInWithGoogle, signInWithApple, signOut }}>
       {children}
     </AuthContext.Provider>
   );
