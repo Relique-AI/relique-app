@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 
 interface AuthContextValue {
   user: User | null;
@@ -194,11 +195,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await GoogleSignin.hasPlayServices();
       await GoogleSignin.signOut();
-      const rawNonceBytes = new Uint8Array(16);
-      crypto.getRandomValues(rawNonceBytes);
-      const rawNonce = Array.from(rawNonceBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawNonce));
-      const hashedNonce = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const rawNonce = Array.from(Crypto.getRandomBytes(16)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
       const response = await GoogleSignin.signIn({ nonce: hashedNonce });
       if (response.type === 'cancelled') return null;
       const idToken = response.data?.idToken;
@@ -214,11 +212,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithApple = async (): Promise<string | null> => {
     try {
-      const rawNonceBytes = new Uint8Array(16);
-      crypto.getRandomValues(rawNonceBytes);
-      const rawNonce = Array.from(rawNonceBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawNonce));
-      const hashedNonce = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const rawNonce = Array.from(Crypto.getRandomBytes(16)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
