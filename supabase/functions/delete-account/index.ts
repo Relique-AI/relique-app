@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
 
     // 3. Anonymiser le profil
     await supabaseAdmin.from('profiles').update({
-      username: 'Utilisateur supprimé',
+      username: `deleted_${userId.slice(0, 8)}`,
       avatar_url: null,
       push_token: null,
     }).eq('id', userId);
