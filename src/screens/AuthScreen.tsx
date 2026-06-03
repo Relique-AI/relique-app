@@ -211,10 +211,11 @@ export function AuthScreen() {
                 value={email}
                 onChangeText={setEmail}
                 placeholder={tab === 'login' ? 'email ou pseudo' : 'votre@email.com'}
-
                 keyboardType={tab === 'login' ? 'default' : 'email-address'}
                 autoCapitalize="none"
                 autoCorrect={false}
+                textContentType="emailAddress"
+                autoComplete="email"
               />
             </View>
 
@@ -245,8 +246,9 @@ export function AuthScreen() {
                   value={password}
                   onChangeText={setPassword}
                   placeholder="••••••••"
-  
                   secureTextEntry
+                  textContentType={tab === 'signup' ? 'newPassword' : 'password'}
+                  autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
                 />
                 {tab === 'login' && (
                   <TouchableOpacity onPress={() => { setTab('forgot'); setError(null); setSuccess(null); }}>
@@ -264,8 +266,9 @@ export function AuthScreen() {
                   value={confirm}
                   onChangeText={setConfirm}
                   placeholder="••••••••"
-  
                   secureTextEntry
+                  textContentType="newPassword"
+                  autoComplete="new-password"
                 />
               </View>
             )}
