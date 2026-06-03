@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   KeyboardAvoidingView,
+  ScrollView,
   ActivityIndicator,
   Platform,
 } from 'react-native';
@@ -84,9 +85,15 @@ export function PaymentFlowSheet({
     const canConfirm = selectedShipping === 'hand' || (firstName.trim() !== '' && lastName.trim() !== '' && address.trim() !== '');
 
     return (
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={overlayStyle}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={overlayStyle}>
         <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={onClose} />
-        <View style={styles.sheet}>
+        <ScrollView
+          style={styles.sheet}
+          contentContainerStyle={{ paddingBottom: 40, gap: 10 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
           <Text style={styles.sheetTitle}>Mode de livraison</Text>
 
           <View style={styles.productRecap}>
@@ -197,7 +204,7 @@ export function PaymentFlowSheet({
                 </Text>
             }
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     );
   }
@@ -346,8 +353,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    paddingBottom: 40,
-    gap: 10,
+    maxHeight: '90%',
   },
   sheetTitle: { fontFamily: fonts.serif, fontSize: 22, color: colors.textPrimary, marginBottom: 4 },
 
