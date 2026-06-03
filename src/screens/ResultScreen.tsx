@@ -74,9 +74,12 @@ export function ResultScreen({ navigation, route }: Props) {
 
   // Animation de glissement vers le haut
   const slideAnim = useRef(new Animated.Value(height * 0.6)).current;
-  // Animations de fondu séquentielles par section
+  // Animations de fondu + glissement séquentiels par section
   const fadeAnims = useRef(
     Array.from({ length: SECTION_COUNT }, () => new Animated.Value(0)),
+  ).current;
+  const sectionSlideAnims = useRef(
+    Array.from({ length: SECTION_COUNT }, () => new Animated.Value(28)),
   ).current;
 
   useEffect(() => {
@@ -96,18 +99,17 @@ export function ResultScreen({ navigation, route }: Props) {
       useNativeDriver: true,
     }).start();
 
-    // Fondu séquentiel des sections
-    const fadeSequence = fadeAnims.map((anim, i) =>
+    // Révélation progressive : chaque section apparaît avec fade + slide
+    const revealSequence = fadeAnims.map((anim, i) =>
       Animated.sequence([
-        Animated.delay(200 + i * 200),
-        Animated.timing(anim, {
-          toValue: 1,
-          duration: 350,
-          useNativeDriver: true,
-        }),
+        Animated.delay(300 + i * 550),
+        Animated.parallel([
+          Animated.timing(anim, { toValue: 1, duration: 420, useNativeDriver: true }),
+          Animated.timing(sectionSlideAnims[i], { toValue: 0, duration: 420, useNativeDriver: true }),
+        ]),
       ]),
     );
-    Animated.parallel(fadeSequence).start();
+    Animated.parallel(revealSequence).start();
   }, []);
 
   const handleSave = async () => {
@@ -241,12 +243,12 @@ export function ResultScreen({ navigation, route }: Props) {
           keyboardShouldPersistTaps="handled"
         >
           {/* Image héro */}
-          <Animated.View style={{ opacity: fadeAnims[0] }}>
+          <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: sectionSlideAnims[0] }] }}>
             <Image source={{ uri: photos[0].uri }} style={styles.heroImage} />
           </Animated.View>
 
           {/* Bloc identité */}
-          <Animated.View style={[styles.section, { opacity: fadeAnims[1] }]}>
+          <Animated.View style={[styles.section, { opacity: fadeAnims[1], transform: [{ translateY: sectionSlideAnims[1] }] }]}>
             <Text style={styles.objectName}>{analysis.name}</Text>
             <View style={styles.chips}>
               <Chip label={analysis.category} />
@@ -271,7 +273,7 @@ export function ResultScreen({ navigation, route }: Props) {
           <View style={styles.divider} />
 
           {/* Bloc histoire */}
-          <Animated.View style={[styles.section, { opacity: fadeAnims[2] }]}>
+          <Animated.View style={[styles.section, { opacity: fadeAnims[2], transform: [{ translateY: sectionSlideAnims[2] }] }]}>
             <Text style={styles.sectionLabel}>Son histoire</Text>
             <Text style={styles.storyText}>{analysis.story}</Text>
           </Animated.View>
@@ -279,7 +281,7 @@ export function ResultScreen({ navigation, route }: Props) {
           <View style={styles.divider} />
 
           {/* Bloc état */}
-          <Animated.View style={[styles.section, { opacity: fadeAnims[3] }]}>
+          <Animated.View style={[styles.section, { opacity: fadeAnims[3], transform: [{ translateY: sectionSlideAnims[3] }] }]}>
             <Text style={styles.sectionLabel}>État de conservation</Text>
             <View
               style={[
@@ -297,7 +299,7 @@ export function ResultScreen({ navigation, route }: Props) {
           <View style={styles.divider} />
 
           {/* Bloc prix */}
-          <Animated.View style={[styles.priceCard, { opacity: fadeAnims[4] }]}>
+          <Animated.View style={[styles.priceCard, { opacity: fadeAnims[4], transform: [{ translateY: sectionSlideAnims[4] }] }]}>
             <Text style={styles.priceLabel}>Valeur estimée</Text>
             <Text style={styles.priceRange}>
               {analysis.priceMin} € — {analysis.priceMax} €
