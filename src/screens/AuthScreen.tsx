@@ -341,7 +341,7 @@ export function AuthScreen() {
               {Platform.OS === 'ios' && (
                 <AppleAuthentication.AppleAuthenticationButton
                   buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
                   cornerRadius={50}
                   style={styles.appleBtn}
                   onPress={async () => {
