@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { ProfileStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
+import Constants from 'expo-constants';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 
@@ -159,7 +160,7 @@ export function SettingsScreen({ navigation }: Props) {
         </View>
 
         {/* Version */}
-        <Text style={styles.version}>Pépite v1.0.0</Text>
+        <Text style={styles.version}>Pépite v{Constants.expoConfig?.version}</Text>
       </ScrollView>
     </SafeAreaView>
   );
