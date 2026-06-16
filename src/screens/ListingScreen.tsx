@@ -317,7 +317,7 @@ export function ListingScreen({ navigation, route }: Props) {
       setListing(data as Listing);
       loadSellerListings(data.seller_id);
       loadSellerRating(data.seller_id);
-      loadSimilarListings(data.category, data.seller_id);
+      loadSimilarListings(data.id, data.category, data.era, data.origin, data.seller_id);
       if (data.status === 'sold') loadTransaction(data.id);
       if (user && data.seller_id !== user.id) {
         loadReferralCredits();
@@ -414,17 +414,11 @@ export function ListingScreen({ navigation, route }: Props) {
     } catch {}
   };
 
-  const loadSimilarListings = async (category: string, sellerId: string) => {
-    const { data } = await supabase
-      .from('listings')
-      .select('*')
-      .eq('category', category)
-      .eq('status', 'active')
-      .neq('id', id)
-      .neq('seller_id', sellerId)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    if (data) setSimilarListings(data as Listing[]);
+  const loadSimilarListings = async (listingId: string, category: string, era: string, origin: string, sellerId: string) => {
+    const { data, error } = await supabase.functions.invoke('similar-listings', {
+      body: { listing_id: listingId, category, era, origin, seller_id: sellerId },
+    });
+    if (!error && data?.data) setSimilarListings(data.data as Listing[]);
   };
 
   const openMaps = () => {

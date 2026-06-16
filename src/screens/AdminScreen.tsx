@@ -67,7 +67,7 @@ const DISPUTE_REASON_LABELS: Record<string, string> = {
 
 const DISPUTE_STATUS_LABELS: Record<string, string> = {
   open: 'Ouvert',
-  under_review: 'En cours d\'examen',
+  under_review: 'En cours d\'analyse',
   resolved_buyer: 'Résolu — acheteur',
   resolved_seller: 'Résolu — vendeur',
   closed: 'Clôturé',
@@ -206,6 +206,15 @@ export function AdminScreen({ navigation }: Props) {
     );
   };
 
+  const markUnderReview = async (dispute: Dispute) => {
+    const { error } = await supabase
+      .from('disputes')
+      .update({ status: 'under_review' })
+      .eq('id', dispute.id);
+    if (error) { Alert.alert('Erreur', 'Impossible de mettre en examen.'); return; }
+    setDisputes((prev) => prev.map((d) => d.id === dispute.id ? { ...d, status: 'under_review' } : d));
+  };
+
   const resolveDispute = async (dispute: Dispute, action: 'full_refund' | 'partial_refund' | 'close_seller', prefilledAmount?: number) => {
     const execute = async (refundAmount?: number, adminNote?: string) => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -330,6 +339,16 @@ export function AdminScreen({ navigation }: Props) {
 
       <Text style={styles.disputeDesc} numberOfLines={4}>{item.description}</Text>
 
+      {item.status === 'open' && (
+        <TouchableOpacity
+          style={styles.btnUnderReview}
+          onPress={() => markUnderReview(item)}
+          activeOpacity={0.75}
+        >
+          <Ionicons name="search-outline" size={14} color={colors.textSecondary} />
+          <Text style={styles.btnUnderReviewText}>Mettre en analyse</Text>
+        </TouchableOpacity>
+      )}
       <View style={styles.disputeActions}>
         <TouchableOpacity
           style={styles.btnRefundFull}
@@ -562,6 +581,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
   },
+  btnUnderReview: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 8, borderRadius: 50, borderWidth: 1, borderColor: colors.border,
+  },
+  btnUnderReviewText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textSecondary },
   disputeActions: { flexDirection: 'row', gap: 8 },
   btnRefundFull: {
     flex: 1,

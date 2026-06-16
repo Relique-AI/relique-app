@@ -43,6 +43,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    const { data: openDisputes } = await admin
+      .from('disputes')
+      .select('id')
+      .eq('seller_id', user.id)
+      .in('status', ['open', 'under_review'])
+      .limit(1);
+
+    if (openDisputes && openDisputes.length > 0) {
+      return new Response(JSON.stringify({ error: 'Un litige est en cours sur votre compte. Le virement est suspendu jusqu\'à sa résolution.' }), {
+        status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
+      });
+    }
+
     const balance = await stripe.balance.retrieve({
       stripeAccount: profile.stripe_account_id,
     });
