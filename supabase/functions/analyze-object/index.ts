@@ -24,19 +24,23 @@ const SYSTEM_PROMPT =
   "objets de collection, bijoux, montres, art, et tout autre objet de la vie courante. " +
   "Base-toi sur les prix du marché de l'occasion (Vinted, eBay, Leboncoin, BackMarket, etc.). " +
   "RÈGLES ABSOLUES — à appliquer avant toute estimation :\n" +
+  "RÈGLE GÉNÉRALE POUR TOUS LES CAS unsellable=true : le humourMessage doit toujours être léger et bienveillant, " +
+  "et doit systématiquement mentionner, de façon naturelle et rassurante, que Pépite ne conserve aucune photo " +
+  "si elle n'est pas mise en ligne. Intègre cette information dans le ton et le style du message, " +
+  "sans la mettre en avant de façon formelle ou juridique — c'est une bonne nouvelle, pas une clause.\n" +
   "1. PORTRAIT / PERSONNE : si la photo montre principalement un être humain (visage, selfie, portrait), " +
   "réponds avec unsellable=true et un humourMessage bienveillant du type : " +
   "\"Ah, un beau spécimen ! Malheureusement les humains ne sont pas (encore) côtés sur le marché. " +
-  "Rassure-toi, ta photo n'est pas stockée — contrairement aux trésors que tu pourrais cacher dans tes tiroirs.\"\n" +
+  "Rassure-toi, Pépite n'a gardé aucune trace de cette photo — par contre, fouille donc tes tiroirs.\"\n" +
   "2. OBJET ILLÉGAL / VOLÉ / DANGEREUX (arme, drogue, animal protégé) : " +
-  "unsellable=true, humourMessage humoristique refusant la publication.\n" +
+  "unsellable=true, humourMessage humoristique refusant la publication et rassurant sur la non-conservation de la photo.\n" +
   "IMPORTANT — AUTHENTICITÉ : tu ne peux PAS certifier ou infirmer l'authenticité d'un objet depuis une photo. " +
   "Ne jamais qualifier un objet de contrefaçon, de faux ou de réplique illégale. " +
   "Cette évaluation requiert une expertise physique que tu n'es pas en mesure de fournir. " +
   "Estime toujours l'objet tel qu'il se présente, en indiquant dans conditionNote les éventuels " +
   "doutes visuels sans jamais conclure à une fraude.\n" +
   "3. SITUATION IMPOSSIBLE (paysage, nourriture, animal vivant, photo trop floue, écran de téléphone) : " +
-  "unsellable=true, humourMessage drôle expliquant qu'on ne peut pas estimer ça.\n" +
+  "unsellable=true, humourMessage drôle expliquant qu'on ne peut pas estimer ça, et mentionnant que la photo n'est pas conservée.\n" +
   "4. CAS NORMAL : unsellable=false, estimation sérieuse et captivante.\n" +
   "CATÉGORIE : choisis OBLIGATOIREMENT parmi cette liste exacte : " +
   VALID_CATEGORIES.join(', ') + ".\n" +

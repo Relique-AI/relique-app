@@ -16,7 +16,9 @@ export default function CguPage() {
         <p>
           Les présentes Conditions Générales d'Utilisation (ci-après « CGU ») régissent l'accès et l'utilisation de la
           plateforme Pépite, disponible via l'application mobile et le site web <strong className="text-text-primary">pepite.app</strong>
-          (ci-après « la Plateforme »), éditée par la société Pépite SAS (ci-après « Pépite »).
+          (ci-après « la Plateforme »), éditée par la société AGENCE LEVEL UP, SAS au capital de 22 350 €,
+          immatriculée au RCS de Paris sous le numéro 820 038 685, dont le siège social est situé
+          47 rue Lauriston, 75016 Paris (ci-après « l'Éditeur »).
         </p>
         <p>
           Pépite est une place de marché permettant aux particuliers d'acheter et de vendre des objets de seconde main,
@@ -134,7 +136,7 @@ export default function CguPage() {
       <Section title="12. Droit applicable et litiges">
         <p>
           Les présentes CGU sont soumises au droit français. En cas de litige, les parties s'efforceront de trouver une
-          solution amiable. À défaut, les tribunaux compétents seront ceux du ressort du siège social de Pépite SAS.
+          solution amiable. À défaut, les tribunaux compétents seront ceux du ressort du siège social d'AGENCE LEVEL UP SAS.
         </p>
         <p>
           Conformément à l'article L.616-1 du Code de la consommation, vous pouvez recourir à un médiateur de la

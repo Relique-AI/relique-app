@@ -29,8 +29,14 @@ export async function Header() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
+          <Link href="/comment-ca-marche" className="text-sm text-text-muted hover:text-text-primary transition-colors">
+            Comment ça marche
+          </Link>
           <Link href="/market" className="text-sm text-text-muted hover:text-text-primary transition-colors">
             Le Marché
+          </Link>
+          <Link href="/estimer" className="text-sm text-text-muted hover:text-text-primary transition-colors">
+            Guides
           </Link>
           {user && (
             <>

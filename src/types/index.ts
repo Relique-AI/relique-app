@@ -37,7 +37,7 @@ export type MarketStackParamList = {
   Market: undefined;
   Listing: { id: string };
   SellerProfile: { seller_id: string };
-  Chat: { listing_id: string; receiver_id: string; listing_name: string };
+  Chat: { listing_id?: string; receiver_id: string; listing_name: string };
   Inbox: undefined;
   DisputeScreen: { transaction_id: string; listing_name: string; amount: number };
 };
@@ -59,7 +59,7 @@ export type ProfileStackParamList = {
   EditListing: { id: string };
   Listing: { id: string };
   SellerProfile: { seller_id: string };
-  Chat: { listing_id: string; receiver_id: string; listing_name: string };
+  Chat: { listing_id?: string; receiver_id: string; listing_name: string };
   Wallet: undefined;
   Settings: undefined;
   Legal: undefined;
@@ -75,7 +75,7 @@ export type ProfileStackParamList = {
 
 export type MessagesStackParamList = {
   Inbox: undefined;
-  Chat: { listing_id: string; receiver_id: string; listing_name: string };
+  Chat: { listing_id?: string; receiver_id: string; listing_name: string };
   Listing: { id: string };
   SellerProfile: { seller_id: string };
   DisputeScreen: { transaction_id: string; listing_name: string; amount: number };

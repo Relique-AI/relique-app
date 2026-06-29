@@ -14,7 +14,9 @@ export default function ConfidentialitePage() {
 
       <Section title="1. Responsable du traitement">
         <p>
-          Le responsable du traitement de vos données personnelles est Pépite SAS, dont le siège social est situé en France.
+          Le responsable du traitement de vos données personnelles est AGENCE LEVEL UP, SAS au capital de 22 350 €,
+          immatriculée au RCS de Paris sous le numéro 820 038 685, dont le siège social est situé
+          47 rue Lauriston, 75016 Paris.
           Pour toute question relative à vos données, contactez-nous à : <strong className="text-text-primary">privacy@pepite.app</strong>
         </p>
       </Section>

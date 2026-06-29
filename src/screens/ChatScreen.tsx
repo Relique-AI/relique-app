@@ -167,7 +167,9 @@ const ivStyles = StyleSheet.create({
 
 export function ChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { listing_id, receiver_id, listing_name } = route.params;
+  const { listing_id: _listing_id, receiver_id, listing_name } = route.params;
+  const listing_id = _listing_id ?? null;
+  const isSupport = !listing_id;
   const { user } = useAuth();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { promptContext, isDenied, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
@@ -205,7 +207,7 @@ export function ChatScreen({ navigation, route }: Props) {
   const [disputeInfo, setDisputeInfo] = useState<{ transaction_id: string; amount: number; created_at: string; dispute_status: string | null } | null>(null);
 
   useEffect(() => {
-    if (!user || !isBuyer || listing?.status !== 'sold') return;
+    if (isSupport || !user || !isBuyer || listing?.status !== 'sold') return;
     supabase.from('transactions').select('id, amount, created_at').eq('listing_id', listing_id).eq('buyer_id', user.id).maybeSingle()
       .then(async ({ data: tx }) => {
         if (!tx) return;
@@ -224,10 +226,17 @@ export function ChatScreen({ navigation, route }: Props) {
 
   // Load full listing data (needed for shipping options and seller_id)
   useEffect(() => {
+    if (isSupport) {
+      if (user) {
+        supabase.from('profiles').select('referral_credits').eq('id', user.id).single()
+          .then(({ data: p }) => setReferralCredits(p?.referral_credits ?? 0));
+      }
+      return;
+    }
     supabase
       .from('listings')
       .select('*')
-      .eq('id', listing_id)
+      .eq('id', listing_id!)
       .single()
       .then(({ data }) => {
         if (data) {
@@ -250,14 +259,19 @@ export function ChatScreen({ navigation, route }: Props) {
     // already-subscribed channel when navigating back to this screen.
     const ts = Date.now();
 
+    const msgFilter = isSupport ? 'listing_id=is.null' : `listing_id=eq.${listing_id}`;
     const msgChannel = supabase
-      .channel(`chat-${listing_id}-${ts}`)
+      .channel(`chat-${listing_id ?? 'support'}-${ts}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `listing_id=eq.${listing_id}` },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: msgFilter },
         (payload) => {
           const msg = payload.new as Message;
-          if (msg.sender_id === user?.id || msg.receiver_id === user?.id) {
+          const involved = isSupport
+            ? (msg.sender_id === user?.id && msg.receiver_id === receiver_id) ||
+              (msg.sender_id === receiver_id && msg.receiver_id === user?.id)
+            : msg.sender_id === user?.id || msg.receiver_id === user?.id;
+          if (involved) {
             setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]);
             if (msg.receiver_id === user?.id) markAsRead();
             if (msg.type === 'offer' && msg.offer_id) {
@@ -271,8 +285,8 @@ export function ChatScreen({ navigation, route }: Props) {
       )
       .subscribe();
 
-    // Real-time offer status updates (accept/decline/counter)
-    const offersChannel = supabase
+    // Real-time offer status updates (skip in support mode — no offers)
+    const offersChannel = isSupport ? null : supabase
       .channel(`offers-${listing_id}-${ts}`)
       .on(
         'postgres_changes',
@@ -286,7 +300,7 @@ export function ChatScreen({ navigation, route }: Props) {
 
     return () => {
       supabase.removeChannel(msgChannel);
-      supabase.removeChannel(offersChannel);
+      if (offersChannel) supabase.removeChannel(offersChannel);
     };
   }, [listing_id]);
 
@@ -851,19 +865,25 @@ export function ChatScreen({ navigation, route }: Props) {
           <Text style={styles.headerTitle} numberOfLines={1}>{listing_name}</Text>
           <Text style={styles.headerSub}>Conversation</Text>
         </View>
-        <TouchableOpacity
-          style={styles.headerThumb}
-          onPress={() => navigation.navigate('Listing', { id: listing_id })}
-          activeOpacity={0.75}
-        >
-          {listingImage ? (
-            <Image source={{ uri: listingImage }} style={styles.headerThumbImg} />
-          ) : (
-            <View style={[styles.headerThumb, { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }]}>
-              <Ionicons name="image-outline" size={18} color={colors.textSecondary} />
-            </View>
-          )}
-        </TouchableOpacity>
+        {isSupport ? (
+          <View style={[styles.headerThumb, { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }]}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.headerThumb}
+            onPress={() => navigation.navigate('Listing', { id: listing_id! })}
+            activeOpacity={0.75}
+          >
+            {listingImage ? (
+              <Image source={{ uri: listingImage }} style={styles.headerThumbImg} />
+            ) : (
+              <View style={[styles.headerThumb, { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }]}>
+                <Ionicons name="image-outline" size={18} color={colors.textSecondary} />
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Bannière litige acheteur */}

@@ -274,9 +274,8 @@ function PhoneMockup() {
 
           {/* Camera card */}
           <div className="bg-surface rounded-2xl border border-border p-4 text-center">
-            <div className="w-full aspect-square rounded-xl bg-surface-raised mb-3 flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,184,46,0.08),transparent)]"/>
-              <span className="text-4xl">📸</span>
+            <div className="w-full aspect-square rounded-xl mb-3 overflow-hidden">
+              <img src="/vase-art-deco.jpg" alt="Vase Art Déco 1930" className="w-full h-full object-cover" />
             </div>
             <p className="text-text-muted text-xs mb-2">Photo analysée</p>
             <div className="text-primary font-serif text-base font-medium">Vase Art Déco 1930</div>
@@ -288,8 +287,8 @@ function PhoneMockup() {
               <span className="text-xs text-text-muted">Estimation IA</span>
               <span className="text-xs text-primary">✦</span>
             </div>
-            <div className="font-bold text-primary text-xl">45 – 75 €</div>
-            <div className="text-xs text-text-muted mt-0.5">Prix suggéré : 60 €</div>
+            <div className="font-bold text-primary text-xl">500 – 1 800 €</div>
+            <div className="text-xs text-text-muted mt-0.5">Prix conseillé : 1 000 €</div>
           </div>
 
           {/* Mini listings */}

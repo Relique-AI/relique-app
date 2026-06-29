@@ -90,6 +90,23 @@ export function SettingsScreen({ navigation }: Props) {
     ]);
   };
 
+  const handleContactSupport = async () => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('is_admin', true)
+      .limit(1)
+      .single();
+    if (!data?.id) {
+      Alert.alert('Indisponible', 'Le support n\'est pas disponible pour le moment.');
+      return;
+    }
+    navigation.navigate('Chat', {
+      receiver_id: data.id,
+      listing_name: 'Support Pépite',
+    });
+  };
+
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.topBar}>
@@ -131,6 +148,17 @@ export function SettingsScreen({ navigation }: Props) {
             </View>
           </>
         )}
+
+        {/* Support */}
+        <Text style={styles.sectionLabel}>Aide</Text>
+        <View style={styles.group}>
+          <SettingsRow
+            icon="chatbubble-ellipses-outline"
+            label="Nous contacter"
+            subtitle="Ouvrir une conversation avec l'équipe Pépite"
+            onPress={handleContactSupport}
+          />
+        </View>
 
         {/* Légal */}
         <Text style={styles.sectionLabel}>Informations</Text>

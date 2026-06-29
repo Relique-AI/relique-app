@@ -89,7 +89,7 @@ export interface Listing {
 
 export interface Message {
   id: string;
-  listing_id: string;
+  listing_id: string | null;
   sender_id: string;
   receiver_id: string;
   content: string;

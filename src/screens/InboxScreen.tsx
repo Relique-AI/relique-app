@@ -24,7 +24,7 @@ type Props = {
 
 interface Conversation {
   key: string;
-  listing_id: string;
+  listing_id: string | null;
   listing_name: string;
   listing_image: string | null;
   other_user_id: string;
@@ -77,7 +77,7 @@ export function InboxScreen({ navigation }: Props) {
       map.set(convKey, {
         key: convKey,
         listing_id: msg.listing_id,
-        listing_name: listing?.name ?? 'Annonce',
+        listing_name: msg.listing_id ? (listing?.name ?? 'Annonce') : 'Support Pépite',
         listing_image: listing?.images?.[0] ?? null,
         other_user_id: otherUserId,
         other_username: otherProfile?.username ?? 'Utilisateur supprimé',
@@ -123,6 +123,8 @@ export function InboxScreen({ navigation }: Props) {
       <View style={styles.thumb}>
         {item.listing_image ? (
           <Image source={{ uri: item.listing_image }} style={styles.thumbImg} />
+        ) : item.listing_id === null ? (
+          <Ionicons name="shield-checkmark-outline" size={24} color={colors.primary} />
         ) : (
           <Ionicons name="image-outline" size={24} color={colors.textSecondary} />
         )}

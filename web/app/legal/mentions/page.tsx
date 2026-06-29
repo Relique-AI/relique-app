@@ -13,11 +13,15 @@ export default function MentionsPage() {
       </div>
 
       <Section title="Éditeur du site">
-        <Row label="Société" value="Pépite SAS" />
+        <Row label="Société" value="AGENCE LEVEL UP" />
         <Row label="Forme juridique" value="Société par Actions Simplifiée (SAS)" />
-        <Row label="Siège social" value="France" />
+        <Row label="Capital social" value="22 350,00 €" />
+        <Row label="SIREN" value="820 038 685" />
+        <Row label="SIRET (siège)" value="820 038 685 00013" />
+        <Row label="RCS" value="820 038 685 R.C.S. Paris" />
+        <Row label="Siège social" value="47 rue Lauriston, 75016 Paris" />
         <Row label="Email" value="contact@pepite.app" />
-        <Row label="Directeur de la publication" value="Le représentant légal de Pépite SAS" />
+        <Row label="Directeur de la publication" value="Guillaume Gondoin, Président" />
       </Section>
 
       <Section title="Hébergement">
@@ -31,29 +35,29 @@ export default function MentionsPage() {
       <Section title="Propriété intellectuelle">
         <p>
           L'ensemble des éléments constituant le site Pépite (textes, graphismes, logiciels, photographies, images, sons,
-          plans, noms, logos, marques, créations et œuvres protégeables diverses) sont la propriété exclusive de Pépite SAS
+          plans, noms, logos, créations et œuvres protégeables diverses) sont la propriété exclusive de AGENCE LEVEL UP SAS
           ou de ses partenaires, et sont protégés par les lois françaises et internationales relatives à la propriété intellectuelle.
         </p>
         <p>
           Toute reproduction, représentation, modification, publication ou adaptation de tout ou partie de ces éléments,
-          quel que soit le moyen ou le procédé utilisé, est interdite, sauf autorisation écrite préalable de Pépite SAS.
+          quel que soit le moyen ou le procédé utilisé, est interdite, sauf autorisation écrite préalable de AGENCE LEVEL UP SAS.
         </p>
       </Section>
 
       <Section title="Limitation de responsabilité">
         <p>
-          Pépite SAS ne saurait être tenu responsable des dommages directs ou indirects causés au matériel de l'utilisateur
+          AGENCE LEVEL UP SAS ne saurait être tenu responsable des dommages directs ou indirects causés au matériel de l'utilisateur
           lors de l'accès au site, résultant soit de l'utilisation d'un matériel ne répondant pas aux spécifications indiquées,
           soit de l'apparition d'un bug ou d'une incompatibilité.
         </p>
         <p>
-          Pépite SAS ne pourra également être tenue responsable des dommages indirects consécutifs à l'utilisation du site.
+          AGENCE LEVEL UP SAS ne pourra également être tenue responsable des dommages indirects consécutifs à l'utilisation du site.
         </p>
       </Section>
 
       <Section title="Liens hypertextes">
         <p>
-          Le site peut contenir des liens vers des sites tiers. Pépite SAS n'exerce aucun contrôle sur ces sites et
+          Le site peut contenir des liens vers des sites tiers. AGENCE LEVEL UP SAS n'exerce aucun contrôle sur ces sites et
           décline toute responsabilité quant à leur contenu ou leurs pratiques en matière de données personnelles.
         </p>
       </Section>
