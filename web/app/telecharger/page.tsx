@@ -8,9 +8,8 @@ export const metadata: Metadata = {
   description: "Télécharge l'app Pépite sur iOS et Android. Photographie un objet, notre IA l'estime en secondes. Publie, vends, expédie.",
 };
 
-// TODO: replace with actual store links when published
-const IOS_URL = "#";
-const ANDROID_URL = "#";
+const IOS_URL = "https://apps.apple.com/us/app/p%C3%A9pite-vente-estimation/id6764468976";
+const ANDROID_URL = "https://play.google.com/store/apps/details?id=com.hugosld.pepite";
 
 const FEATURES = [
   {
