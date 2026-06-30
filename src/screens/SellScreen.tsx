@@ -418,7 +418,7 @@ export function SellScreen({ navigation, route }: Props) {
               style={styles.input}
               value={price}
               onChangeText={setPrice}
-              keyboardType="decimal-pad"
+              keyboardType="numeric"
 
             />
           </View>
@@ -475,9 +475,9 @@ export function SellScreen({ navigation, route }: Props) {
           )}
 
           {/* Localisation */}
-          <View style={[styles.field, { zIndex: 100 }]}>
+          <View style={styles.field}>
             <Text style={styles.label}>Localisation</Text>
-            <View>
+            <View style={{ zIndex: 100 }}>
               <AppTextInput
                 style={styles.input}
                 value={location}
