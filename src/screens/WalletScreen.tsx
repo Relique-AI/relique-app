@@ -171,6 +171,13 @@ export function WalletScreen({ navigation }: Props) {
                   Vos paiements sont virés automatiquement sur votre IBAN.
                 </Text>
               </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('StripeOnboarding')}
+                style={styles.editBtn}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="pencil-outline" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.infoCard}>
@@ -299,6 +306,12 @@ const styles = StyleSheet.create({
   },
   onboardedTitle: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.textPrimary, marginBottom: 4 },
   onboardedText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, lineHeight: 19 },
+  editBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: colors.surface,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
 
   stripeBtn: {
     backgroundColor: colors.primary, borderRadius: 50, paddingVertical: 14,

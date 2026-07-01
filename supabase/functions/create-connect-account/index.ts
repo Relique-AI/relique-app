@@ -11,6 +11,8 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const RETURN_URL = 'https://vpjauyzkebfayybbymqi.supabase.co/functions/v1/stripe-connect-return';
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
@@ -31,22 +33,9 @@ Deno.serve(async (req) => {
       status: 401, headers: { ...CORS, 'Content-Type': 'application/json' },
     });
 
-    const body = await req.json();
-    const {
-      account_token, iban, first_name, last_name, business_type, account_holder_name,
-      dob_day, dob_month, dob_year, address_line1, address_city, address_postal_code,
-    } = body;
-
-    if (!account_token) {
-      return new Response(JSON.stringify({ error: 'account_token manquant' }), {
-        status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
-      });
-    }
-    if (!iban) {
-      return new Response(JSON.stringify({ error: 'IBAN manquant' }), {
-        status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
-      });
-    }
+    const body = await req.json().catch(() => ({}));
+    const business_type: 'individual' | 'company' = body.business_type === 'company' ? 'company' : 'individual';
+    const check_only: boolean = body.check_only === true;
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -56,56 +45,63 @@ Deno.serve(async (req) => {
 
     let accountId = profile?.stripe_account_id;
 
-    if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: 'custom',
-        country: 'FR',
-        account_token,
-        business_profile: {
-          mcc: '5932',
-          product_description: 'Vente d\'objets de collection et de seconde main entre particuliers via la plateforme Pépite.',
-        },
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-      });
+    // Vérification du statut pour un compte existant
+    if (accountId) {
+      const stripeAccount = await stripe.accounts.retrieve(accountId);
+      if (stripeAccount.charges_enabled) {
+        await supabase.from('profiles').update({
+          stripe_onboarded: true,
+          stripe_kyc_status: 'active',
+        }).eq('id', user.id);
+      }
 
-      accountId = account.id;
-
-      if (business_type === 'company' && first_name && last_name) {
-        await stripe.accounts.createPerson(accountId, {
-          first_name,
-          last_name,
-          ...(dob_day && dob_month && dob_year ? {
-            dob: { day: parseInt(dob_day), month: parseInt(dob_month), year: parseInt(dob_year) },
-          } : {}),
-          ...(address_line1 ? {
-            address: { line1: address_line1, city: address_city, postal_code: address_postal_code, country: 'FR' },
-          } : {}),
-          relationship: { representative: true, title: 'CEO' },
+      if (check_only) {
+        return new Response(JSON.stringify({ onboarded: stripeAccount.charges_enabled }), {
+          status: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
         });
       }
 
-      await stripe.accounts.createExternalAccount(accountId, {
-        external_account: {
-          object: 'bank_account',
-          country: 'FR',
-          currency: 'eur',
-          account_holder_name: account_holder_name ?? `${first_name} ${last_name}`,
-          account_holder_type: business_type === 'company' ? 'company' : 'individual',
-          account_number: iban.replace(/\s/g, ''),
-        },
+      const accountLink = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: RETURN_URL,
+        return_url: RETURN_URL,
+        type: stripeAccount.charges_enabled ? 'account_update' : 'account_onboarding',
       });
 
-      await supabase.from('profiles').update({
-        stripe_account_id: accountId,
-        stripe_onboarded: true,
-        stripe_kyc_status: 'active',
-      }).eq('id', user.id);
+      return new Response(JSON.stringify({ url: accountLink.url }), {
+        status: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
+      });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    // Création d'un nouveau compte
+    const account = await stripe.accounts.create({
+      type: 'express',
+      country: 'FR',
+      business_type,
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      business_profile: {
+        mcc: '5932',
+        product_description: 'Vente d\'objets de collection et de seconde main entre particuliers via la plateforme Pépite.',
+      },
+    } as any);
+
+    accountId = account.id;
+
+    await supabase.from('profiles').update({
+      stripe_account_id: accountId,
+    }).eq('id', user.id);
+
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: RETURN_URL,
+      return_url: RETURN_URL,
+      type: 'account_onboarding',
+    });
+
+    return new Response(JSON.stringify({ url: accountLink.url }), {
       status: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
     });
   } catch (err: any) {
