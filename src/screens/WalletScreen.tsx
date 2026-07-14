@@ -38,10 +38,18 @@ export function WalletScreen({ navigation }: Props) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('stripe_onboarded')
+      .select('stripe_onboarded, stripe_account_id')
       .eq('id', user.id)
       .single();
-    const isOnboarded = !!profile?.stripe_onboarded;
+
+    let isOnboarded = !!profile?.stripe_onboarded;
+    if (!isOnboarded && profile?.stripe_account_id) {
+      const { data: syncData } = await supabase.functions.invoke('create-connect-account', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { check_only: true },
+      });
+      if (syncData?.onboarded) isOnboarded = true;
+    }
     setOnboarded(isOnboarded);
 
     const { data: transactions } = await supabase
