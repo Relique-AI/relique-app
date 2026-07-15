@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import Stripe from 'https://esm.sh/stripe@13.0.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { ErrorCode } from '../_shared/errors.ts';
 
 const SHIPPING_RATES: Record<string, Record<string, number>> = {
   relay:      { xs: 3.99, s:  5.49, m:  6.99, l:  8.99 },
@@ -33,7 +34,7 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return json({ error: 'Non autorisé' }, 401);
+    if (!authHeader) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
     const { listing_id, shipping_method = 'hand', delivery_address, offer_id } = await req.json();
 
@@ -44,7 +45,7 @@ serve(async (req) => {
     );
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return json({ error: 'Non autorisé' }, 401);
+    if (!user) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
     const { data: listing } = await supabase
       .from('listings')
@@ -64,7 +65,7 @@ serve(async (req) => {
       const { data: offer } = await supabase.from('offers').select('*').eq('id', offer_id).single();
       if (!offer) return json({ error: 'Offre introuvable' }, 404);
       if (offer.status !== 'accepted') return json({ error: 'Offre non acceptée' }, 400);
-      if (offer.buyer_id !== user.id) return json({ error: 'Non autorisé' }, 403);
+      if (offer.buyer_id !== user.id) return json({ error: ErrorCode.UNAUTHORIZED }, 403);
       if (offer.listing_id !== listing_id) return json({ error: 'Offre invalide' }, 400);
       itemPrice = offer.amount;
     }

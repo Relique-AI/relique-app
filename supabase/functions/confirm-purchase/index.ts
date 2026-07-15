@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import Stripe from 'https://esm.sh/stripe@13.0.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { ErrorCode } from '../_shared/errors.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
   apiVersion: '2023-10-16',
@@ -19,7 +20,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return json({ error: 'Non autorisé' }, 401);
+  if (!authHeader) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
   const supabaseUser = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -27,13 +28,13 @@ serve(async (req) => {
     { global: { headers: { Authorization: authHeader } } },
   );
   const { data: { user } } = await supabaseUser.auth.getUser();
-  if (!user) return json({ error: 'Non autorisé' }, 401);
+  if (!user) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
   let payment_intent_id: string;
   try {
     ({ payment_intent_id } = await req.json());
   } catch {
-    return json({ error: 'Corps de requête invalide' }, 400);
+    return json({ error: ErrorCode.INVALID_BODY }, 400);
   }
   if (!payment_intent_id) return json({ error: 'payment_intent_id requis' }, 400);
 
@@ -42,7 +43,7 @@ serve(async (req) => {
 
   const { listing_id, buyer_id, seller_id, shipping_method, delivery_address } = pi.metadata;
   if (!listing_id || !buyer_id || !seller_id) return json({ error: 'Métadonnées manquantes' }, 400);
-  if (buyer_id !== user.id) return json({ error: 'Non autorisé' }, 403);
+  if (buyer_id !== user.id) return json({ error: ErrorCode.UNAUTHORIZED }, 403);
 
   const admin = createClient(
     Deno.env.get('SUPABASE_URL')!,

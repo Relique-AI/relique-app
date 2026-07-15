@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { ErrorCode } from '../_shared/errors.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +22,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return json({ error: 'Non autorisé' }, 401);
+  if (!authHeader) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
   const supabaseUser = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -29,13 +30,13 @@ Deno.serve(async (req) => {
     { global: { headers: { Authorization: authHeader } } },
   );
   const { data: { user } } = await supabaseUser.auth.getUser();
-  if (!user) return json({ error: 'Non autorisé' }, 401);
+  if (!user) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
   let transaction_id: string, reason: string, description: string;
   try {
     ({ transaction_id, reason, description } = await req.json());
   } catch {
-    return json({ error: 'Corps de requête invalide' }, 400);
+    return json({ error: ErrorCode.INVALID_BODY }, 400);
   }
 
   if (!transaction_id || !reason || !description?.trim()) {
@@ -59,8 +60,8 @@ Deno.serve(async (req) => {
     .eq('id', transaction_id)
     .single();
 
-  if (!tx) return json({ error: 'Transaction introuvable' }, 404);
-  if (tx.buyer_id !== user.id) return json({ error: 'Non autorisé' }, 403);
+  if (!tx) return json({ error: ErrorCode.TRANSACTION_NOT_FOUND }, 404);
+  if (tx.buyer_id !== user.id) return json({ error: ErrorCode.UNAUTHORIZED }, 403);
 
   // Vérifier que la livraison est confirmée ou expédiée
   const allowedStatuses = ['delivered', 'shipped', 'to_hand', 'completed'];

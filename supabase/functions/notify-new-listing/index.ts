@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { id: listingId, category, name: listingName, seller_id } = listing;
+    const { id: listingId, category, name: listingName, seller_id, country: listingCountry } = listing;
 
     // 1. Users who follow this category
     const { data: catFavs } = await supabase
@@ -57,9 +57,10 @@ Deno.serve(async (req) => {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, push_token')
+      .select('id, push_token, country')
       .in('id', allUserIds)
-      .not('push_token', 'is', null);
+      .not('push_token', 'is', null)
+      .eq('country', listingCountry ?? 'FR');
 
     const messages = (profiles ?? [])
       .filter((p: any) => p.push_token)

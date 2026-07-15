@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { ErrorCode } from '../_shared/errors.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +16,7 @@ Deno.serve(async (req) => {
   try {
     ({ listing_id, category, era, origin, seller_id } = await req.json());
   } catch {
-    return json({ error: 'Corps de requête invalide' }, 400);
+    return json({ error: ErrorCode.INVALID_BODY }, 400);
   }
 
   if (!listing_id || !category || !seller_id) {

@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { ErrorCode } from '../_shared/errors.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +16,7 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return json({ error: 'Non autorisé' }, 401);
+    if (!authHeader) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
     const { transaction_id, tracking_number } = await req.json();
     if (!transaction_id) return json({ error: 'transaction_id requis' }, 400);
@@ -26,7 +27,7 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } },
     );
     const { data: { user } } = await supabaseUser.auth.getUser();
-    if (!user) return json({ error: 'Non autorisé' }, 401);
+    if (!user) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -39,8 +40,8 @@ serve(async (req) => {
       .eq('id', transaction_id)
       .single();
 
-    if (!tx) return json({ error: 'Transaction introuvable' }, 404);
-    if (tx.seller_id !== user.id) return json({ error: 'Non autorisé' }, 403);
+    if (!tx) return json({ error: ErrorCode.TRANSACTION_NOT_FOUND }, 404);
+    if (tx.seller_id !== user.id) return json({ error: ErrorCode.UNAUTHORIZED }, 403);
 
     const { error } = await admin
       .from('transactions')

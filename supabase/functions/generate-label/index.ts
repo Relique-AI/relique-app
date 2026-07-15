@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { ErrorCode } from '../_shared/errors.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -51,7 +52,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return json({ error: 'Non autorisé' }, 401);
+    if (!authHeader) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
     const supabaseUser = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -59,7 +60,7 @@ Deno.serve(async (req: Request) => {
       { global: { headers: { Authorization: authHeader } } },
     );
     const { data: { user } } = await supabaseUser.auth.getUser();
-    if (!user) return json({ error: 'Non autorisé' }, 401);
+    if (!user) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
     const { payment_intent_id } = await req.json();
     if (!payment_intent_id) return json({ error: 'payment_intent_id requis' }, 400);
@@ -75,8 +76,8 @@ Deno.serve(async (req: Request) => {
       .eq('stripe_payment_intent_id', payment_intent_id)
       .maybeSingle();
 
-    if (!tx) return json({ error: 'Transaction introuvable' }, 404);
-    if (tx.buyer_id !== user.id) return json({ error: 'Non autorisé' }, 403);
+    if (!tx) return json({ error: ErrorCode.TRANSACTION_NOT_FOUND }, 404);
+    if (tx.buyer_id !== user.id) return json({ error: ErrorCode.UNAUTHORIZED }, 403);
     if (tx.shipping_method === 'hand') return json({ skipped: true });
     if (!tx.delivery_address) return json({ error: 'Adresse de livraison manquante' }, 400);
 

@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@13.0.0?target=deno';
+import { ErrorCode } from '../_shared/errors.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
   apiVersion: '2023-10-16',
@@ -19,7 +20,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return json({ error: 'Non autorisé' }, 401);
+  if (!authHeader) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
   const admin = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -29,7 +30,7 @@ Deno.serve(async (req) => {
   // Vérifier admin
   const token = authHeader.replace('Bearer ', '');
   const { data: { user }, error: authError } = await admin.auth.getUser(token);
-  if (authError || !user) return json({ error: 'Non autorisé' }, 401);
+  if (authError || !user) return json({ error: ErrorCode.UNAUTHORIZED }, 401);
 
   const { data: profile } = await admin
     .from('profiles')
@@ -42,7 +43,7 @@ Deno.serve(async (req) => {
   try {
     ({ dispute_id, action, refund_amount, admin_note } = await req.json());
   } catch {
-    return json({ error: 'Corps de requête invalide' }, 400);
+    return json({ error: ErrorCode.INVALID_BODY }, 400);
   }
 
   const validActions = ['full_refund', 'partial_refund', 'close_seller'];
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
     .eq('id', dispute.transaction_id)
     .single();
 
-  if (!tx) return json({ error: 'Transaction introuvable' }, 404);
+  if (!tx) return json({ error: ErrorCode.TRANSACTION_NOT_FOUND }, 404);
 
   // Charger le nom de l'annonce
   const { data: listing } = await admin
