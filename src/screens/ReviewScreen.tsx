@@ -14,6 +14,7 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { RootStackParamList, CapturedPhoto } from '../types';
 import { colors, fonts, spacing } from '../theme';
 
@@ -26,6 +27,7 @@ type Props = {
 };
 
 export function ReviewScreen({ navigation, route }: Props) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [photos, setPhotos] = useState<CapturedPhoto[]>(route.params.photos);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -63,25 +65,25 @@ export function ReviewScreen({ navigation, route }: Props) {
   const addPhoto = () => {
     if (photos.length >= MAX_PHOTOS) return;
     Alert.alert(
-      'Ajouter une photo',
+      t('review.addPhotoAlert.title'),
       '',
       [
-        { text: 'Prendre une photo', onPress: addPhotoFromCamera },
-        { text: 'Choisir dans la galerie', onPress: addPhotoFromLibrary },
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('review.addPhotoAlert.camera'), onPress: addPhotoFromCamera },
+        { text: t('review.addPhotoAlert.gallery'), onPress: addPhotoFromLibrary },
+        { text: t('review.addPhotoAlert.cancel'), style: 'cancel' },
       ],
     );
   };
 
   const deletePhoto = () => {
     if (photos.length <= 1) {
-      Alert.alert('Photo requise', 'Vous devez conserver au moins une photo.');
+      Alert.alert(t('review.deletePhotoRequiredAlert.title'), t('review.deletePhotoRequiredAlert.message'));
       return;
     }
-    Alert.alert('Supprimer cette photo ?', '', [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('review.deletePhotoConfirmAlert.title'), '', [
+      { text: t('review.deletePhotoConfirmAlert.cancel'), style: 'cancel' },
       {
-        text: 'Supprimer',
+        text: t('review.deletePhotoConfirmAlert.confirm'),
         style: 'destructive',
         onPress: () => {
           setPhotos((prev) => {
@@ -108,7 +110,7 @@ export function ReviewScreen({ navigation, route }: Props) {
         >
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Vérifier les photos</Text>
+        <Text style={styles.title}>{t('review.title')}</Text>
         <View style={{ width: 48 }} />
       </View>
 
@@ -161,13 +163,11 @@ export function ReviewScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.addButton} onPress={addPhoto}>
             <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.addButtonText}>
-              Ajouter une photo ({photos.length}/{MAX_PHOTOS})
+              {t('review.addPhoto', { count: photos.length, max: MAX_PHOTOS })}
             </Text>
           </TouchableOpacity>
         )}
-        <Text style={styles.photoHint}>
-          Plus il y a de photos (angles, détails, signatures), plus l'estimation sera précise.
-        </Text>
+        <Text style={styles.photoHint}>{t('review.photoHint')}</Text>
 
         {/* Espace pour le bouton fixe */}
         <View style={{ height: 100 }} />
@@ -176,7 +176,7 @@ export function ReviewScreen({ navigation, route }: Props) {
       {/* Bouton d'action fixe */}
       <View style={[styles.ctaContainer, { paddingBottom: insets.bottom + 12 }]}>
         <TouchableOpacity style={styles.cta} onPress={handleAnalyse} activeOpacity={0.85}>
-          <Text style={styles.ctaText}>Estimer la valeur</Text>
+          <Text style={styles.ctaText}>{t('review.cta')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

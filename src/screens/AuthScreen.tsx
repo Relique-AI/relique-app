@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useAuth } from '../context/AuthContext';
 import { colors, fonts, spacing } from '../theme';
 import { AppTextInput } from '../components/AppTextInput';
@@ -19,6 +21,7 @@ import { AppTextInput } from '../components/AppTextInput';
 type Tab = 'login' | 'signup' | 'forgot';
 
 export function AuthScreen() {
+  const { t } = useTranslation();
   const { signIn, signUp, signInWithGoogle, signInWithApple, enterGuestMode } = useAuth();
   const [tab, setTab] = useState<Tab>('login');
 
@@ -75,38 +78,38 @@ export function AuthScreen() {
     setSuccess(null);
 
     if (tab === 'forgot') {
-      if (!email.trim()) { setError('Veuillez saisir votre email.'); return; }
+      if (!email.trim()) { setError(t('auth.errors.emailRequired')); return; }
       setLoading(true);
       const { error: err } = await import('../services/supabase').then(m =>
         m.supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: 'pepite://auth/callback' })
       );
       setLoading(false);
-      if (err) setError(translateError(err.message));
-      else setSuccess('Un lien de réinitialisation a été envoyé à votre email.');
+      if (err) setError(translateError(err.message, t));
+      else setSuccess(t('auth.resetLinkSent'));
       return;
     }
 
     if (!email.trim() || !password) {
-      setError('Veuillez remplir tous les champs.');
+      setError(t('auth.errors.fillAllFields'));
       return;
     }
 
     if (tab === 'signup') {
       if (password !== confirm) {
-        setError('Les mots de passe ne correspondent pas.');
+        setError(t('auth.errors.passwordMismatch'));
         return;
       }
       if (password.length < 6) {
-        setError('Le mot de passe doit contenir au moins 6 caractères.');
+        setError(t('auth.errors.passwordTooShort'));
         return;
       }
       const trimmedUsername = username.trim();
       if (trimmedUsername.length < 3) {
-        setError('Le pseudo doit contenir au moins 3 caractères.');
+        setError(t('auth.errors.usernameTooShort'));
         return;
       }
       if (!/^[a-zA-Z0-9_.-]+$/.test(trimmedUsername)) {
-        setError('Pseudo : uniquement lettres, chiffres, _ . -');
+        setError(t('auth.errors.usernamePattern'));
         return;
       }
     }
@@ -122,7 +125,7 @@ export function AuthScreen() {
         .eq('username', username.trim())
         .maybeSingle();
       if (existing) {
-        setError('Ce pseudo est déjà pris. Choisissez-en un autre.');
+        setError(t('auth.errors.usernameTaken'));
         setLoading(false);
         setUsernameStatus('taken');
         return;
@@ -144,12 +147,12 @@ export function AuthScreen() {
     setLoading(false);
 
     if (errMsg) {
-      setError(translateError(errMsg));
+      setError(translateError(errMsg, t));
     } else if (tab === 'signup') {
       const referralMsg = referrerUsername
-        ? ` Vous avez été parrainé par ${referrerUsername} — votre parrain en a été informé. Vous bénéficiez de 3 achats à −50% de frais !`
+        ? t('auth.referralSuccess', { referrer: referrerUsername })
         : '';
-      setSuccess(`Bienvenue sur Pépite !${referralMsg}`);
+      setSuccess(t('auth.welcome', { referralMsg }));
     }
   };
 
@@ -172,8 +175,8 @@ export function AuthScreen() {
                 <Text style={styles.logoGemText}>✦</Text>
               </View>
             </Animated.View>
-            <Text style={styles.brand}>Pépite</Text>
-            <Text style={styles.subtitle}>Tes objets valent plus{'\n'}que tu ne crois.</Text>
+            <Text style={styles.brand}>{t('home.brand')}</Text>
+            <Text style={styles.subtitle}>{t('home.tagline')}</Text>
           </View>
 
           {/* Tabs */}
@@ -183,13 +186,13 @@ export function AuthScreen() {
                 style={[styles.tabItem, tab === 'login' && styles.tabItemActive]}
                 onPress={() => { setTab('login'); setUsername(''); setError(null); setSuccess(null); }}
               >
-                <Text style={[styles.tabText, tab === 'login' && styles.tabTextActive]}>Connexion</Text>
+                <Text style={[styles.tabText, tab === 'login' && styles.tabTextActive]}>{t('auth.tabs.login')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.tabItem, tab === 'signup' && styles.tabItemActive]}
                 onPress={() => { setTab('signup'); setError(null); setSuccess(null); setUsernameStatus('idle'); }}
               >
-                <Text style={[styles.tabText, tab === 'signup' && styles.tabTextActive]}>Créer un compte</Text>
+                <Text style={[styles.tabText, tab === 'signup' && styles.tabTextActive]}>{t('auth.tabs.signup')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -197,20 +200,20 @@ export function AuthScreen() {
           {/* Titre mot de passe oublié */}
           {tab === 'forgot' && (
             <View style={{ marginBottom: 24 }}>
-              <Text style={styles.forgotTitle}>Mot de passe oublié</Text>
-              <Text style={styles.forgotSub}>Saisissez votre email pour recevoir un lien de réinitialisation.</Text>
+              <Text style={styles.forgotTitle}>{t('auth.forgot.title')}</Text>
+              <Text style={styles.forgotSub}>{t('auth.forgot.subtitle')}</Text>
             </View>
           )}
 
           {/* Formulaire */}
           <View style={styles.form}>
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>{tab === 'login' ? 'Email ou pseudo' : 'Email'}</Text>
+              <Text style={styles.label}>{tab === 'login' ? t('auth.labels.emailOrUsername') : t('auth.labels.email')}</Text>
               <AppTextInput
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder={tab === 'login' ? 'email ou pseudo' : 'votre@email.com'}
+                placeholder={tab === 'login' ? t('auth.placeholders.emailOrUsername') : t('auth.placeholders.email')}
                 keyboardType={tab === 'login' ? 'default' : 'email-address'}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -221,26 +224,26 @@ export function AuthScreen() {
 
             {tab === 'signup' && (
               <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Pseudo</Text>
+                <Text style={styles.label}>{t('auth.labels.username')}</Text>
                 <AppTextInput
                   style={[styles.input, usernameStatus === 'taken' && styles.inputError, usernameStatus === 'available' && styles.inputOk]}
                   value={username}
                   onChangeText={handleUsernameChange}
-                  placeholder="ex : chineuse_paris, vintage_paul"
+                  placeholder={t('auth.placeholders.username')}
                   autoCapitalize="none"
                   autoCorrect={false}
                   maxLength={30}
                 />
-                {usernameStatus === 'checking' && <Text style={styles.fieldHint}>Vérification…</Text>}
-                {usernameStatus === 'available' && <Text style={[styles.fieldHint, { color: colors.success }]}>✓ Pseudo disponible</Text>}
-                {usernameStatus === 'taken' && <Text style={[styles.fieldHint, { color: colors.danger }]}>✗ Ce pseudo est déjà pris</Text>}
-                {usernameStatus === 'idle' && <Text style={styles.fieldHint}>Lettres, chiffres, _ . - · 3 à 30 caractères</Text>}
+                {usernameStatus === 'checking' && <Text style={styles.fieldHint}>{t('auth.username.checking')}</Text>}
+                {usernameStatus === 'available' && <Text style={[styles.fieldHint, { color: colors.success }]}>{t('auth.username.available')}</Text>}
+                {usernameStatus === 'taken' && <Text style={[styles.fieldHint, { color: colors.danger }]}>{t('auth.username.taken')}</Text>}
+                {usernameStatus === 'idle' && <Text style={styles.fieldHint}>{t('auth.username.rules')}</Text>}
               </View>
             )}
 
             {tab !== 'forgot' && (
               <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Mot de passe</Text>
+                <Text style={styles.label}>{t('auth.labels.password')}</Text>
                 <AppTextInput
                   style={styles.input}
                   value={password}
@@ -252,7 +255,7 @@ export function AuthScreen() {
                 />
                 {tab === 'login' && (
                   <TouchableOpacity onPress={() => { setTab('forgot'); setError(null); setSuccess(null); }}>
-                    <Text style={styles.forgotLink}>Mot de passe oublié ?</Text>
+                    <Text style={styles.forgotLink}>{t('auth.forgotPasswordLink')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -260,7 +263,7 @@ export function AuthScreen() {
 
             {tab === 'signup' && (
               <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Confirmer le mot de passe</Text>
+                <Text style={styles.label}>{t('auth.labels.confirmPassword')}</Text>
                 <AppTextInput
                   style={styles.input}
                   value={confirm}
@@ -275,12 +278,12 @@ export function AuthScreen() {
 
             {tab === 'signup' && (
               <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Code de parrainage (optionnel)</Text>
+                <Text style={styles.label}>{t('auth.labels.referralCode')}</Text>
                 <AppTextInput
                   style={styles.input}
                   value={referralCode}
                   onChangeText={setReferralCode}
-                  placeholder="ex : ABC12345"
+                  placeholder={t('auth.placeholders.referralCode')}
   
                   autoCapitalize="characters"
                   autoCorrect={false}
@@ -302,14 +305,14 @@ export function AuthScreen() {
                 <ActivityIndicator color={colors.background} />
               ) : (
                 <Text style={styles.ctaText}>
-                  {tab === 'login' ? 'Se connecter' : tab === 'signup' ? 'Créer mon compte' : 'Envoyer le lien'}
+                  {tab === 'login' ? t('auth.submit.login') : tab === 'signup' ? t('auth.submit.signup') : t('auth.submit.forgot')}
                 </Text>
               )}
             </TouchableOpacity>
 
             {tab === 'forgot' && (
               <TouchableOpacity onPress={() => { setTab('login'); setError(null); setSuccess(null); }} style={{ alignItems: 'center', marginTop: 8 }}>
-                <Text style={styles.forgotLink}>← Retour à la connexion</Text>
+                <Text style={styles.forgotLink}>{t('auth.backToLogin')}</Text>
               </TouchableOpacity>
             )}
 
@@ -318,7 +321,7 @@ export function AuthScreen() {
             <>
               <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>ou</Text>
+                <Text style={styles.dividerText}>{t('auth.or')}</Text>
                 <View style={styles.dividerLine} />
               </View>
 
@@ -335,7 +338,7 @@ export function AuthScreen() {
                 activeOpacity={0.85}
               >
                 <Text style={styles.googleIcon}>G</Text>
-                <Text style={styles.googleText}>Continuer avec Google</Text>
+                <Text style={styles.googleText}>{t('auth.continueWithGoogle')}</Text>
               </TouchableOpacity>
 
               {Platform.OS === 'ios' && (
@@ -355,7 +358,7 @@ export function AuthScreen() {
               )}
 
               <TouchableOpacity style={styles.guestBtn} onPress={enterGuestMode} activeOpacity={0.7}>
-                <Text style={styles.guestText}>Découvrir sans compte →</Text>
+                <Text style={styles.guestText}>{t('auth.guestLink')}</Text>
               </TouchableOpacity>
             </>
           )}
@@ -365,11 +368,11 @@ export function AuthScreen() {
   );
 }
 
-function translateError(msg: string): string {
-  if (msg.includes('Invalid login credentials')) return 'Email ou mot de passe incorrect.';
-  if (msg.includes('Email not confirmed')) return 'Confirmez votre email avant de vous connecter.';
-  if (msg.includes('User already registered')) return 'Un compte existe déjà avec cet email.';
-  if (msg.includes('Password should be')) return 'Mot de passe trop court (6 caractères minimum).';
+function translateError(msg: string, t: TFunction): string {
+  if (msg.includes('Invalid login credentials')) return t('auth.errors.invalidCredentials');
+  if (msg.includes('Email not confirmed')) return t('auth.errors.emailNotConfirmed');
+  if (msg.includes('User already registered')) return t('auth.errors.userExists');
+  if (msg.includes('Password should be')) return t('auth.errors.passwordTooShortServer');
   return msg;
 }
 

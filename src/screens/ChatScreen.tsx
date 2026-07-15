@@ -20,7 +20,9 @@ import Reanimated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { colors, fonts, spacing } from '../theme';
+import { translateApiError } from '../utils/apiError';
 import { supabase, Message, Offer, Listing } from '../services/supabase';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -166,6 +168,7 @@ const ivStyles = StyleSheet.create({
 });
 
 export function ChatScreen({ navigation, route }: Props) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { listing_id: _listing_id, receiver_id, listing_name } = route.params;
   const listing_id = _listing_id ?? null;
@@ -376,7 +379,7 @@ export function ChatScreen({ navigation, route }: Props) {
     supabase.functions.invoke('send-push', {
       body: {
         receiver_id,
-        sender_name: senderProfile?.username ?? 'Quelqu\'un',
+        sender_name: senderProfile?.username ?? t('chat.someoneFallback'),
         listing_name,
         message_preview: text.length > 60 ? text.slice(0, 60) + '…' : text,
         type: 'message',
@@ -396,14 +399,14 @@ export function ChatScreen({ navigation, route }: Props) {
     if (source === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission requise', 'L\'accès à la caméra est nécessaire.');
+        Alert.alert(t('chat.permissionRequired.title'), t('chat.permissionRequired.camera'));
         return;
       }
       result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission requise', 'L\'accès à la galerie est nécessaire.');
+        Alert.alert(t('chat.permissionRequired.title'), t('chat.permissionRequired.gallery'));
         return;
       }
       result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
@@ -415,7 +418,7 @@ export function ChatScreen({ navigation, route }: Props) {
     setSendingImage(true);
     try {
       const session = (await supabase.auth.getSession()).data.session;
-      if (!session?.access_token) throw new Error('Non authentifié');
+      if (!session?.access_token) throw new Error(t('chat.notAuthenticated'));
 
       const fileName = `chat/${user.id}/${Date.now()}.jpg`;
       const formData = new FormData();
@@ -430,7 +433,7 @@ export function ChatScreen({ navigation, route }: Props) {
         },
         body: formData,
       });
-      if (!res.ok) throw new Error(`Upload échoué : ${await res.text().catch(() => '')}`);
+      if (!res.ok) throw new Error(t('chat.uploadFailed', { detail: await res.text().catch(() => '') }));
 
       const { data: urlData } = supabase.storage.from('listing-images').getPublicUrl(fileName);
 
@@ -446,16 +449,16 @@ export function ChatScreen({ navigation, route }: Props) {
       supabase.functions.invoke('send-push', {
         body: {
           receiver_id,
-          sender_name: senderProfile?.username ?? 'Quelqu\'un',
+          sender_name: senderProfile?.username ?? t('chat.someoneFallback'),
           listing_name,
-          message_preview: '📷 Photo',
+          message_preview: t('chat.photoPreview'),
           type: 'message',
           listing_id,
           sender_id: user.id,
         },
       }).catch(() => {});
     } catch (e: any) {
-      Alert.alert('Erreur', e.message ?? 'Impossible d\'envoyer la photo');
+      Alert.alert(t('common.error'), e.message ?? t('chat.sendPhotoError'));
     } finally {
       setSendingImage(false);
     }
@@ -463,12 +466,12 @@ export function ChatScreen({ navigation, route }: Props) {
 
   const handlePhotoPress = () => {
     Alert.alert(
-      'Envoyer une photo',
+      t('chat.sendPhotoAlert.title'),
       undefined,
       [
-        { text: 'Prendre une photo', onPress: () => pickAndSendImage('camera') },
-        { text: 'Choisir depuis la galerie', onPress: () => pickAndSendImage('library') },
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('chat.sendPhotoAlert.camera'), onPress: () => pickAndSendImage('camera') },
+        { text: t('chat.sendPhotoAlert.gallery'), onPress: () => pickAndSendImage('library') },
+        { text: t('common.cancel'), style: 'cancel' },
       ],
     );
   };
@@ -484,9 +487,9 @@ export function ChatScreen({ navigation, route }: Props) {
     supabase.functions.invoke('send-push', {
       body: {
         receiver_id: offer.buyer_id,
-        sender_name: profile?.username ?? 'Vendeur',
+        sender_name: profile?.username ?? t('listing.sellerFallback'),
         listing_name,
-        message_preview: `Offre de ${offer.amount} € acceptée ✓`,
+        message_preview: t('chat.offerAcceptedNotif', { amount: offer.amount }),
         type: 'offer_accepted',
         listing_id,
         sender_id: user!.id,
@@ -503,9 +506,9 @@ export function ChatScreen({ navigation, route }: Props) {
     supabase.functions.invoke('send-push', {
       body: {
         receiver_id: offer.buyer_id,
-        sender_name: profile?.username ?? 'Vendeur',
+        sender_name: profile?.username ?? t('listing.sellerFallback'),
         listing_name,
-        message_preview: `Offre de ${offer.amount} € refusée`,
+        message_preview: t('chat.offerDeclinedNotif', { amount: offer.amount }),
         type: 'offer_declined',
         listing_id,
         sender_id: user!.id,
@@ -558,7 +561,7 @@ export function ChatScreen({ navigation, route }: Props) {
       listing_id,
       sender_id: user.id,
       receiver_id: otherParty,
-      content: `Contre-offre de ${amount} €`,
+      content: t('chat.counterOfferMessage', { amount }),
       type: 'offer',
       offer_id: newOffer.id,
     });
@@ -567,9 +570,9 @@ export function ChatScreen({ navigation, route }: Props) {
     supabase.functions.invoke('send-push', {
       body: {
         receiver_id: otherParty,
-        sender_name: profile?.username ?? 'Utilisateur',
+        sender_name: profile?.username ?? t('listing.userFallback'),
         listing_name,
-        message_preview: `Contre-offre de ${amount} €`,
+        message_preview: t('chat.counterOfferMessage', { amount }),
         type: 'offer_counter',
         listing_id,
         sender_id: user.id,
@@ -601,16 +604,16 @@ export function ChatScreen({ navigation, route }: Props) {
       });
 
       if (error) {
-        let errMsg = 'Impossible de lancer le paiement.';
+        let errMsg = t('listing.paymentStartError');
         try {
           const ctx = (error as any).context;
           const body = typeof ctx?.json === 'function' ? await ctx.json() : ctx;
           if (body?.error) errMsg = body.error;
         } catch {}
-        Alert.alert('Erreur', errMsg);
+        Alert.alert(t('common.error'), translateApiError(errMsg, t));
         return;
       }
-      if (!data?.clientSecret) throw new Error('Erreur paiement');
+      if (!data?.clientSecret) throw new Error(t('listing.paymentError'));
 
       const paymentIntentId = data.clientSecret.split('_secret_')[0];
 
@@ -623,7 +626,7 @@ export function ChatScreen({ navigation, route }: Props) {
 
       const { error: presentError } = await presentPaymentSheet();
       if (presentError) {
-        if (presentError.code !== 'Canceled') Alert.alert('Erreur', presentError.message);
+        if (presentError.code !== 'Canceled') Alert.alert(t('common.error'), presentError.message);
         if (data.referralCreditUsed) {
           supabase.functions.invoke('restore-referral-credit', {
             body: { payment_intent_id: paymentIntentId },
@@ -650,7 +653,7 @@ export function ChatScreen({ navigation, route }: Props) {
         });
       }
     } catch (e: any) {
-      Alert.alert('Erreur', e.message ?? 'Une erreur est survenue');
+      Alert.alert(t('common.error'), e.message ?? t('common.errorOccurred'));
     } finally {
       setBuying(false);
     }
@@ -680,8 +683,8 @@ export function ChatScreen({ navigation, route }: Props) {
     const isCounter = !!offer.parent_offer_id;
 
     const labelText = isMine
-      ? (isCounter ? 'Votre contre-offre' : 'Votre offre')
-      : (isCounter ? 'Contre-offre reçue' : 'Offre reçue');
+      ? (isCounter ? t('chat.offer.yourCounterOffer') : t('chat.offer.yourOffer'))
+      : (isCounter ? t('chat.offer.counterOfferReceived') : t('chat.offer.offerReceived'));
 
     return (
       <View style={styles.offerBubbleRow}>
@@ -702,7 +705,7 @@ export function ChatScreen({ navigation, route }: Props) {
             <View style={styles.offerStatusRow}>
               <Ionicons name="time-outline" size={13} color="rgba(11,9,7,0.5)" />
               <Text style={[styles.offerStatusText, styles.offerStatusOnPrimary]}>
-                En attente de réponse
+                {t('chat.offer.pendingResponse')}
               </Text>
             </View>
           )}
@@ -711,7 +714,7 @@ export function ChatScreen({ navigation, route }: Props) {
             <View style={styles.offerStatusRow}>
               <Ionicons name="checkmark-circle" size={13} color={isMine ? 'rgba(11,9,7,0.5)' : colors.success} />
               <Text style={[styles.offerStatusText, isMine ? styles.offerStatusOnPrimary : { color: colors.success }]}>
-                Acceptée
+                {t('chat.offer.accepted')}
               </Text>
             </View>
           )}
@@ -719,7 +722,7 @@ export function ChatScreen({ navigation, route }: Props) {
             <View style={styles.offerStatusRow}>
               <Ionicons name="close-circle" size={13} color={isMine ? 'rgba(11,9,7,0.5)' : colors.danger} />
               <Text style={[styles.offerStatusText, isMine ? styles.offerStatusOnPrimary : { color: colors.danger }]}>
-                Refusée
+                {t('chat.offer.declined')}
               </Text>
             </View>
           )}
@@ -727,7 +730,7 @@ export function ChatScreen({ navigation, route }: Props) {
             <View style={styles.offerStatusRow}>
               <Ionicons name="arrow-redo" size={13} color={isMine ? 'rgba(11,9,7,0.5)' : colors.textSecondary} />
               <Text style={[styles.offerStatusText, isMine ? styles.offerStatusOnPrimary : { color: colors.textSecondary }]}>
-                {isMine ? 'Contre-offre reçue' : 'Contre-offre envoyée'}
+                {isMine ? t('chat.offer.counterOfferReceived') : t('chat.offer.counterOfferSent')}
               </Text>
             </View>
           )}
@@ -739,36 +742,36 @@ export function ChatScreen({ navigation, route }: Props) {
                 style={styles.offerAcceptBtn}
                 onPress={() =>
                   Alert.alert(
-                    'Accepter cette offre ?',
-                    `Vous confirmez l'acceptation de l'offre à ${offer.amount} €.`,
+                    t('chat.acceptOfferAlert.title'),
+                    t('chat.acceptOfferAlert.message', { amount: offer.amount }),
                     [
-                      { text: 'Annuler', style: 'cancel' },
-                      { text: 'Accepter', onPress: () => handleAcceptOffer(offer) },
+                      { text: t('common.cancel'), style: 'cancel' },
+                      { text: t('chat.offer.accept'), onPress: () => handleAcceptOffer(offer) },
                     ],
                   )
                 }
               >
                 <Ionicons name="checkmark" size={14} color={colors.background} />
-                <Text style={styles.offerAcceptText}>Accepter</Text>
+                <Text style={styles.offerAcceptText}>{t('chat.offer.accept')}</Text>
               </TouchableOpacity>
               <View style={styles.offerSecondaryRow}>
                 <TouchableOpacity
                   style={styles.offerSecondaryBtn}
                   onPress={() =>
                     Alert.alert(
-                      'Refuser cette offre ?',
-                      `L'acheteur sera informé du refus de son offre à ${offer.amount} €.`,
+                      t('chat.declineOfferAlert.title'),
+                      t('chat.declineOfferAlert.message', { amount: offer.amount }),
                       [
-                        { text: 'Annuler', style: 'cancel' },
-                        { text: 'Refuser', style: 'destructive', onPress: () => handleDeclineOffer(offer) },
+                        { text: t('common.cancel'), style: 'cancel' },
+                        { text: t('chat.offer.decline'), style: 'destructive', onPress: () => handleDeclineOffer(offer) },
                       ],
                     )
                   }
                 >
-                  <Text style={styles.offerSecondaryText}>Refuser</Text>
+                  <Text style={styles.offerSecondaryText}>{t('chat.offer.decline')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.offerSecondaryBtn} onPress={() => openCounterModal(offer.id)}>
-                  <Text style={styles.offerSecondaryText}>Contre-offre</Text>
+                  <Text style={styles.offerSecondaryText}>{t('chat.offer.counterOffer')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -791,7 +794,7 @@ export function ChatScreen({ navigation, route }: Props) {
                   <>
                     <Ionicons name="card-outline" size={14} color={isMine ? colors.primary : colors.background} />
                     <Text style={[styles.offerPayText, isMine ? styles.offerPayTextOnPrimary : styles.offerPayTextOnSurface]}>
-                      Payer {offer.amount} €
+                      {t('chat.offer.pay', { amount: offer.amount })}
                     </Text>
                   </>
                 )
@@ -818,10 +821,10 @@ export function ChatScreen({ navigation, route }: Props) {
             <View style={styles.systemCardInner}>
               <View style={styles.systemCardHeader}>
                 <Ionicons name="bag-check-outline" size={16} color={colors.primary} />
-                <Text style={styles.systemCardTitle}>Achat confirmé</Text>
+                <Text style={styles.systemCardTitle}>{t('chat.purchaseConfirmed')}</Text>
               </View>
               <Text style={styles.systemCardItem} numberOfLines={2}>{parsed.listing_name}</Text>
-              <Text style={styles.systemCardSub}>Remise en main propre · À convenir entre les deux parties</Text>
+              <Text style={styles.systemCardSub}>{t('chat.handDeliveryTbd')}</Text>
             </View>
           </View>
         );
@@ -863,7 +866,7 @@ export function ChatScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle} numberOfLines={1}>{listing_name}</Text>
-          <Text style={styles.headerSub}>Conversation</Text>
+          <Text style={styles.headerSub}>{t('chat.conversation')}</Text>
         </View>
         {isSupport ? (
           <View style={[styles.headerThumb, { backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }]}>
@@ -894,7 +897,7 @@ export function ChatScreen({ navigation, route }: Props) {
             <View style={styles.disputeBanner}>
               <Ionicons name="shield-checkmark-outline" size={14} color={colors.textSecondary} />
               <Text style={styles.disputeBannerText}>
-                Litige ouvert · {disputeInfo.dispute_status === 'open' ? 'En attente' : disputeInfo.dispute_status === 'under_review' ? 'En cours d\'examen' : 'Résolu'}
+                {t('chat.disputeOpen')} · {disputeInfo.dispute_status === 'open' ? t('listing.dispute.pending') : disputeInfo.dispute_status === 'under_review' ? t('listing.dispute.underReview') : t('listing.dispute.resolved')}
               </Text>
             </View>
           );
@@ -907,7 +910,7 @@ export function ChatScreen({ navigation, route }: Props) {
               activeOpacity={0.75}
             >
               <Ionicons name="shield-outline" size={14} color={colors.primary} />
-              <Text style={[styles.disputeBannerText, { color: colors.primary }]}>Signaler un problème · Protection 7 jours</Text>
+              <Text style={[styles.disputeBannerText, { color: colors.primary }]}>{t('listing.dispute.reportProblem')}</Text>
               <Ionicons name="chevron-forward" size={13} color={colors.primary} />
             </TouchableOpacity>
           );
@@ -933,7 +936,7 @@ export function ChatScreen({ navigation, route }: Props) {
             ListEmptyComponent={
               <View style={styles.empty}>
                 <Ionicons name="chatbubbles-outline" size={40} color={colors.textSecondary} />
-                <Text style={styles.emptyText}>Démarrez la conversation !</Text>
+                <Text style={styles.emptyText}>{t('chat.startConversation')}</Text>
               </View>
             }
             ListFooterComponent={
@@ -960,7 +963,7 @@ export function ChatScreen({ navigation, route }: Props) {
             style={styles.input}
             value={input}
             onChangeText={handleInputChange}
-            placeholder="Votre message..."
+            placeholder={t('chat.messagePlaceholder')}
 
             multiline
             maxLength={500}
@@ -983,14 +986,14 @@ export function ChatScreen({ navigation, route }: Props) {
         <KeyboardAvoidingView behavior="padding" style={styles.modalOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowCounterModal(false)} />
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Contre-offre</Text>
-            <Text style={styles.modalSub}>Prix affiché : {listing?.price_final} €</Text>
+            <Text style={styles.modalTitle}>{t('chat.offer.counterOffer')}</Text>
+            <Text style={styles.modalSub}>{t('listing.offerModal.listedPrice', { price: listing?.price_final })}</Text>
             <View style={styles.modalInputRow}>
               <AppTextInput
                 style={styles.modalInput}
                 value={counterAmount}
                 onChangeText={setCounterAmount}
-                placeholder="Votre montant"
+                placeholder={t('chat.yourAmount')}
     
                 keyboardType="numeric"
                 autoFocus
@@ -1003,7 +1006,7 @@ export function ChatScreen({ navigation, route }: Props) {
               onPress={handleCounter}
               disabled={!counterAmount.trim()}
             >
-              <Text style={styles.modalSendText}>Envoyer</Text>
+              <Text style={styles.modalSendText}>{t('chat.send')}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -1019,7 +1022,7 @@ export function ChatScreen({ navigation, route }: Props) {
           listingName={listing.name}
           listingCategory={listing.category}
           thumbnail={listingImage}
-          priceLabelItem="Prix de l'objet (offre)"
+          priceLabelItem={t('chat.offerPriceLabel')}
           referralCredits={referralCredits}
           buying={buying}
           onConfirm={(shippingMethod, deliveryAddr) => {

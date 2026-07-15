@@ -19,6 +19,7 @@ import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { RootStackParamList, AnalysisResult } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { useAuth } from '../context/AuthContext';
@@ -62,6 +63,7 @@ const chipStyles = StyleSheet.create({
 });
 
 export function ResultScreen({ navigation, route }: Props) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { analysis, photos, memory } = route.params;
   const { isGuest, exitGuestMode, user, session } = useAuth();
@@ -115,11 +117,11 @@ export function ResultScreen({ navigation, route }: Props) {
   const handleSave = async () => {
     if (isGuest) {
       Alert.alert(
-        'Compte requis',
-        'Créez un compte gratuit pour sauvegarder vos estimations.',
+        t('result.guestAlert.title'),
+        t('result.guestAlert.saveMessage'),
         [
-          { text: 'Annuler', style: 'cancel' },
-          { text: "S'inscrire", onPress: exitGuestMode },
+          { text: t('result.guestAlert.cancel'), style: 'cancel' },
+          { text: t('result.guestAlert.signup'), onPress: exitGuestMode },
         ],
       );
       return;
@@ -141,7 +143,7 @@ export function ResultScreen({ navigation, route }: Props) {
             },
             body: formData,
           });
-          if (!res.ok) throw new Error('Upload photo échoué');
+          if (!res.ok) throw new Error(t('result.uploadFailed'));
           const { data } = supabase.storage.from('listing-images').getPublicUrl(fileName);
           return data.publicUrl;
         }),
@@ -156,11 +158,11 @@ export function ResultScreen({ navigation, route }: Props) {
         recognition_session_id: recognitionSessionId,
       });
       Alert.alert(
-        'Estimation sauvegardée !',
-        'Retrouvez-la dans votre profil sous "Brouillons" pour la mettre en vente quand vous le souhaitez.',
+        t('result.saveSuccessAlert.title'),
+        t('result.saveSuccessAlert.message'),
       );
     } catch (e: any) {
-      Alert.alert('Erreur', e.message ?? 'Impossible de sauvegarder l\'estimation.');
+      Alert.alert(t('common.error'), e.message ?? t('result.saveErrorFallback'));
     } finally {
       setSaving(false);
     }
@@ -173,11 +175,11 @@ export function ResultScreen({ navigation, route }: Props) {
   const handleSell = () => {
     if (isGuest) {
       Alert.alert(
-        'Compte requis',
-        'Créez un compte gratuit pour publier vos annonces sur Pépite.',
+        t('result.guestAlert.title'),
+        t('result.guestAlert.sellMessage'),
         [
-          { text: 'Annuler', style: 'cancel' },
-          { text: "S'inscrire", onPress: exitGuestMode },
+          { text: t('result.guestAlert.cancel'), style: 'cancel' },
+          { text: t('result.guestAlert.signup'), onPress: exitGuestMode },
         ],
       );
       return;
@@ -201,7 +203,7 @@ export function ResultScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.backBtn} onPress={handleRestart} activeOpacity={0.75}>
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Analyse de l'objet</Text>
+          <Text style={styles.headerTitle}>{t('result.headerTitle')}</Text>
           <View style={{ width: 48 }} />
         </View>
         <Animated.View style={[styles.cardContainer, { transform: [{ translateY: slideAnim }] }]}>
@@ -215,7 +217,7 @@ export function ResultScreen({ navigation, route }: Props) {
             </Animated.View>
             <View style={[styles.actionsSection, { paddingBottom: insets.bottom + 24 }]}>
               <TouchableOpacity style={styles.primaryButtonFull} onPress={handleRestart} activeOpacity={0.85}>
-                <Text style={styles.primaryText}>Réessayer</Text>
+                <Text style={styles.primaryText}>{t('result.retry')}</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -262,9 +264,7 @@ export function ResultScreen({ navigation, route }: Props) {
             <Animated.View style={[styles.section, { opacity: fadeAnims[1] }]}>
               <View style={styles.disclaimerCard}>
                 <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
-                <Text style={styles.disclaimerText}>
-                  L'authenticité d'une montre ne peut être certifiée que par un expert horloger. Cette estimation est indicative.
-                </Text>
+                <Text style={styles.disclaimerText}>{t('result.watchDisclaimer')}</Text>
               </View>
             </Animated.View>
           )}
@@ -274,7 +274,7 @@ export function ResultScreen({ navigation, route }: Props) {
 
           {/* Bloc histoire */}
           <Animated.View style={[styles.section, { opacity: fadeAnims[2], transform: [{ translateY: sectionSlideAnims[2] }] }]}>
-            <Text style={styles.sectionLabel}>Son histoire</Text>
+            <Text style={styles.sectionLabel}>{t('result.storyLabel')}</Text>
             <Text style={styles.storyText}>{analysis.story}</Text>
           </Animated.View>
 
@@ -282,7 +282,7 @@ export function ResultScreen({ navigation, route }: Props) {
 
           {/* Bloc état */}
           <Animated.View style={[styles.section, { opacity: fadeAnims[3], transform: [{ translateY: sectionSlideAnims[3] }] }]}>
-            <Text style={styles.sectionLabel}>État de conservation</Text>
+            <Text style={styles.sectionLabel}>{t('result.conditionLabel')}</Text>
             <View
               style={[
                 styles.conditionBadge,
@@ -300,16 +300,14 @@ export function ResultScreen({ navigation, route }: Props) {
 
           {/* Bloc prix */}
           <Animated.View style={[styles.priceCard, { opacity: fadeAnims[4], transform: [{ translateY: sectionSlideAnims[4] }] }]}>
-            <Text style={styles.priceLabel}>Valeur estimée</Text>
+            <Text style={styles.priceLabel}>{t('result.priceLabel')}</Text>
             <Text style={styles.priceRange}>
-              {analysis.priceMin} € — {analysis.priceMax} €
+              {t('result.priceRange', { min: analysis.priceMin, max: analysis.priceMax })}
             </Text>
             <Text style={styles.priceSuggested}>
-              Prix conseillé : {analysis.priceSuggested} €
+              {t('result.priceSuggested', { price: analysis.priceSuggested })}
             </Text>
-            <Text style={styles.disclaimer}>
-              Estimation basée sur le marché actuel
-            </Text>
+            <Text style={styles.disclaimer}>{t('result.priceDisclaimer')}</Text>
           </Animated.View>
 
           {/* Questions de clarification */}
@@ -318,17 +316,17 @@ export function ResultScreen({ navigation, route }: Props) {
               <View style={styles.clarifyCard}>
                   <View style={styles.clarifyHeader}>
                     <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
-                    <Text style={styles.clarifyTitle}>Pour affiner l'estimation</Text>
+                    <Text style={styles.clarifyTitle}>{t('result.clarify.title')}</Text>
                   </View>
                   {analysis.clarifyingQuestions!.map((q, i) => (
                     <Text key={i} style={styles.clarifyQ}>• {q}</Text>
                   ))}
-                  <Text style={styles.clarifyInputLabel}>Vos réponses</Text>
+                  <Text style={styles.clarifyInputLabel}>{t('result.clarify.inputLabel')}</Text>
                   <TextInput
                     style={styles.clarifyInput}
                     value={clarifyContext}
                     onChangeText={setClarifyContext}
-                    placeholder="Ex : marque Hermès, acheté en 1985 à Paris, héritage familial..."
+                    placeholder={t('result.clarify.placeholder')}
                     placeholderTextColor={colors.textSecondary}
                     multiline
                     textAlignVertical="top"
@@ -341,7 +339,7 @@ export function ResultScreen({ navigation, route }: Props) {
                     activeOpacity={0.8}
                   >
                     <Ionicons name="refresh" size={14} color={colors.background} />
-                    <Text style={styles.clarifyBtnText}>Relancer l'analyse</Text>
+                    <Text style={styles.clarifyBtnText}>{t('result.clarify.button')}</Text>
                   </TouchableOpacity>
               </View>
             </Animated.View>
@@ -360,7 +358,7 @@ export function ResultScreen({ navigation, route }: Props) {
               ) : (
                 <>
                   <Ionicons name="bookmark-outline" size={16} color={colors.primary} />
-                  <Text style={styles.saveText}>Sauvegarder</Text>
+                  <Text style={styles.saveText}>{t('result.save')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -369,7 +367,7 @@ export function ResultScreen({ navigation, route }: Props) {
               onPress={handleSell}
               activeOpacity={0.85}
             >
-              <Text style={styles.primaryText}>Mettre en vente</Text>
+              <Text style={styles.primaryText}>{t('result.sell')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

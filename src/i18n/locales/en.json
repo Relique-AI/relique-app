@@ -1,0 +1,462 @@
+{
+  "common": {
+    "error": "Error",
+    "errorOccurred": "Something went wrong",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "delete": "Delete"
+  },
+  "home": {
+    "brand": "Pépite",
+    "tagline": "Your things are worth more\nthan you think.",
+    "steps": {
+      "scan": "Scan",
+      "estimate": "Estimate",
+      "sell": "Sell"
+    },
+    "cta": "Scan an item",
+    "hint": "Point your camera at any object"
+  },
+  "camera": {
+    "permissionTitle": "Camera access",
+    "permissionText": "Camera access is needed to scan your items. Enable it in your phone's settings.",
+    "permissionButton": "Open settings",
+    "back": "Back",
+    "analyse": "Analyze →",
+    "hintNone": "Multiple angles = better estimate",
+    "hintMore": "Add more angles · {{count}}/{{max}}",
+    "hintMax": "Maximum reached · Ready to analyze"
+  },
+  "review": {
+    "title": "Review photos",
+    "addPhoto": "Add a photo ({{count}}/{{max}})",
+    "photoHint": "The more photos (angles, details, signatures), the more accurate the estimate.",
+    "cta": "Estimate value",
+    "addPhotoAlert": {
+      "title": "Add a photo",
+      "camera": "Take a photo",
+      "gallery": "Choose from library",
+      "cancel": "Cancel"
+    },
+    "deletePhotoRequiredAlert": {
+      "title": "Photo required",
+      "message": "You must keep at least one photo."
+    },
+    "deletePhotoConfirmAlert": {
+      "title": "Delete this photo?",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    }
+  },
+  "loading": {
+    "brand": "✦ Pépite",
+    "messages": [
+      "Pépite is analyzing your item...",
+      "Identifying the era and origin...",
+      "Estimating market value...",
+      "Writing the item's story..."
+    ],
+    "rateLimitCountdown": "Quota reached — retrying in {{seconds}}s",
+    "timeoutError": "The analysis took too long. Please try again.",
+    "genericError": "Something went wrong during the analysis.",
+    "errorTitle": "Oops...",
+    "retry": "Retry"
+  },
+  "result": {
+    "headerTitle": "Item analysis",
+    "retry": "Retry",
+    "guestAlert": {
+      "title": "Account required",
+      "cancel": "Cancel",
+      "signup": "Sign up",
+      "saveMessage": "Create a free account to save your estimates.",
+      "sellMessage": "Create a free account to list items on Pépite."
+    },
+    "uploadFailed": "Photo upload failed",
+    "saveSuccessAlert": {
+      "title": "Estimate saved!",
+      "message": "Find it in your profile under \"Drafts\" to list it for sale whenever you're ready."
+    },
+    "saveErrorFallback": "Couldn't save the estimate.",
+    "watchDisclaimer": "A watch's authenticity can only be certified by a professional watchmaker. This estimate is indicative.",
+    "storyLabel": "Its story",
+    "conditionLabel": "Condition",
+    "priceLabel": "Estimated value",
+    "priceRange": "€{{min}} — €{{max}}",
+    "priceSuggested": "Suggested price: €{{price}}",
+    "priceDisclaimer": "Estimate based on the current market",
+    "clarify": {
+      "title": "Refine the estimate",
+      "inputLabel": "Your answers",
+      "placeholder": "E.g.: Hermès brand, bought in 1985 in Paris, family heirloom...",
+      "button": "Re-run analysis"
+    },
+    "save": "Save",
+    "sell": "List for sale"
+  },
+  "market": {
+    "searchPlaceholder": "Search for an item...",
+    "sort": {
+      "forYou": "For you",
+      "recent": "Recent",
+      "priceAsc": "Price ↑",
+      "priceDesc": "Price ↓"
+    },
+    "emptyTitle": "No listings",
+    "emptySearch": "No results for this search.",
+    "emptyDefault": "Be the first to list an item!"
+  },
+  "listing": {
+    "notFound": "Listing not found.",
+    "confirmReceptionAlert": {
+      "title": "Confirm receipt",
+      "message": "Have you received your order?"
+    },
+    "confirmationError": "Error during confirmation",
+    "markSoldAlert": {
+      "title": "Mark as sold",
+      "message": "This item will be removed from the market. Confirm?"
+    },
+    "soldAlert": {
+      "title": "Sold!",
+      "message": "Your listing has been marked as sold."
+    },
+    "report": {
+      "title": "Report this listing",
+      "prompt": "Why are you reporting this listing?",
+      "reasons": {
+        "inappropriate": "Inappropriate content",
+        "scam": "Scam / Fraud",
+        "prohibited": "Prohibited item"
+      }
+    },
+    "reportNotification": "Report",
+    "reportSentAlert": {
+      "title": "Report sent",
+      "message": "Thanks, our team will review this listing."
+    },
+    "shareLinkPrefix": "See this listing on Pépite: {{link}}",
+    "shipping": {
+      "hand": "Hand delivery"
+    },
+    "paymentStartError": "Couldn't start the payment.",
+    "paymentError": "Payment error",
+    "sellerNotConfiguredAlert": {
+      "title": "Purchase temporarily unavailable",
+      "message": "This seller hasn't enabled payments on Pépite yet. You can send them a message to let them know or arrange something.",
+      "sendMessage": "Send a message"
+    },
+    "offerSendError": "Couldn't send the offer.",
+    "offerMessage": "Offer of €{{amount}}",
+    "buyerFallback": "Buyer",
+    "sellerFallback": "Seller",
+    "userFallback": "User",
+    "newQuestionNotification": "New question",
+    "storyLabel": "The item's story",
+    "locationLabel": "Location",
+    "viewOnMap": "View on map",
+    "publishedOn": "Published on {{date}}",
+    "ratingCount": "{{avg}} ({{count}} reviews)",
+    "leaveReview": "Leave a review",
+    "questionsLabel": "Questions",
+    "noQuestions": "No questions yet.",
+    "answerPlaceholder": "Your answer...",
+    "reply": "Reply",
+    "askPlaceholder": "Ask a question...",
+    "otherListingsBy": "More listings from {{seller}}",
+    "similarItems": "Similar items",
+    "status": {
+      "refunded": "Refunded",
+      "refundedSub": "The refund was initiated following the dispute",
+      "handToConfirm": "Hand delivery to arrange",
+      "shipped": "Shipped",
+      "awaitingShipment": "Awaiting shipment",
+      "handContactSeller": "Contact the seller to arrange the handoff",
+      "tracking": "Tracking: {{number}}",
+      "sellerPreparing": "The seller is preparing your parcel"
+    },
+    "dispute": {
+      "label": "Dispute",
+      "pending": "Pending",
+      "pendingReview": "Awaiting review",
+      "underReview": "Under review",
+      "resolved": "Resolved",
+      "reportProblem": "Report a problem · 7-day protection"
+    },
+    "shippingLine": {
+      "oversized": "Oversized shipping · fees to arrange with the buyer",
+      "fromCost": "From €{{cost}} shipping · Total from €{{total}} (fees included)",
+      "free": "Free shipping · Total €{{total}} (Pépite fees included)",
+      "handOnly": "Hand delivery · Total €{{total}} (Pépite fees included)"
+    },
+    "offerModal": {
+      "title": "Make an offer",
+      "listedPrice": "Listed price: €{{price}}",
+      "placeholder": "Your offer",
+      "send": "Send offer"
+    },
+    "shipModal": {
+      "title": "Ship the item",
+      "buyerAddress": "Buyer's address",
+      "step1Title": "Prepare the parcel",
+      "step1Desc": "Pack the item carefully (bubble wrap, suitable box). Protect fragile parts.",
+      "step2Title": "Create the label{{carrier}}",
+      "step2DescWithCarrier": "Go to the carrier's website to generate your label.",
+      "step2DescNoCarrier": "Use your carrier's website to create the shipping label.",
+      "openCarrier": "Open {{carrier}}",
+      "step3Title": "Drop off the parcel",
+      "step3Desc": "Bring the labeled parcel to a post office or approved drop-off point.",
+      "step4Title": "Confirm shipment",
+      "step4Desc": "Enter the tracking number (optional) to notify the buyer.",
+      "trackingPlaceholder": "E.g.: 6X123456789FR",
+      "confirmButton": "Confirm shipment"
+    },
+    "actions": {
+      "disputeRefunded": "Dispute — Refunded",
+      "deliveredConfirmed": "Delivered · Receipt confirmed",
+      "shippedAwaitingReceipt": "Shipped · Awaiting receipt",
+      "shipItem": "Ship the item",
+      "edit": "Edit",
+      "markAsSold": "Mark as sold",
+      "receiptConfirmed": "Receipt confirmed",
+      "confirmHandoff": "Confirm handoff",
+      "confirmReceipt": "Confirm receipt",
+      "itemSold": "Item sold",
+      "offer": "Offer",
+      "buy": "Buy · €{{total}}"
+    }
+  },
+  "payment": {
+    "shipping": {
+      "hand": "Hand delivery"
+    },
+    "priceLabelItem": "Item price",
+    "shippingTitle": "Delivery method",
+    "soldBy": "Sold by {{seller}}",
+    "freeTotal": "Free  ·  Total €{{total}}",
+    "feesToArrange": "Fees to arrange with the buyer",
+    "plusCostTotal": "+ €{{cost}}  ·  Total €{{total}}",
+    "recipient": "Recipient",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "company": "Company (optional)",
+    "deliveryAddress": "Delivery address",
+    "addressPlaceholder": "E.g.: 12 rue de la Paix, 75001 Paris",
+    "confirmWithShippingTbd": "Confirm · €{{total}} + shipping to arrange",
+    "confirmAndPay": "Confirm and pay · €{{total}}",
+    "recapTitle": "Summary",
+    "deliveryMethod": "Shipping ({{method}})",
+    "tbd": "To arrange",
+    "serviceFee": "Pépite service fee (8%)",
+    "referralDiscount_one": "✦ Referral discount −50% ({{count}} credit remaining)",
+    "referralDiscount_other": "✦ Referral discount −50% ({{count}} credits remaining)",
+    "total": "Total",
+    "totalPlusShipping": "€{{total}} + shipping",
+    "pay": "Pay · €{{total}}"
+  },
+  "auth": {
+    "tabs": {
+      "login": "Log in",
+      "signup": "Create account"
+    },
+    "forgot": {
+      "title": "Forgot password",
+      "subtitle": "Enter your email to receive a reset link."
+    },
+    "labels": {
+      "emailOrUsername": "Email or username",
+      "email": "Email",
+      "username": "Username",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "referralCode": "Referral code (optional)"
+    },
+    "placeholders": {
+      "emailOrUsername": "email or username",
+      "email": "your@email.com",
+      "username": "e.g.: vintage_paul, parisfinds",
+      "referralCode": "e.g.: ABC12345"
+    },
+    "username": {
+      "checking": "Checking…",
+      "available": "✓ Username available",
+      "taken": "✗ This username is already taken",
+      "rules": "Letters, numbers, _ . - · 3 to 30 characters"
+    },
+    "forgotPasswordLink": "Forgot password?",
+    "backToLogin": "← Back to login",
+    "submit": {
+      "login": "Log in",
+      "signup": "Create my account",
+      "forgot": "Send link"
+    },
+    "or": "or",
+    "continueWithGoogle": "Continue with Google",
+    "guestLink": "Explore without an account →",
+    "resetLinkSent": "A reset link has been sent to your email.",
+    "welcome": "Welcome to Pépite!{{referralMsg}}",
+    "referralSuccess": " You were referred by {{referrer}} — your referrer has been notified. You get 3 purchases at −50% fees!",
+    "errors": {
+      "emailRequired": "Please enter your email.",
+      "fillAllFields": "Please fill in all fields.",
+      "passwordMismatch": "Passwords don't match.",
+      "passwordTooShort": "Password must be at least 6 characters.",
+      "usernameTooShort": "Username must be at least 3 characters.",
+      "usernamePattern": "Username: letters, numbers, _ . - only",
+      "usernameTaken": "This username is already taken. Choose another one.",
+      "invalidCredentials": "Incorrect email or password.",
+      "emailNotConfirmed": "Confirm your email before logging in.",
+      "userExists": "An account already exists with this email.",
+      "passwordTooShortServer": "Password too short (6 characters minimum)."
+    }
+  },
+  "chat": {
+    "someoneFallback": "Someone",
+    "notAuthenticated": "Not authenticated",
+    "uploadFailed": "Upload failed: {{detail}}",
+    "photoPreview": "📷 Photo",
+    "sendPhotoError": "Couldn't send the photo",
+    "permissionRequired": {
+      "title": "Permission required",
+      "camera": "Camera access is needed.",
+      "gallery": "Photo library access is needed."
+    },
+    "sendPhotoAlert": {
+      "title": "Send a photo",
+      "camera": "Take a photo",
+      "gallery": "Choose from library"
+    },
+    "offerAcceptedNotif": "Offer of €{{amount}} accepted ✓",
+    "offerDeclinedNotif": "Offer of €{{amount}} declined",
+    "counterOfferMessage": "Counter-offer of €{{amount}}",
+    "offer": {
+      "yourCounterOffer": "Your counter-offer",
+      "yourOffer": "Your offer",
+      "counterOfferReceived": "Counter-offer received",
+      "offerReceived": "Offer received",
+      "pendingResponse": "Awaiting response",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "counterOfferSent": "Counter-offer sent",
+      "accept": "Accept",
+      "decline": "Decline",
+      "counterOffer": "Counter-offer",
+      "pay": "Pay €{{amount}}"
+    },
+    "acceptOfferAlert": {
+      "title": "Accept this offer?",
+      "message": "You're confirming acceptance of the €{{amount}} offer."
+    },
+    "declineOfferAlert": {
+      "title": "Decline this offer?",
+      "message": "The buyer will be notified their €{{amount}} offer was declined."
+    },
+    "purchaseConfirmed": "Purchase confirmed",
+    "handDeliveryTbd": "Hand delivery · To arrange between both parties",
+    "conversation": "Conversation",
+    "disputeOpen": "Dispute open",
+    "startConversation": "Start the conversation!",
+    "messagePlaceholder": "Your message...",
+    "yourAmount": "Your amount",
+    "send": "Send",
+    "offerPriceLabel": "Item price (offer)"
+  },
+  "profile": {
+    "myProfile": "My profile",
+    "viewPublicProfile": "View my public profile →",
+    "tabs": {
+      "listings": "Listings ({{count}})",
+      "favorites": "Favorites ({{count}})",
+      "purchases": "Purchases ({{count}})"
+    },
+    "drafts": "Drafts",
+    "myListings": "My listings",
+    "draftDate": "Draft · {{date}}",
+    "deleteDraftAlert": {
+      "title": "Delete this draft?",
+      "message": "This estimate will be permanently deleted."
+    },
+    "deleteListingAlert": {
+      "title": "Delete listing",
+      "message": "This action can't be undone. Confirm?"
+    },
+    "markSoldAlert": {
+      "message": "The listing will be removed from the market."
+    },
+    "markShippedError": "Couldn't mark as shipped.",
+    "signOutAlert": {
+      "title": "Log out",
+      "message": "Do you want to log out?",
+      "confirm": "Log out"
+    },
+    "status": {
+      "sold": "Sold",
+      "online": "Live",
+      "inProgress": "In progress",
+      "paid": "Paid",
+      "handToArrange": "Handoff to arrange",
+      "inDelivery": "In delivery",
+      "delivered": "Delivered"
+    },
+    "questionCount_one": "{{count}} question",
+    "questionCount_other": "{{count}} questions",
+    "receiptConfirmed": "Receipt confirmed",
+    "ship": "Ship",
+    "label": "Label",
+    "deletedListing": "Deleted listing",
+    "order": "Order",
+    "confirmReceiptShort": "Confirm receipt",
+    "reportProblem": "Report a problem",
+    "disputeStatus": "Dispute {{status}}",
+    "disputeStatuses": {
+      "open": "open",
+      "underReview": "under review",
+      "resolvedBuyer": "resolved ✓",
+      "resolvedSeller": "closed"
+    },
+    "empty": {
+      "listingsTitle": "No listings",
+      "favoritesTitle": "No favorites",
+      "purchasesTitle": "No purchases",
+      "listingsText": "Publish your first item from the Scan tab.",
+      "favoritesText": "Add listings to your favorites from the market.",
+      "purchasesText": "Your purchases made in the app will appear here."
+    },
+    "markShippedTitle": "Mark as shipped",
+    "trackingNumberLabel": "Tracking number (optional)",
+    "trackingNumberPlaceholder": "E.g.: 6A12345678901"
+  },
+  "settings": {
+    "title": "Settings",
+    "sections": {
+      "account": "Account",
+      "admin": "Administration",
+      "help": "Help",
+      "information": "Information",
+      "dangerZone": "Danger zone"
+    },
+    "moderation": "Moderation",
+    "moderationSubtitle": "Handle reports",
+    "contactUs": "Contact us",
+    "contactUsSubtitle": "Open a conversation with the Pépite team",
+    "legalMentions": "Terms & legal notices",
+    "privacyPolicy": "Privacy policy",
+    "deleteAccount": "Delete my account",
+    "deleteAccountSubtitle": "Permanent deletion of all your data",
+    "deleteAccountAlert": {
+      "title": "Delete account",
+      "message": "All your data will be permanently deleted. This action can't be undone."
+    },
+    "deleteAccountError": "Couldn't delete the account.",
+    "unavailable": "Unavailable",
+    "supportUnavailable": "Support isn't available right now.",
+    "supportChatName": "Pépite Support",
+    "version": "Pépite v{{version}}"
+  },
+  "apiErrors": {
+    "unauthorized": "Unauthorized",
+    "transaction_not_found": "Transaction not found",
+    "invalid_body": "Invalid request body"
+  }
+}

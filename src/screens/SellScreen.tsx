@@ -218,12 +218,18 @@ export function SellScreen({ navigation, route }: Props) {
     setLoading(true);
     try {
       await supabase.rpc('ensure_profile');
+      const { data: sellerProfile } = await supabase
+        .from('profiles')
+        .select('country')
+        .eq('id', user.id)
+        .single();
       const imageUrls = isPreUploaded
         ? photos.map(p => p.uri)
         : await Promise.all(photos.map(p => uploadPhoto(p.uri, user.id, session.access_token)));
 
       const { error } = await supabase.from('listings').insert({
         seller_id: user.id,
+        country: sellerProfile?.country ?? 'FR',
         name: name.trim(),
         category: category.trim(),
         era: analysis.era,

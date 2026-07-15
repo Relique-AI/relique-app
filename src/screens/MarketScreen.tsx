@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useTranslation } from 'react-i18next';
 import { MarketStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase, Listing } from '../services/supabase';
@@ -30,15 +31,16 @@ const PAGE_SIZE = 20;
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.section * 2 - 12) / 2;
 
-const SORT_LABELS: Record<SortOption, string> = {
-  pour_toi: 'Pour toi',
-  recent: 'Récent',
-  price_asc: 'Prix ↑',
-  price_desc: 'Prix ↓',
+const SORT_LABEL_KEYS: Record<SortOption, string> = {
+  pour_toi: 'market.sort.forYou',
+  recent: 'market.sort.recent',
+  price_asc: 'market.sort.priceAsc',
+  price_desc: 'market.sort.priceDesc',
 };
 
 export function MarketScreen({ navigation }: Props) {
-  const { user } = useAuth();
+  const { t } = useTranslation();
+  const { user, country } = useAuth();
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -72,6 +74,7 @@ export function MarketScreen({ navigation }: Props) {
       const { data: ranked } = await supabase.rpc('get_personalized_listings', {
         p_limit: PAGE_SIZE,
         p_offset: from,
+        p_country: country,
       });
       const ids: string[] = (ranked ?? []).map((r: { listing_id: string }) => r.listing_id);
       if (ids.length > 0) {
@@ -87,6 +90,7 @@ export function MarketScreen({ navigation }: Props) {
         .from('listings')
         .select('*, profiles(username)')
         .eq('status', 'active')
+        .eq('country', country)
         .range(from, to);
 
       if (search.trim()) {
@@ -142,7 +146,7 @@ export function MarketScreen({ navigation }: Props) {
   useEffect(() => {
     loadFavorites();
     loadListings(true, '', 'Tous', 'recent');
-  }, []);
+  }, [country]);
 
   // ─── Debounce search ────────────────────────────────────────────────────────
 
@@ -156,7 +160,7 @@ export function MarketScreen({ navigation }: Props) {
 
   useEffect(() => {
     loadListings(true, searchQuery, 'Tous', sort);
-  }, [searchQuery, sort]);
+  }, [searchQuery, sort, country]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -197,7 +201,7 @@ export function MarketScreen({ navigation }: Props) {
             style={styles.searchText}
             value={searchInput}
             onChangeText={handleSearchChange}
-            placeholder="Rechercher un objet..."
+            placeholder={t('market.searchPlaceholder')}
 
             returnKeyType="search"
           />
@@ -211,14 +215,14 @@ export function MarketScreen({ navigation }: Props) {
 
       {/* Tri */}
       <View style={styles.sortRow}>
-        {(Object.keys(SORT_LABELS) as SortOption[]).map((s) => (
+        {(Object.keys(SORT_LABEL_KEYS) as SortOption[]).map((s) => (
           <TouchableOpacity
             key={s}
             style={[styles.sortBtn, sort === s && styles.sortBtnActive]}
             onPress={() => setSort(s)}
           >
             <Text style={[styles.sortText, sort === s && styles.sortTextActive]}>
-              {SORT_LABELS[s]}
+              {t(SORT_LABEL_KEYS[s])}
             </Text>
           </TouchableOpacity>
         ))}
@@ -251,9 +255,9 @@ export function MarketScreen({ navigation }: Props) {
           loading ? null : (
             <View style={styles.empty}>
               <Ionicons name="storefront-outline" size={48} color={colors.textSecondary} />
-              <Text style={styles.emptyTitle}>Aucune annonce</Text>
+              <Text style={styles.emptyTitle}>{t('market.emptyTitle')}</Text>
               <Text style={styles.emptyText}>
-                {searchQuery ? 'Aucun résultat pour cette recherche.' : 'Soyez le premier à publier un objet !'}
+                {searchQuery ? t('market.emptySearch') : t('market.emptyDefault')}
               </Text>
             </View>
           )

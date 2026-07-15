@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { RootStackParamList } from '../types';
 import { analyzeObject } from '../services/claude';
 import { colors, fonts, spacing } from '../theme';
@@ -18,12 +19,6 @@ import { colors, fonts, spacing } from '../theme';
 const { width } = Dimensions.get('window');
 const TIMEOUT_MS = 30_000;
 const RATE_LIMIT_WAIT = 60;
-const MESSAGES = [
-  'Pépite analyse votre objet...',
-  "Identification de l'époque et de l'origine...",
-  'Estimation de la valeur marchande...',
-  "Rédaction de l'histoire de l'objet...",
-];
 
 type Props = {
   navigation: StackNavigationProp<RootStackParamList, 'Loading'>;
@@ -31,6 +26,8 @@ type Props = {
 };
 
 export function LoadingScreen({ navigation, route }: Props) {
+  const { t } = useTranslation();
+  const MESSAGES = t('loading.messages', { returnObjects: true }) as string[];
   const { photos, memory, previousAnalysis } = route.params;
   const [messageIndex, setMessageIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +94,7 @@ export function LoadingScreen({ navigation, route }: Props) {
       const controller = new AbortController();
       const timeout = setTimeout(() => {
         controller.abort();
-        if (!cancelled) setError("L'analyse a pris trop de temps. Veuillez réessayer.");
+        if (!cancelled) setError(t('loading.timeoutError'));
       }, TIMEOUT_MS);
 
       try {
@@ -128,7 +125,7 @@ export function LoadingScreen({ navigation, route }: Props) {
             }
           }, 1000);
         } else {
-          setError(message || "Une erreur est survenue lors de l'analyse.");
+          setError(message || t('loading.genericError'));
         }
       }
     };
@@ -155,10 +152,10 @@ export function LoadingScreen({ navigation, route }: Props) {
         <SafeAreaView style={styles.errorContainer}>
           <View style={styles.card}>
             <Text style={styles.errorIcon}>✦</Text>
-            <Text style={styles.errorTitle}>Oups...</Text>
+            <Text style={styles.errorTitle}>{t('loading.errorTitle')}</Text>
             <Text style={styles.errorMessage}>{error}</Text>
             <TouchableOpacity style={styles.retryButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.retryText}>Réessayer</Text>
+              <Text style={styles.retryText}>{t('loading.retry')}</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -179,12 +176,12 @@ export function LoadingScreen({ navigation, route }: Props) {
           </Animated.View>
         </View>
 
-        <Text style={styles.brand}>✦ Pépite</Text>
+        <Text style={styles.brand}>{t('loading.brand')}</Text>
 
         {/* Message rotatif ou countdown rate limit */}
         <Animated.Text style={[styles.message, { opacity: retryCountdown !== null ? 1 : messageOpacity }]}>
           {retryCountdown !== null
-            ? `Quota atteint — nouvelle tentative dans ${retryCountdown}s`
+            ? t('loading.rateLimitCountdown', { seconds: retryCountdown })
             : MESSAGES[messageIndex]}
         </Animated.Text>
 

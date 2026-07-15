@@ -11,18 +11,12 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { AppTextInput } from './AppTextInput';
 import { colors, fonts } from '../theme';
 import { getShippingCost } from '../utils/shippingRates';
 
 const COMMISSION_RATE = 0.08;
-
-const SHIPPING_LABELS: Record<string, string> = {
-  hand: 'Remise en main propre',
-  relay: 'Mondial Relay',
-  colissimo: 'Colissimo',
-  chronopost: 'Chronopost',
-};
 
 type Props = {
   visible: boolean;
@@ -49,12 +43,20 @@ export function PaymentFlowSheet({
   listingCategory,
   thumbnail,
   sellerName,
-  priceLabelItem = "Prix de l'objet",
+  priceLabelItem,
   referralCredits,
   buying,
   onConfirm,
   onClose,
 }: Props) {
+  const { t } = useTranslation();
+  const SHIPPING_LABELS: Record<string, string> = {
+    hand: t('payment.shipping.hand'),
+    relay: 'Mondial Relay',
+    colissimo: 'Colissimo',
+    chronopost: 'Chronopost',
+  };
+  const priceLabel = priceLabelItem ?? t('payment.priceLabelItem');
   const hasPostal = shippingOptions.some((o) => o !== 'hand');
   const [step, setStep] = useState<'shipping' | 'recap'>(hasPostal ? 'shipping' : 'recap');
   const [selectedShipping, setSelectedShipping] = useState(hasPostal ? shippingOptions[0] : 'hand');
@@ -94,7 +96,7 @@ export function PaymentFlowSheet({
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          <Text style={styles.sheetTitle}>Mode de livraison</Text>
+          <Text style={styles.sheetTitle}>{t('payment.shippingTitle')}</Text>
 
           <View style={styles.productRecap}>
             <View style={styles.productRecapRow}>
@@ -103,7 +105,7 @@ export function PaymentFlowSheet({
             </View>
             {sellerName ? (
               <View style={styles.productRecapRow}>
-                <Text style={styles.productRecapMeta}>Vendu par {sellerName}</Text>
+                <Text style={styles.productRecapMeta}>{t('payment.soldBy', { seller: sellerName })}</Text>
               </View>
             ) : null}
             <View style={styles.productRecapDivider} />
@@ -131,10 +133,10 @@ export function PaymentFlowSheet({
                   </Text>
                   <Text style={styles.optionPrice}>
                     {opt === 'hand'
-                      ? `Gratuit  ·  Total ${total.toFixed(2)} €`
+                      ? t('payment.freeTotal', { total: total.toFixed(2) })
                       : xlCarrier
-                        ? "Frais à convenir avec l'acheteur"
-                        : `+ ${shippingCost.toFixed(2)} €  ·  Total ${total.toFixed(2)} €`}
+                        ? t('payment.feesToArrange')
+                        : t('payment.plusCostTotal', { cost: shippingCost.toFixed(2), total: total.toFixed(2) })}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -143,13 +145,13 @@ export function PaymentFlowSheet({
 
           {selectedShipping !== 'hand' && (
             <View style={{ marginTop: 8, gap: 10 }}>
-              <Text style={styles.addressLabel}>Destinataire</Text>
+              <Text style={styles.addressLabel}>{t('payment.recipient')}</Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <AppTextInput
                   style={[styles.addressInput, { flex: 1 }]}
                   value={firstName}
                   onChangeText={setFirstName}
-                  placeholder="Prénom"
+                  placeholder={t('payment.firstName')}
                   autoCapitalize="words"
                   autoCorrect={false}
                 />
@@ -157,7 +159,7 @@ export function PaymentFlowSheet({
                   style={[styles.addressInput, { flex: 1 }]}
                   value={lastName}
                   onChangeText={setLastName}
-                  placeholder="Nom"
+                  placeholder={t('payment.lastName')}
                   autoCapitalize="words"
                   autoCorrect={false}
                 />
@@ -166,16 +168,16 @@ export function PaymentFlowSheet({
                 style={styles.addressInput}
                 value={company}
                 onChangeText={setCompany}
-                placeholder="Entreprise (optionnel)"
+                placeholder={t('payment.company')}
                 autoCapitalize="words"
                 autoCorrect={false}
               />
-              <Text style={styles.addressLabel}>Adresse de livraison</Text>
+              <Text style={styles.addressLabel}>{t('payment.deliveryAddress')}</Text>
               <AppTextInput
                 style={styles.addressInput}
                 value={address}
                 onChangeText={setAddress}
-                placeholder="Ex : 12 rue de la Paix, 75001 Paris"
+                placeholder={t('payment.addressPlaceholder')}
                 multiline
               />
             </View>
@@ -199,8 +201,8 @@ export function PaymentFlowSheet({
               ? <ActivityIndicator color={colors.background} size="small" />
               : <Text style={styles.confirmText}>
                   {xlSelected
-                    ? `Confirmer · ${confirmTotal.toFixed(2)} € + livraison à convenir`
-                    : `Confirmer et payer · ${confirmTotal.toFixed(2)} €`}
+                    ? t('payment.confirmWithShippingTbd', { total: confirmTotal.toFixed(2) })
+                    : t('payment.confirmAndPay', { total: confirmTotal.toFixed(2) })}
                 </Text>
             }
           </TouchableOpacity>
@@ -229,7 +231,7 @@ export function PaymentFlowSheet({
         }}
       />
       <View style={styles.recapSheet}>
-        <Text style={styles.recapTitle}>Récapitulatif</Text>
+        <Text style={styles.recapTitle}>{t('payment.recapTitle')}</Text>
 
         <View style={styles.recapProduct}>
           {thumbnail ? (
@@ -242,7 +244,7 @@ export function PaymentFlowSheet({
           <View style={{ flex: 1 }}>
             <Text style={styles.recapProductName} numberOfLines={2}>{listingName}</Text>
             {listingCategory ? <Text style={styles.recapProductMeta}>{listingCategory}</Text> : null}
-            {sellerName ? <Text style={styles.recapProductMeta}>Vendu par {sellerName}</Text> : null}
+            {sellerName ? <Text style={styles.recapProductMeta}>{t('payment.soldBy', { seller: sellerName })}</Text> : null}
           </View>
         </View>
 
@@ -250,32 +252,32 @@ export function PaymentFlowSheet({
 
         <View style={styles.recapPriceRows}>
           <View style={styles.recapPriceRow}>
-            <Text style={styles.recapPriceLabel}>{priceLabelItem}</Text>
+            <Text style={styles.recapPriceLabel}>{priceLabel}</Text>
             <Text style={styles.recapPriceValue}>{basePrice.toFixed(2)} €</Text>
           </View>
           {pendingShipping === 'hand' ? (
             <View style={styles.recapPriceRow}>
-              <Text style={styles.recapPriceLabel}>Remise en main propre</Text>
+              <Text style={styles.recapPriceLabel}>{t('payment.shipping.hand')}</Text>
             </View>
           ) : (
             <View style={styles.recapPriceRow}>
-              <Text style={styles.recapPriceLabel}>Livraison ({SHIPPING_LABELS[pendingShipping] ?? pendingShipping})</Text>
+              <Text style={styles.recapPriceLabel}>{t('payment.deliveryMethod', { method: SHIPPING_LABELS[pendingShipping] ?? pendingShipping })}</Text>
               <Text style={styles.recapPriceValue}>
-                {xlShipping ? 'À convenir' : `${shippingCost.toFixed(2)} €`}
+                {xlShipping ? t('payment.tbd') : `${shippingCost.toFixed(2)} €`}
               </Text>
             </View>
           )}
           {hasReferralDiscount ? (
             <>
               <View style={styles.recapPriceRow}>
-                <Text style={styles.recapPriceLabel}>Frais de service Pépite (8%)</Text>
+                <Text style={styles.recapPriceLabel}>{t('payment.serviceFee')}</Text>
                 <Text style={styles.recapPriceValue}>
                   {Math.round(recapBase * COMMISSION_RATE * 100) / 100} €
                 </Text>
               </View>
               <View style={styles.recapPriceRow}>
                 <Text style={[styles.recapPriceLabel, { color: colors.success }]}>
-                  ✦ Réduction parrainage −50% ({referralCredits} crédit{referralCredits > 1 ? 's' : ''} restant{referralCredits > 1 ? 's' : ''})
+                  {t('payment.referralDiscount', { count: referralCredits })}
                 </Text>
                 <Text style={[styles.recapPriceValue, { color: colors.success }]}>
                   −{(Math.round(recapBase * COMMISSION_RATE * 100) / 100 - recapFee).toFixed(2)} €
@@ -284,15 +286,15 @@ export function PaymentFlowSheet({
             </>
           ) : (
             <View style={styles.recapPriceRow}>
-              <Text style={styles.recapPriceLabel}>Frais de service Pépite (8%)</Text>
+              <Text style={styles.recapPriceLabel}>{t('payment.serviceFee')}</Text>
               <Text style={styles.recapPriceValue}>{recapFee.toFixed(2)} €</Text>
             </View>
           )}
           <View style={[styles.recapPriceRow, styles.recapPriceTotal]}>
-            <Text style={styles.recapTotalLabel}>Total</Text>
+            <Text style={styles.recapTotalLabel}>{t('payment.total')}</Text>
             <Text style={styles.recapTotalValue}>
               {xlShipping
-                ? `${Math.round(basePrice * (1 + COMMISSION_RATE) * 100) / 100} € + livraison`
+                ? t('payment.totalPlusShipping', { total: Math.round(basePrice * (1 + COMMISSION_RATE) * 100) / 100 })
                 : `${recapTotal.toFixed(2)} €`}
             </Text>
           </View>
@@ -305,7 +307,7 @@ export function PaymentFlowSheet({
               <View style={styles.recapAddressRow}>
                 <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.recapAddressLabel}>Destinataire</Text>
+                  <Text style={styles.recapAddressLabel}>{t('payment.recipient')}</Text>
                   <Text style={styles.recapAddressText}>{pendingRecipient}</Text>
                 </View>
               </View>
@@ -314,7 +316,7 @@ export function PaymentFlowSheet({
               <View style={[styles.recapAddressRow, pendingRecipient ? { marginTop: 8 } : {}]}>
                 <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.recapAddressLabel}>Adresse de livraison</Text>
+                  <Text style={styles.recapAddressLabel}>{t('payment.deliveryAddress')}</Text>
                   <Text style={styles.recapAddressText}>{pendingAddress}</Text>
                 </View>
               </View>
@@ -336,8 +338,8 @@ export function PaymentFlowSheet({
             ? <ActivityIndicator color={colors.background} size="small" />
             : <Text style={styles.payText}>
                 {xlShipping
-                  ? `Payer · ${(Math.round(basePrice * (1 + COMMISSION_RATE) * 100) / 100).toFixed(2)} €`
-                  : `Payer · ${recapTotal.toFixed(2)} €`}
+                  ? t('payment.pay', { total: (Math.round(basePrice * (1 + COMMISSION_RATE) * 100) / 100).toFixed(2) })
+                  : t('payment.pay', { total: recapTotal.toFixed(2) })}
               </Text>
           }
         </TouchableOpacity>

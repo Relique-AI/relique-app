@@ -5,6 +5,8 @@ import { supabase } from '../services/supabase';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
+import * as Localization from 'expo-localization';
+import i18n from '../i18n';
 
 interface AuthContextValue {
   user: User | null;
@@ -12,6 +14,7 @@ interface AuthContextValue {
   loading: boolean;
   profileLoading: boolean;
   isAdmin: boolean;
+  country: string;
   isGuest: boolean;
   isRecovery: boolean;
   clearRecovery: () => void;
@@ -34,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [country, setCountry] = useState('FR');
   const [isGuest, setIsGuest] = useState(false);
   const [isRecovery, setIsRecovery] = useState(false);
   const enterGuestMode = () => setIsGuest(true);
@@ -48,8 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshProfile = async () => {
     const { data: { user: u } } = await supabase.auth.getUser();
     if (!u) return;
-    const { data } = await supabase.from('profiles').select('username, is_admin').eq('id', u.id).single();
+    const { data } = await supabase.from('profiles').select('username, is_admin, country').eq('id', u.id).single();
     setIsAdmin(!!data?.is_admin);
+    if (data?.country) setCountry(data.country);
   };
 
   useEffect(() => {
@@ -100,9 +105,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
                 const { data: profile } = await supabase
                   .from('profiles')
-                  .select('username, is_admin, referred_by')
+                  .select('username, is_admin, referred_by, country')
                   .eq('id', userId)
                   .single();
+
+                // Détermine le pays une seule fois, à la création du profil (comme le pseudo ci-dessous)
+                if (!profile?.country) {
+                  const detectedCountry = Localization.getLocales()[0]?.regionCode === 'US' ? 'US' : 'FR';
+                  await supabase.from('profiles').update({ country: detectedCountry }).eq('id', userId).is('country', null);
+                  setCountry(detectedCountry);
+                } else {
+                  setCountry(profile.country);
+                }
 
                 // Auto-générer un pseudo pour les nouveaux comptes Google
                 if (!profile?.username && !meta.username) {
@@ -186,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     if (!error) {
-      supabase.functions.invoke('send-welcome', { body: { email, username } });
+      supabase.functions.invoke('send-welcome', { body: { email, username, language: i18n.language } });
     }
     return error?.message ?? null;
   };
@@ -239,7 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, profileLoading, isAdmin, isGuest, isRecovery, clearRecovery, handleRecovery, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signInWithGoogle, signInWithApple, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, profileLoading, isAdmin, country, isGuest, isRecovery, clearRecovery, handleRecovery, enterGuestMode, exitGuestMode, refreshProfile, signIn, signUp, signInWithGoogle, signInWithApple, signOut }}>
       {children}
     </AuthContext.Provider>
   );

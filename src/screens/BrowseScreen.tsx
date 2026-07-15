@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { BrowseStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import { supabase } from '../services/supabase';
+import { useAuth } from '../context/AuthContext';
 
 type Props = {
   navigation: StackNavigationProp<BrowseStackParamList, 'Browse'>;
@@ -42,13 +43,15 @@ const CATEGORIES = [
 ] as const;
 
 export function BrowseScreen({ navigation }: Props) {
+  const { country } = useAuth();
   const [visibleCategories, setVisibleCategories] = useState<typeof CATEGORIES[number][]>([...CATEGORIES]);
 
   const loadAvailableCategories = async () => {
     const { data } = await supabase
       .from('listings')
       .select('category')
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .eq('country', country);
     if (!data || data.length === 0) return;
     const dbCats = data.map((r) => (r.category ?? '').toLowerCase());
     const filtered = CATEGORIES.filter((cat) => {
@@ -61,7 +64,7 @@ export function BrowseScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       loadAvailableCategories();
-    }, []),
+    }, [country]),
   );
 
   const renderCategory = ({ item }: { item: typeof CATEGORIES[number] }) => {

@@ -20,7 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { imgUrl } from '../utils/images';
 import { RouteProp } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { colors, fonts, spacing } from '../theme';
+import { translateApiError } from '../utils/apiError';
 import { supabase, Listing, Profile, SavedEstimation } from '../services/supabase';
 import { AppTextInput } from '../components/AppTextInput';
 import { useAuth } from '../context/AuthContext';
@@ -52,6 +54,7 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.section * 2 - 12) / 2;
 
 export function ProfileScreen({ navigation, route }: Props) {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [tab, setTab] = useState<Tab>(route.params?.initialTab ?? 'listings');
@@ -220,10 +223,10 @@ export function ProfileScreen({ navigation, route }: Props) {
   };
 
   const deleteDraft = (id: string) => {
-    Alert.alert('Supprimer ce brouillon ?', 'Cette estimation sera définitivement supprimée.', [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('profile.deleteDraftAlert.title'), t('profile.deleteDraftAlert.message'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Supprimer',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           await supabase.from('saved_estimations').delete().eq('id', id);
@@ -235,12 +238,12 @@ export function ProfileScreen({ navigation, route }: Props) {
 
   const deleteListing = (id: string) => {
     Alert.alert(
-      'Supprimer l\'annonce',
-      'Cette action est irréversible. Confirmer ?',
+      t('profile.deleteListingAlert.title'),
+      t('profile.deleteListingAlert.message'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             await supabase.from('listings').update({ status: 'deleted' }).eq('id', id);
@@ -253,12 +256,12 @@ export function ProfileScreen({ navigation, route }: Props) {
 
   const markAsSold = (id: string) => {
     Alert.alert(
-      'Marquer comme vendu',
-      'L\'annonce sera retirée du marché.',
+      t('listing.actions.markAsSold'),
+      t('profile.markSoldAlert.message'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirmer',
+          text: t('common.confirm'),
           onPress: async () => {
             await supabase.from('listings').update({ status: 'sold' }).eq('id', id);
             setMyListings((prev) =>
@@ -272,12 +275,12 @@ export function ProfileScreen({ navigation, route }: Props) {
 
   const confirmReceipt = (transactionId: string) => {
     Alert.alert(
-      'Confirmer la réception',
-      'Confirmez-vous avoir reçu votre commande ?',
+      t('listing.confirmReceptionAlert.title'),
+      t('listing.confirmReceptionAlert.message'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirmer',
+          text: t('common.confirm'),
           onPress: async () => {
             const session = (await supabase.auth.getSession()).data.session;
             await supabase.functions.invoke('confirm-reception', {
@@ -299,7 +302,7 @@ export function ProfileScreen({ navigation, route }: Props) {
       headers: { Authorization: `Bearer ${session?.access_token}` },
     });
     if (error || data?.error) {
-      Alert.alert('Erreur', data?.error ?? 'Impossible de marquer comme expédié.');
+      Alert.alert(t('common.error'), data?.error ? translateApiError(data.error, t) : t('profile.markShippedError'));
       return;
     }
     setTrackingModal(null);
@@ -309,9 +312,9 @@ export function ProfileScreen({ navigation, route }: Props) {
   };
 
   const handleSignOut = () => {
-    Alert.alert('Se déconnecter', 'Voulez-vous vous déconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Déconnecter', style: 'destructive', onPress: signOut },
+    Alert.alert(t('profile.signOutAlert.title'), t('profile.signOutAlert.message'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('profile.signOutAlert.confirm'), style: 'destructive', onPress: signOut },
     ]);
   };
 
@@ -357,24 +360,24 @@ export function ProfileScreen({ navigation, route }: Props) {
           <View style={styles.myCardRow}>
             <View style={[styles.statusBadge, isSold ? styles.statusSold : styles.statusActive]}>
               <Text style={[styles.statusText, isSold ? styles.statusTextSold : styles.statusTextActive]}>
-                {isSold ? 'Vendu' : 'En ligne'}
+                {isSold ? t('profile.status.sold') : t('profile.status.online')}
               </Text>
             </View>
             {isRefunded && (
               <View style={[styles.statusBadge, { backgroundColor: 'rgba(33,150,100,0.15)' }]}>
-                <Text style={[styles.statusText, { color: '#1a6b3a' }]}>Remboursé</Text>
+                <Text style={[styles.statusText, { color: '#1a6b3a' }]}>{t('listing.status.refunded')}</Text>
               </View>
             )}
             {unanswered > 0 && (
               <View style={styles.questionBadge}>
                 <Ionicons name="help-circle" size={12} color={colors.primary} />
-                <Text style={styles.questionBadgeText}>{unanswered} question{unanswered > 1 ? 's' : ''}</Text>
+                <Text style={styles.questionBadgeText}>{t('profile.questionCount', { count: unanswered })}</Text>
               </View>
             )}
             {isDelivered && (
               <View style={styles.deliveredBadge}>
                 <Ionicons name="checkmark-circle-outline" size={11} color={colors.background} />
-                <Text style={styles.deliveredBadgeText}>Réception confirmée</Text>
+                <Text style={styles.deliveredBadgeText}>{t('profile.receiptConfirmed')}</Text>
               </View>
             )}
             {!isDelivered && pendingShipment && (
@@ -383,7 +386,7 @@ export function ProfileScreen({ navigation, route }: Props) {
                 onPress={() => { setTrackingModal({ transactionId: pendingShipment.transaction_id, deliveryAddress: pendingShipment.delivery_address }); setTrackingInput(''); }}
               >
                 <Ionicons name="send-outline" size={11} color={colors.background} />
-                <Text style={styles.shipBadgeText}>Expédier</Text>
+                <Text style={styles.shipBadgeText}>{t('profile.ship')}</Text>
               </TouchableOpacity>
             )}
             {pendingShipment?.label_url && (
@@ -392,7 +395,7 @@ export function ProfileScreen({ navigation, route }: Props) {
                 onPress={() => Linking.openURL(pendingShipment.label_url!)}
               >
                 <Ionicons name="download-outline" size={11} color={colors.primary} />
-                <Text style={styles.labelBadgeText}>Étiquette</Text>
+                <Text style={styles.labelBadgeText}>{t('profile.label')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -443,7 +446,10 @@ export function ProfileScreen({ navigation, route }: Props) {
 
   const renderPurchase = ({ item }: { item: Purchase }) => {
     const net = (item.amount / 100).toFixed(2);
-    const date = new Date(item.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    const date = new Date(item.created_at).toLocaleDateString(
+      i18n.language === 'en' ? 'en-US' : 'fr-FR',
+      { day: 'numeric', month: 'short', year: 'numeric' },
+    );
     const isPending = item.status === 'pending';
     const isPostal = item.shipping_method && item.shipping_method !== 'hand';
     const shippingStatus = item.shipping_status;
@@ -467,42 +473,42 @@ export function ProfileScreen({ navigation, route }: Props) {
           )}
         </View>
         <View style={[styles.myCardBody, { flex: 1 }]}>
-          <Text style={styles.myCardName} numberOfLines={2}>{item.listings?.name ?? 'Annonce supprimée'}</Text>
+          <Text style={styles.myCardName} numberOfLines={2}>{item.listings?.name ?? t('profile.deletedListing')}</Text>
           <Text style={styles.myCardPrice}>{net} €</Text>
           <View style={styles.myCardRow}>
             <View style={[styles.statusBadge, isPending ? styles.statusPending : styles.statusActive]}>
               <Text style={[styles.statusText, isPending ? styles.statusTextPending : styles.statusTextActive]}>
-                {isPending ? 'En cours' : 'Payé'}
+                {isPending ? t('profile.status.inProgress') : t('profile.status.paid')}
               </Text>
             </View>
             {shippingStatus === 'to_hand' && (
               <View style={[styles.statusBadge, { backgroundColor: 'rgba(255,152,0,0.15)' }]}>
-                <Text style={[styles.statusText, { color: '#FF9800' }]}>Remise à convenir</Text>
+                <Text style={[styles.statusText, { color: '#FF9800' }]}>{t('profile.status.handToArrange')}</Text>
               </View>
             )}
             {isPostal && shippingStatus === 'to_ship' && (
               <View style={[styles.statusBadge, { backgroundColor: 'rgba(255,152,0,0.15)' }]}>
-                <Text style={[styles.statusText, { color: '#FF9800' }]}>En attente d'expédition</Text>
+                <Text style={[styles.statusText, { color: '#FF9800' }]}>{t('listing.status.awaitingShipment')}</Text>
               </View>
             )}
             {isPostal && shippingStatus === 'shipped' && (
               <View style={[styles.statusBadge, { backgroundColor: 'rgba(33,150,243,0.12)' }]}>
-                <Text style={[styles.statusText, { color: '#2196F3' }]}>En livraison</Text>
+                <Text style={[styles.statusText, { color: '#2196F3' }]}>{t('profile.status.inDelivery')}</Text>
               </View>
             )}
             {shippingStatus === 'delivered' && (
               <View style={[styles.statusBadge, styles.statusActive]}>
-                <Text style={[styles.statusText, styles.statusTextActive]}>Livré</Text>
+                <Text style={[styles.statusText, styles.statusTextActive]}>{t('profile.status.delivered')}</Text>
               </View>
             )}
             {shippingStatus === 'refunded' && (
               <View style={[styles.statusBadge, { backgroundColor: 'rgba(33,150,100,0.15)' }]}>
-                <Text style={[styles.statusText, { color: '#1a6b3a' }]}>Remboursé</Text>
+                <Text style={[styles.statusText, { color: '#1a6b3a' }]}>{t('listing.status.refunded')}</Text>
               </View>
             )}
           </View>
           {item.tracking_number && shippingStatus !== 'delivered' && shippingStatus !== 'refunded' && (
-            <Text style={styles.trackingText}>Suivi : {item.tracking_number}</Text>
+            <Text style={styles.trackingText}>{t('listing.status.tracking', { number: item.tracking_number })}</Text>
           )}
           {shippingStatus !== 'refunded' && (shippingStatus === 'to_hand' || (isPostal && shippingStatus === 'shipped')) && (
             <TouchableOpacity
@@ -511,7 +517,7 @@ export function ProfileScreen({ navigation, route }: Props) {
             >
               <Ionicons name="checkmark-circle-outline" size={13} color={colors.background} />
               <Text style={styles.confirmReceiptText}>
-                {shippingStatus === 'to_hand' ? 'Confirmer la remise' : 'Confirmer réception'}
+                {shippingStatus === 'to_hand' ? t('listing.actions.confirmHandoff') : t('profile.confirmReceiptShort')}
               </Text>
             </TouchableOpacity>
           )}
@@ -520,19 +526,25 @@ export function ProfileScreen({ navigation, route }: Props) {
               style={styles.disputeBtn}
               onPress={() => navigation.navigate('DisputeScreen', {
                 transaction_id: item.id,
-                listing_name: item.listings?.name ?? 'Commande',
+                listing_name: item.listings?.name ?? t('profile.order'),
                 amount: item.amount,
               })}
             >
               <Ionicons name="warning-outline" size={13} color={colors.danger} />
-              <Text style={styles.disputeBtnText}>Signaler un problème</Text>
+              <Text style={styles.disputeBtnText}>{t('profile.reportProblem')}</Text>
             </TouchableOpacity>
           )}
           {existingDispute && (
             <View style={styles.disputeStatusBadge}>
               <Ionicons name="shield-outline" size={12} color={colors.textSecondary} />
               <Text style={styles.disputeStatusText}>
-                Litige {existingDispute === 'open' ? 'ouvert' : existingDispute === 'under_review' ? 'en cours d\'examen' : existingDispute === 'resolved_buyer' ? 'résolu ✓' : existingDispute === 'resolved_seller' ? 'clôturé' : existingDispute}
+                {t('profile.disputeStatus', {
+                  status: existingDispute === 'open' ? t('profile.disputeStatuses.open')
+                    : existingDispute === 'under_review' ? t('profile.disputeStatuses.underReview')
+                    : existingDispute === 'resolved_buyer' ? t('profile.disputeStatuses.resolvedBuyer')
+                    : existingDispute === 'resolved_seller' ? t('profile.disputeStatuses.resolvedSeller')
+                    : existingDispute,
+                })}
               </Text>
             </View>
           )}
@@ -576,7 +588,7 @@ export function ProfileScreen({ navigation, route }: Props) {
 
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>
-            {profile?.username ?? user?.email?.split('@')[0] ?? 'Mon profil'}
+            {profile?.username ?? user?.email?.split('@')[0] ?? t('profile.myProfile')}
           </Text>
           <Text style={styles.headerEmail}>{user?.email}</Text>
           {user && (
@@ -584,7 +596,7 @@ export function ProfileScreen({ navigation, route }: Props) {
               onPress={() => navigation.navigate('SellerProfile', { seller_id: user.id })}
               activeOpacity={0.7}
             >
-              <Text style={styles.viewPublicProfileLink}>Voir mon profil public →</Text>
+              <Text style={styles.viewPublicProfileLink}>{t('profile.viewPublicProfile')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -609,7 +621,7 @@ export function ProfileScreen({ navigation, route }: Props) {
           onPress={() => setTab('listings')}
         >
           <Text style={[styles.tabText, tab === 'listings' && styles.tabTextActive]}>
-            Annonces ({myListings.length})
+            {t('profile.tabs.listings', { count: myListings.length })}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -617,7 +629,7 @@ export function ProfileScreen({ navigation, route }: Props) {
           onPress={() => setTab('favorites')}
         >
           <Text style={[styles.tabText, tab === 'favorites' && styles.tabTextActive]}>
-            Favoris ({favorites.length})
+            {t('profile.tabs.favorites', { count: favorites.length })}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -625,7 +637,7 @@ export function ProfileScreen({ navigation, route }: Props) {
           onPress={() => setTab('purchases')}
         >
           <Text style={[styles.tabText, tab === 'purchases' && styles.tabTextActive]}>
-            Achats ({purchases.length})
+            {t('profile.tabs.purchases', { count: purchases.length })}
           </Text>
         </TouchableOpacity>
       </View>
@@ -650,9 +662,12 @@ export function ProfileScreen({ navigation, route }: Props) {
         ListHeaderComponent={
           tab === 'listings' && savedEstimations.length > 0 ? (
             <View style={styles.draftSection}>
-              <Text style={styles.draftSectionLabel}>Brouillons</Text>
+              <Text style={styles.draftSectionLabel}>{t('profile.drafts')}</Text>
               {savedEstimations.map((draft) => {
-                const date = new Date(draft.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                const date = new Date(draft.created_at).toLocaleDateString(
+                  i18n.language === 'en' ? 'en-US' : 'fr-FR',
+                  { day: 'numeric', month: 'short' },
+                );
                 return (
                   <TouchableOpacity
                     key={draft.id}
@@ -674,7 +689,7 @@ export function ProfileScreen({ navigation, route }: Props) {
                       <Text style={styles.myCardPrice}>{draft.analysis?.priceMin ?? '?'} — {draft.analysis?.priceMax ?? '?'} €</Text>
                       <View style={styles.myCardRow}>
                         <View style={[styles.statusBadge, { backgroundColor: 'rgba(245,184,46,0.12)' }]}>
-                          <Text style={[styles.statusText, { color: colors.primary }]}>Brouillon · {date}</Text>
+                          <Text style={[styles.statusText, { color: colors.primary }]}>{t('profile.draftDate', { date })}</Text>
                         </View>
                       </View>
                     </View>
@@ -689,7 +704,7 @@ export function ProfileScreen({ navigation, route }: Props) {
                   </TouchableOpacity>
                 );
               })}
-              {myListings.length > 0 && <Text style={[styles.draftSectionLabel, { marginTop: 16 }]}>Mes annonces</Text>}
+              {myListings.length > 0 && <Text style={[styles.draftSectionLabel, { marginTop: 16 }]}>{t('profile.myListings')}</Text>}
             </View>
           ) : null
         }
@@ -705,14 +720,14 @@ export function ProfileScreen({ navigation, route }: Props) {
               color={colors.textSecondary}
             />
             <Text style={styles.emptyTitle}>
-              {tab === 'listings' ? 'Aucune annonce' : tab === 'favorites' ? 'Aucun favori' : 'Aucun achat'}
+              {tab === 'listings' ? t('profile.empty.listingsTitle') : tab === 'favorites' ? t('profile.empty.favoritesTitle') : t('profile.empty.purchasesTitle')}
             </Text>
             <Text style={styles.emptyText}>
               {tab === 'listings'
-                ? 'Publiez votre premier objet via l\'onglet Scanner.'
+                ? t('profile.empty.listingsText')
                 : tab === 'favorites'
-                ? 'Ajoutez des annonces à vos favoris depuis le marché.'
-                : 'Vos achats effectués dans l\'app apparaîtront ici.'}
+                ? t('profile.empty.favoritesText')
+                : t('profile.empty.purchasesText')}
             </Text>
           </View>
         }
@@ -726,25 +741,25 @@ export function ProfileScreen({ navigation, route }: Props) {
         >
           <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setTrackingModal(null)} />
           <View style={styles.trackingSheet}>
-            <Text style={styles.trackingSheetTitle}>Marquer comme expédié</Text>
+            <Text style={styles.trackingSheetTitle}>{t('profile.markShippedTitle')}</Text>
             {trackingModal?.deliveryAddress && (
               <View style={styles.addressBox}>
                 <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
                 <Text style={styles.addressBoxText}>{trackingModal.deliveryAddress}</Text>
               </View>
             )}
-            <Text style={styles.trackingLabel}>Numéro de suivi (optionnel)</Text>
+            <Text style={styles.trackingLabel}>{t('profile.trackingNumberLabel')}</Text>
             <AppTextInput
               style={styles.trackingInput}
               value={trackingInput}
               onChangeText={setTrackingInput}
-              placeholder="Ex : 6A12345678901"
+              placeholder={t('profile.trackingNumberPlaceholder')}
 
               autoCapitalize="characters"
             />
             <TouchableOpacity style={styles.trackingConfirmBtn} onPress={markShipped}>
               <Ionicons name="send-outline" size={16} color={colors.background} />
-              <Text style={styles.trackingConfirmText}>Confirmer l'expédition</Text>
+              <Text style={styles.trackingConfirmText}>{t('listing.shipModal.confirmButton')}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>

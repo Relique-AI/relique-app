@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useTranslation } from 'react-i18next';
 import { RootStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 
@@ -20,12 +21,13 @@ type Props = {
 const { width } = Dimensions.get('window');
 
 const STEPS = [
-  { icon: 'camera-outline', label: 'Scanne' },
-  { icon: 'sparkles-outline', label: 'Estime' },
-  { icon: 'bag-handle-outline', label: 'Vends' },
-];
+  { icon: 'camera-outline', labelKey: 'home.steps.scan' },
+  { icon: 'sparkles-outline', labelKey: 'home.steps.estimate' },
+  { icon: 'bag-handle-outline', labelKey: 'home.steps.sell' },
+] as const;
 
 export function HomeScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const glowAnim = useRef(new Animated.Value(0.5)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
 
@@ -58,19 +60,17 @@ export function HomeScreen({ navigation }: Props) {
         </Animated.View>
 
         {/* Marque */}
-        <Text style={styles.brand}>Pépite</Text>
-        <Text style={styles.tagline}>
-          Tes objets valent plus{'\n'}que tu ne crois.
-        </Text>
+        <Text style={styles.brand}>{t('home.brand')}</Text>
+        <Text style={styles.tagline}>{t('home.tagline')}</Text>
 
         {/* Étapes */}
         <View style={styles.steps}>
           {STEPS.map((step, i) => (
-            <View key={step.label} style={styles.stepItem}>
+            <View key={step.labelKey} style={styles.stepItem}>
               <View style={styles.stepIcon}>
                 <Ionicons name={step.icon as any} size={20} color={colors.primary} />
               </View>
-              <Text style={styles.stepLabel}>{step.label}</Text>
+              <Text style={styles.stepLabel}>{t(step.labelKey)}</Text>
               {i < STEPS.length - 1 && <View style={styles.stepLine} />}
             </View>
           ))}
@@ -83,10 +83,10 @@ export function HomeScreen({ navigation }: Props) {
           activeOpacity={0.88}
         >
           <Ionicons name="camera" size={22} color={colors.background} style={{ marginRight: 10 }} />
-          <Text style={styles.ctaText}>Scanner un objet</Text>
+          <Text style={styles.ctaText}>{t('home.cta')}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.hint}>Pointez votre caméra vers n'importe quel objet</Text>
+        <Text style={styles.hint}>{t('home.hint')}</Text>
       </View>
     </SafeAreaView>
   );

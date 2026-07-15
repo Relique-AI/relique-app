@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { RootStackParamList, CapturedPhoto } from '../types';
 import { colors, fonts, spacing } from '../theme';
 
@@ -25,6 +26,7 @@ type Props = {
 const MAX_PHOTOS = 5;
 
 export function CameraScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [flash, setFlash] = useState<'on' | 'off'>('off');
@@ -48,18 +50,16 @@ export function CameraScreen({ navigation }: Props) {
   if (!permission.granted) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
-        <Text style={styles.permissionTitle}>Accès à la caméra</Text>
-        <Text style={styles.permissionText}>
-          L'accès à la caméra est nécessaire pour scanner vos objets. Activez-le dans les réglages de votre téléphone.
-        </Text>
+        <Text style={styles.permissionTitle}>{t('camera.permissionTitle')}</Text>
+        <Text style={styles.permissionText}>{t('camera.permissionText')}</Text>
         <TouchableOpacity
           style={styles.permissionButton}
           onPress={() => Linking.openSettings()}
         >
-          <Text style={styles.permissionButtonText}>Ouvrir les réglages</Text>
+          <Text style={styles.permissionButtonText}>{t('camera.permissionButton')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backLink}>
-          <Text style={styles.backLinkText}>Retour</Text>
+          <Text style={styles.backLinkText}>{t('camera.back')}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -156,7 +156,7 @@ export function CameraScreen({ navigation }: Props) {
               style={styles.analyserButton}
               onPress={() => navigation.navigate('Review', { photos })}
             >
-              <Text style={styles.analyserText}>Analyser →</Text>
+              <Text style={styles.analyserText}>{t('camera.analyse')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -165,10 +165,10 @@ export function CameraScreen({ navigation }: Props) {
         <View style={styles.hintBar}>
           <Text style={styles.hintText}>
             {photos.length === 0
-              ? 'Plusieurs angles = meilleure estimation'
+              ? t('camera.hintNone')
               : canAddMore
-                ? `Ajoutez d'autres angles · ${photos.length}/${MAX_PHOTOS}`
-                : 'Maximum atteint · Prêt à analyser'}
+                ? t('camera.hintMore', { count: photos.length, max: MAX_PHOTOS })
+                : t('camera.hintMax')}
           </Text>
         </View>
 

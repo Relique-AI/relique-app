@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useTranslation } from 'react-i18next';
 import { ProfileStackParamList } from '../types';
 import { colors, fonts, spacing } from '../theme';
 import Constants from 'expo-constants';
@@ -47,16 +48,17 @@ function SettingsRow({
 }
 
 export function SettingsScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const { user, signOut, isAdmin } = useAuth();
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Supprimer le compte',
-      'Toutes vos données seront supprimées définitivement. Cette action est irréversible.',
+      t('settings.deleteAccountAlert.title'),
+      t('settings.deleteAccountAlert.message'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -68,12 +70,12 @@ export function SettingsScreen({ navigation }: Props) {
               headers: { Authorization: `Bearer ${session.access_token}` },
             });
             if (error) {
-              let msg = 'Impossible de supprimer le compte.';
+              let msg = t('settings.deleteAccountError');
               try {
                 const body = await (error as any).context?.json?.();
                 if (body?.error) msg = body.error;
               } catch {}
-              Alert.alert('Erreur', msg);
+              Alert.alert(t('common.error'), msg);
               return;
             }
             await supabase.auth.signOut();
@@ -84,9 +86,9 @@ export function SettingsScreen({ navigation }: Props) {
   };
 
   const handleSignOut = () => {
-    Alert.alert('Se déconnecter', 'Voulez-vous vous déconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Déconnecter', style: 'destructive', onPress: signOut },
+    Alert.alert(t('profile.signOutAlert.title'), t('profile.signOutAlert.message'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('profile.signOutAlert.confirm'), style: 'destructive', onPress: signOut },
     ]);
   };
 
@@ -98,12 +100,12 @@ export function SettingsScreen({ navigation }: Props) {
       .limit(1)
       .single();
     if (!data?.id) {
-      Alert.alert('Indisponible', 'Le support n\'est pas disponible pour le moment.');
+      Alert.alert(t('settings.unavailable'), t('settings.supportUnavailable'));
       return;
     }
     navigation.navigate('Chat', {
       receiver_id: data.id,
-      listing_name: 'Support Pépite',
+      listing_name: t('settings.supportChatName'),
     });
   };
 
@@ -113,14 +115,14 @@ export function SettingsScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Paramètres</Text>
+        <Text style={styles.title}>{t('settings.title')}</Text>
         <View style={{ width: 48 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* Compte */}
-        <Text style={styles.sectionLabel}>Compte</Text>
+        <Text style={styles.sectionLabel}>{t('settings.sections.account')}</Text>
         <View style={styles.group}>
           <View style={styles.emailRow}>
             <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
@@ -129,7 +131,7 @@ export function SettingsScreen({ navigation }: Props) {
           <View style={styles.separator} />
           <SettingsRow
             icon="log-out-outline"
-            label="Se déconnecter"
+            label={t('profile.signOutAlert.title')}
             onPress={handleSignOut}
           />
         </View>
@@ -137,12 +139,12 @@ export function SettingsScreen({ navigation }: Props) {
         {/* Admin */}
         {isAdmin && (
           <>
-            <Text style={styles.sectionLabel}>Administration</Text>
+            <Text style={styles.sectionLabel}>{t('settings.sections.admin')}</Text>
             <View style={styles.group}>
               <SettingsRow
                 icon="shield-checkmark-outline"
-                label="Modération"
-                subtitle="Traiter les signalements"
+                label={t('settings.moderation')}
+                subtitle={t('settings.moderationSubtitle')}
                 onPress={() => navigation.navigate('Admin')}
               />
             </View>
@@ -150,45 +152,45 @@ export function SettingsScreen({ navigation }: Props) {
         )}
 
         {/* Support */}
-        <Text style={styles.sectionLabel}>Aide</Text>
+        <Text style={styles.sectionLabel}>{t('settings.sections.help')}</Text>
         <View style={styles.group}>
           <SettingsRow
             icon="chatbubble-ellipses-outline"
-            label="Nous contacter"
-            subtitle="Ouvrir une conversation avec l'équipe Pépite"
+            label={t('settings.contactUs')}
+            subtitle={t('settings.contactUsSubtitle')}
             onPress={handleContactSupport}
           />
         </View>
 
         {/* Légal */}
-        <Text style={styles.sectionLabel}>Informations</Text>
+        <Text style={styles.sectionLabel}>{t('settings.sections.information')}</Text>
         <View style={styles.group}>
           <SettingsRow
             icon="document-text-outline"
-            label="Mentions légales & CGU"
+            label={t('settings.legalMentions')}
             onPress={() => navigation.navigate('Legal')}
           />
           <SettingsRow
             icon="shield-checkmark-outline"
-            label="Politique de confidentialité"
+            label={t('settings.privacyPolicy')}
             onPress={() => navigation.navigate('PrivacyPolicy')}
           />
         </View>
 
         {/* Zone danger */}
-        <Text style={styles.sectionLabel}>Zone de danger</Text>
+        <Text style={styles.sectionLabel}>{t('settings.sections.dangerZone')}</Text>
         <View style={styles.group}>
           <SettingsRow
             icon="trash-outline"
-            label="Supprimer mon compte"
-            subtitle="Suppression définitive de toutes vos données"
+            label={t('settings.deleteAccount')}
+            subtitle={t('settings.deleteAccountSubtitle')}
             onPress={handleDeleteAccount}
             destructive
           />
         </View>
 
         {/* Version */}
-        <Text style={styles.version}>Pépite v{Constants.expoConfig?.version}</Text>
+        <Text style={styles.version}>{t('settings.version', { version: Constants.expoConfig?.version })}</Text>
       </ScrollView>
     </SafeAreaView>
   );

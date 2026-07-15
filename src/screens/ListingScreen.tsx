@@ -28,7 +28,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'; // nécessite un rebuild du dev client
+import { useTranslation } from 'react-i18next';
 import { colors, fonts, spacing } from '../theme';
+import { translateApiError } from '../utils/apiError';
 import { supabase, Listing } from '../services/supabase';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -51,10 +53,10 @@ type Props = {
 
 const { width, height: screenHeight } = Dimensions.get('window');
 
-const REASON_LABELS: Record<string, string> = {
-  inappropriate: 'Contenu inapproprié',
-  scam: 'Arnaque / Fraude',
-  prohibited: 'Objet interdit',
+const REASON_LABEL_KEYS: Record<string, string> = {
+  inappropriate: 'listing.report.reasons.inappropriate',
+  scam: 'listing.report.reasons.scam',
+  prohibited: 'listing.report.reasons.prohibited',
 };
 
 class MapErrorBoundary extends Component<{ children: any; fallback?: any }, { hasError: boolean }> {
@@ -217,6 +219,7 @@ function ZoomableImage({
 }
 
 export function ListingScreen({ navigation, route }: Props) {
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const { id } = route.params;
   const { user } = useAuth();
@@ -355,12 +358,12 @@ export function ListingScreen({ navigation, route }: Props) {
   const confirmReceptionFromListing = () => {
     if (!transaction) return;
     Alert.alert(
-      'Confirmer la réception',
-      'Confirmez-vous avoir reçu votre commande ?',
+      t('listing.confirmReceptionAlert.title'),
+      t('listing.confirmReceptionAlert.message'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirmer',
+          text: t('common.confirm'),
           onPress: async () => {
             setConfirmingReception(true);
             try {
@@ -369,10 +372,10 @@ export function ListingScreen({ navigation, route }: Props) {
                 body: { transaction_id: transaction.id },
                 headers: { Authorization: `Bearer ${session?.access_token}` },
               });
-              if (error) throw new Error('Erreur lors de la confirmation');
+              if (error) throw new Error(t('listing.confirmationError'));
               setTransaction((prev) => prev ? { ...prev, shipping_status: 'delivered' } : prev);
             } catch (e: any) {
-              Alert.alert('Erreur', e.message ?? 'Une erreur est survenue');
+              Alert.alert(t('common.error'), e.message ?? t('common.errorOccurred'));
             } finally {
               setConfirmingReception(false);
             }
@@ -391,11 +394,11 @@ export function ListingScreen({ navigation, route }: Props) {
         body: { transaction_id: transaction.id, tracking_number: shipTrackingInput.trim() || null },
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
-      if (error) throw new Error('Erreur lors de la confirmation');
+      if (error) throw new Error(t('listing.confirmationError'));
       setShowShipModal(false);
       setTransaction((prev) => prev ? { ...prev, shipping_status: 'shipped', tracking_number: shipTrackingInput.trim() || null } : prev);
     } catch (e: any) {
-      Alert.alert('Erreur', e.message ?? 'Une erreur est survenue');
+      Alert.alert(t('common.error'), e.message ?? t('common.errorOccurred'));
     } finally {
       setShipping(false);
     }
@@ -491,7 +494,7 @@ export function ListingScreen({ navigation, route }: Props) {
         supabase.functions.invoke('send-push', {
           body: {
             receiver_id: listing.seller_id,
-            sender_name: 'Nouvelle question',
+            sender_name: t('listing.newQuestionNotification'),
             listing_name: listing.name,
             message_preview: newQuestion.trim(),
             type: 'question',
@@ -515,7 +518,7 @@ export function ListingScreen({ navigation, route }: Props) {
       supabase.functions.invoke('send-push', {
         body: {
           receiver_id: q.asker_id,
-          sender_name: listing.profiles?.username ?? 'Vendeur',
+          sender_name: listing.profiles?.username ?? t('listing.sellerFallback'),
           listing_name: listing.name,
           message_preview: answerText.trim(),
           type: 'question_answer',
@@ -551,12 +554,12 @@ export function ListingScreen({ navigation, route }: Props) {
 
   const markAsSold = async () => {
     Alert.alert(
-      'Marquer comme vendu',
-      'Cet objet sera retiré du marché. Confirmer ?',
+      t('listing.markSoldAlert.title'),
+      t('listing.markSoldAlert.message'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirmer',
+          text: t('common.confirm'),
           style: 'destructive',
           onPress: async () => {
             setMarkingAsSold(true);
@@ -566,7 +569,7 @@ export function ListingScreen({ navigation, route }: Props) {
               .eq('id', id);
             setMarkingAsSold(false);
             if (!error) {
-              Alert.alert('Vendu !', 'Votre annonce a été marquée comme vendue.', [
+              Alert.alert(t('listing.soldAlert.title'), t('listing.soldAlert.message'), [
                 { text: 'OK', onPress: () => navigation.goBack() },
               ]);
             }
@@ -578,20 +581,20 @@ export function ListingScreen({ navigation, route }: Props) {
 
   const handleReport = () => {
     Alert.alert(
-      'Signaler cette annonce',
-      'Pourquoi signalez-vous cette annonce ?',
+      t('listing.report.title'),
+      t('listing.report.prompt'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Contenu inapproprié',
+          text: t('listing.report.reasons.inappropriate'),
           onPress: () => submitReport('inappropriate'),
         },
         {
-          text: 'Arnaque / Fraude',
+          text: t('listing.report.reasons.scam'),
           onPress: () => submitReport('scam'),
         },
         {
-          text: 'Objet interdit',
+          text: t('listing.report.reasons.prohibited'),
           onPress: () => submitReport('prohibited'),
         },
       ],
@@ -606,12 +609,12 @@ export function ListingScreen({ navigation, route }: Props) {
       message:
         `${listing.name} — ${listing.price_final} €\n` +
         `${listing.category} · ${listing.era}\n\n` +
-        `Voir cette annonce sur Pépite : ${webLink}`,
+        t('listing.shareLinkPrefix', { link: webLink }),
     });
   };
 
   const SHIPPING_LABELS: Record<string, string> = {
-    hand: 'Remise en main propre',
+    hand: t('listing.shipping.hand'),
     colissimo: 'Colissimo',
     chronopost: 'Chronopost',
   };
@@ -631,34 +634,36 @@ export function ListingScreen({ navigation, route }: Props) {
         headers: { Authorization: `Bearer ${session?.access_token}` },
       });
       if (error) {
-        let errMsg = 'Impossible de lancer le paiement.';
+        let errMsg = t('listing.paymentStartError');
         try {
           const ctx = (error as any).context;
           const body = typeof ctx?.json === 'function' ? await ctx.json() : ctx;
           if (body?.error) errMsg = body.error;
         } catch {}
-        if (errMsg.includes('non configuré') || errMsg.includes('Vendeur') || errMsg.includes('configuré')) {
+        const rawErrMsg = errMsg;
+        errMsg = translateApiError(errMsg, t);
+        if (rawErrMsg.includes('non configuré') || rawErrMsg.includes('Vendeur') || rawErrMsg.includes('configuré')) {
           Alert.alert(
-            'Achat temporairement indisponible',
-            'Ce vendeur n\'a pas encore activé les paiements sur Pépite. Tu peux lui envoyer un message pour l\'en informer ou convenir d\'un arrangement.',
+            t('listing.sellerNotConfiguredAlert.title'),
+            t('listing.sellerNotConfiguredAlert.message'),
             [
               {
-                text: 'Envoyer un message',
+                text: t('listing.sellerNotConfiguredAlert.sendMessage'),
                 onPress: () => navigation.navigate('Chat', {
                   listing_id: listing.id,
                   receiver_id: listing.seller_id,
                   listing_name: listing.name,
                 }),
               },
-              { text: 'Fermer', style: 'cancel' },
+              { text: t('common.close'), style: 'cancel' },
             ]
           );
         } else {
-          Alert.alert('Erreur', errMsg);
+          Alert.alert(t('common.error'), errMsg);
         }
         return;
       }
-      if (!data?.clientSecret) throw new Error('Erreur paiement');
+      if (!data?.clientSecret) throw new Error(t('listing.paymentError'));
 
       const paymentIntentId = data.clientSecret.split('_secret_')[0];
 
@@ -671,7 +676,7 @@ export function ListingScreen({ navigation, route }: Props) {
 
       const { error: presentError } = await presentPaymentSheet();
       if (presentError) {
-        if (presentError.code !== 'Canceled') Alert.alert('Erreur', presentError.message);
+        if (presentError.code !== 'Canceled') Alert.alert(t('common.error'), presentError.message);
         // Restore referral credit if it was consumed and payment didn't go through
         if (data.referralCreditUsed) {
           supabase.functions.invoke('restore-referral-credit', {
@@ -717,7 +722,7 @@ export function ListingScreen({ navigation, route }: Props) {
         });
       }
     } catch (e: any) {
-      Alert.alert('Erreur', e.message ?? 'Une erreur est survenue');
+      Alert.alert(t('common.error'), e.message ?? t('common.errorOccurred'));
     } finally {
       setBuying(false);
     }
@@ -741,7 +746,7 @@ export function ListingScreen({ navigation, route }: Props) {
       .single();
 
     if (error || !offer) {
-      Alert.alert('Erreur', "Impossible d'envoyer l'offre.");
+      Alert.alert(t('common.error'), t('listing.offerSendError'));
       return;
     }
 
@@ -749,7 +754,7 @@ export function ListingScreen({ navigation, route }: Props) {
       listing_id: listing.id,
       sender_id: user.id,
       receiver_id: listing.seller_id,
-      content: `Offre de ${amount} €`,
+      content: t('listing.offerMessage', { amount }),
       type: 'offer',
       offer_id: offer.id,
     });
@@ -758,9 +763,9 @@ export function ListingScreen({ navigation, route }: Props) {
     supabase.functions.invoke('send-push', {
       body: {
         receiver_id: listing.seller_id,
-        sender_name: senderProfile?.username ?? 'Acheteur',
+        sender_name: senderProfile?.username ?? t('listing.buyerFallback'),
         listing_name: listing.name,
-        message_preview: `Offre de ${amount} €`,
+        message_preview: t('listing.offerMessage', { amount }),
         type: 'offer_received',
         listing_id: listing.id,
         sender_id: user.id,
@@ -787,16 +792,16 @@ export function ListingScreen({ navigation, route }: Props) {
         supabase.functions.invoke('send-push', {
           body: {
             receiver_id: admin.id,
-            sender_name: 'Signalement',
+            sender_name: t('listing.reportNotification'),
             listing_name: listing.name,
-            message_preview: `${REASON_LABELS[reason] ?? reason}`,
+            message_preview: `${t(REASON_LABEL_KEYS[reason]) ?? reason}`,
             type: 'report',
             listing_id: id,
           },
         }).catch(() => {});
       });
     }
-    Alert.alert('Signalement envoyé', 'Merci, notre équipe va examiner cette annonce.');
+    Alert.alert(t('listing.reportSentAlert.title'), t('listing.reportSentAlert.message'));
   };
 
   if (loading) {
@@ -814,7 +819,7 @@ export function ListingScreen({ navigation, route }: Props) {
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.loader}>
-          <Text style={styles.errorText}>Annonce introuvable.</Text>
+          <Text style={styles.errorText}>{t('listing.notFound')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -844,10 +849,11 @@ export function ListingScreen({ navigation, route }: Props) {
     }
   };
 
-  const sellerName = listing.profiles?.username ?? 'Vendeur';
-  const publishedAt = new Date(listing.created_at).toLocaleDateString('fr-FR', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
+  const sellerName = listing.profiles?.username ?? t('listing.sellerFallback');
+  const publishedAt = new Date(listing.created_at).toLocaleDateString(
+    i18n.language === 'en' ? 'en-US' : 'fr-FR',
+    { day: 'numeric', month: 'long', year: 'numeric' },
+  );
   const condition = listing.condition as AnalysisResult['condition'];
   const tips = listing.selling_tips ?? [];
 
@@ -932,8 +938,8 @@ export function ListingScreen({ navigation, route }: Props) {
               <View style={[styles.statusBanner, styles.statusBannerRefunded]}>
                 <Ionicons name="shield-checkmark-outline" size={18} color="#1a6b3a" />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.statusBannerTitle, { color: '#1a6b3a' }]}>Remboursé</Text>
-                  <Text style={[styles.statusBannerSub, { color: '#1a6b3a' }]}>Le remboursement a été initié suite au litige</Text>
+                  <Text style={[styles.statusBannerTitle, { color: '#1a6b3a' }]}>{t('listing.status.refunded')}</Text>
+                  <Text style={[styles.statusBannerSub, { color: '#1a6b3a' }]}>{t('listing.status.refundedSub')}</Text>
                 </View>
               </View>
             );
@@ -945,13 +951,13 @@ export function ListingScreen({ navigation, route }: Props) {
           const bannerColor = isShipped ? '#1a6b3a' : '#7a5200';
           const icon = isShipped ? 'checkmark-circle-outline' : 'time-outline';
           const title = isHand
-            ? 'Remise en main propre à convenir'
-            : isShipped ? 'Expédié' : 'En attente d\'expédition';
+            ? t('listing.status.handToConfirm')
+            : isShipped ? t('listing.status.shipped') : t('listing.status.awaitingShipment');
           const sub = isHand
-            ? 'Contactez le vendeur pour organiser la remise'
+            ? t('listing.status.handContactSeller')
             : isShipped && transaction.tracking_number
-              ? `Suivi : ${transaction.tracking_number}`
-              : !isShipped ? 'Le vendeur prépare votre colis' : null;
+              ? t('listing.status.tracking', { number: transaction.tracking_number })
+              : !isShipped ? t('listing.status.sellerPreparing') : null;
           return (
             <View style={[styles.statusBanner, bannerStyle]}>
               <Ionicons name={icon} size={18} color={bannerColor} />
@@ -971,7 +977,7 @@ export function ListingScreen({ navigation, route }: Props) {
               <View style={styles.disputeRow}>
                 <Ionicons name="shield-checkmark-outline" size={14} color={colors.textSecondary} />
                 <Text style={styles.disputeRowText}>
-                  Litige · {disputeStatus === 'open' ? 'En attente' : disputeStatus === 'under_review' ? 'En cours d\'examen' : 'Résolu'}
+                  {t('listing.dispute.label')} · {disputeStatus === 'open' ? t('listing.dispute.pending') : disputeStatus === 'under_review' ? t('listing.dispute.underReview') : t('listing.dispute.resolved')}
                 </Text>
               </View>
             );
@@ -984,7 +990,7 @@ export function ListingScreen({ navigation, route }: Props) {
                 activeOpacity={0.75}
               >
                 <Ionicons name="shield-outline" size={14} color={colors.primary} />
-                <Text style={[styles.disputeRowText, { color: colors.primary }]}>Signaler un problème · Protection 7 jours</Text>
+                <Text style={[styles.disputeRowText, { color: colors.primary }]}>{t('listing.dispute.reportProblem')}</Text>
                 <Ionicons name="chevron-forward" size={13} color={colors.primary} />
               </TouchableOpacity>
             );
@@ -997,7 +1003,7 @@ export function ListingScreen({ navigation, route }: Props) {
           <View style={[styles.disputeRow, { backgroundColor: 'rgba(224,135,102,0.08)', borderTopColor: 'rgba(224,135,102,0.2)' }]}>
             <Ionicons name="alert-circle-outline" size={14} color={colors.danger} />
             <Text style={[styles.disputeRowText, { color: colors.danger }]}>
-              Litige · {disputeStatus === 'open' ? 'En attente d\'examen' : disputeStatus === 'under_review' ? 'En cours d\'examen' : 'Résolu'}
+              {t('listing.dispute.label')} · {disputeStatus === 'open' ? t('listing.dispute.pendingReview') : disputeStatus === 'under_review' ? t('listing.dispute.underReview') : t('listing.dispute.resolved')}
             </Text>
           </View>
         )}
@@ -1009,20 +1015,18 @@ export function ListingScreen({ navigation, route }: Props) {
           <Text style={styles.name}>{listing.name}</Text>
           <Text style={styles.price}>{listing.price_final} €</Text>
           {hasPostal && isOversized ? (
-            <Text style={styles.shippingLine}>
-              Expédition hors gabarit · frais à convenir avec l'acheteur
-            </Text>
+            <Text style={styles.shippingLine}>{t('listing.shippingLine.oversized')}</Text>
           ) : hasPostal && cheapestPostalCost > 0 ? (
             <Text style={styles.shippingLine}>
-              À partir de {cheapestPostalCost.toFixed(2)} € de livraison · Total dès {grandTotalWithShipping.toFixed(2)} € (frais inclus)
+              {t('listing.shippingLine.fromCost', { cost: cheapestPostalCost.toFixed(2), total: grandTotalWithShipping.toFixed(2) })}
             </Text>
           ) : hasPostal ? (
             <Text style={styles.shippingLine}>
-              Livraison offerte · Total {grandTotalWithShipping.toFixed(2)} € (frais Pépite inclus)
+              {t('listing.shippingLine.free', { total: grandTotalWithShipping.toFixed(2) })}
             </Text>
           ) : (
             <Text style={styles.shippingLine}>
-              Livraison en main propre · Total {grandTotal.toFixed(2)} € (frais Pépite inclus)
+              {t('listing.shippingLine.handOnly', { total: grandTotal.toFixed(2) })}
             </Text>
           )}
 
@@ -1059,7 +1063,7 @@ export function ListingScreen({ navigation, route }: Props) {
           {/* Histoire */}
           {!!listing.story && (
             <>
-              <Text style={styles.sectionLabel}>Histoire de l'objet</Text>
+              <Text style={styles.sectionLabel}>{t('listing.storyLabel')}</Text>
               <Text style={styles.storyText}>{listing.story}</Text>
               <View style={styles.divider} />
             </>
@@ -1068,7 +1072,7 @@ export function ListingScreen({ navigation, route }: Props) {
           {/* Localisation */}
           {!!listing.location && (
             <>
-              <Text style={styles.sectionLabel}>Localisation</Text>
+              <Text style={styles.sectionLabel}>{t('listing.locationLabel')}</Text>
               <TouchableOpacity
                 style={styles.mapCard}
                 onPress={async () => {
@@ -1090,7 +1094,7 @@ export function ListingScreen({ navigation, route }: Props) {
                   <Ionicons name="location" size={14} color={colors.primary} />
                   <Text style={styles.mapLocationText} numberOfLines={1}>{listing.location}</Text>
                   <View style={{ flex: 1 }} />
-                  <Text style={styles.mapOpenText}>Voir sur la carte</Text>
+                  <Text style={styles.mapOpenText}>{t('listing.viewOnMap')}</Text>
                   <Ionicons name="chevron-forward" size={13} color={colors.textSecondary} />
                 </View>
               </TouchableOpacity>
@@ -1112,7 +1116,7 @@ export function ListingScreen({ navigation, route }: Props) {
                 <Text style={styles.sellerName}>{sellerName}</Text>
                 <Ionicons name="chevron-forward" size={13} color={colors.textMuted} />
               </View>
-              <Text style={styles.sellerDate}>Publié le {publishedAt}</Text>
+              <Text style={styles.sellerDate}>{t('listing.publishedOn', { date: publishedAt })}</Text>
               {sellerRating && (
                 <View style={styles.ratingRow}>
                   {[1,2,3,4,5].map((s) => (
@@ -1123,23 +1127,23 @@ export function ListingScreen({ navigation, route }: Props) {
                       color={colors.primary}
                     />
                   ))}
-                  <Text style={styles.ratingText}>{sellerRating.avg} ({sellerRating.count} avis)</Text>
+                  <Text style={styles.ratingText}>{t('listing.ratingCount', { avg: sellerRating.avg, count: sellerRating.count })}</Text>
                 </View>
               )}
             </View>
             {!isOwner && listing.status === 'sold' && !alreadyReviewed && (
               <TouchableOpacity style={styles.reviewBtn} onPress={(e) => { e.stopPropagation?.(); setShowReviewModal(true); }}>
-                <Text style={styles.reviewBtnText}>Laisser un avis</Text>
+                <Text style={styles.reviewBtnText}>{t('listing.leaveReview')}</Text>
               </TouchableOpacity>
             )}
           </TouchableOpacity>
 
           {/* Questions / Réponses */}
           <View style={styles.divider} />
-          <Text style={styles.sectionLabel}>Questions</Text>
+          <Text style={styles.sectionLabel}>{t('listing.questionsLabel')}</Text>
 
           {visibleQuestions.length === 0 && (
-            <Text style={styles.qEmpty}>Aucune question pour le moment.</Text>
+            <Text style={styles.qEmpty}>{t('listing.noQuestions')}</Text>
           )}
           {visibleQuestions.map((q) => (
             <View key={q.id} style={styles.qItem}>
@@ -1148,7 +1152,7 @@ export function ListingScreen({ navigation, route }: Props) {
                   <Ionicons name="person" size={12} color={colors.textSecondary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.qAsker}>{q.profiles?.username ?? 'Utilisateur'}</Text>
+                  <Text style={styles.qAsker}>{q.profiles?.username ?? t('listing.userFallback')}</Text>
                   <Text style={styles.qText}>{q.question}</Text>
                 </View>
               </View>
@@ -1165,7 +1169,7 @@ export function ListingScreen({ navigation, route }: Props) {
                       style={styles.aInput}
                       value={answerText}
                       onChangeText={setAnswerText}
-                      placeholder="Votre réponse..."
+                      placeholder={t('listing.answerPlaceholder')}
                       multiline
                       autoFocus
                       onFocus={() => scrollToInputWrap(answerWrapRef)}
@@ -1177,7 +1181,7 @@ export function ListingScreen({ navigation, route }: Props) {
                   </View>
                 ) : (
                   <TouchableOpacity style={styles.replyBtn} onPress={() => { setAnsweringId(q.id); setAnswerText(''); }}>
-                    <Text style={styles.replyBtnText}>Répondre</Text>
+                    <Text style={styles.replyBtnText}>{t('listing.reply')}</Text>
                   </TouchableOpacity>
                 )
               ) : null}
@@ -1191,7 +1195,7 @@ export function ListingScreen({ navigation, route }: Props) {
                 style={styles.qInput}
                 value={newQuestion}
                 onChangeText={setNewQuestion}
-                placeholder="Poser une question..."
+                placeholder={t('listing.askPlaceholder')}
                 multiline
                 maxLength={300}
                 onFocus={() => scrollToInputWrap(questionWrapRef)}
@@ -1214,7 +1218,7 @@ export function ListingScreen({ navigation, route }: Props) {
           {sellerListings.length > 0 && (
             <>
               <View style={styles.divider} />
-              <Text style={styles.sectionLabel}>Autres annonces de {sellerName}</Text>
+              <Text style={styles.sectionLabel}>{t('listing.otherListingsBy', { seller: sellerName })}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sellerListingsScroll}>
                 {sellerListings.map((item) => (
                   <TouchableOpacity
@@ -1242,7 +1246,7 @@ export function ListingScreen({ navigation, route }: Props) {
           {similarListings.length > 0 && (
             <>
               <View style={styles.divider} />
-              <Text style={styles.sectionLabel}>Objets similaires</Text>
+              <Text style={styles.sectionLabel}>{t('listing.similarItems')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sellerListingsScroll}>
                 {similarListings.map((item) => (
                   <TouchableOpacity
@@ -1278,14 +1282,14 @@ export function ListingScreen({ navigation, route }: Props) {
         >
           <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowOfferModal(false)} />
           <View style={styles.offerSheet}>
-            <Text style={styles.offerTitle}>Faire une offre</Text>
-            <Text style={styles.offerSub}>Prix affiché : {listing?.price_final} €</Text>
+            <Text style={styles.offerTitle}>{t('listing.offerModal.title')}</Text>
+            <Text style={styles.offerSub}>{t('listing.offerModal.listedPrice', { price: listing?.price_final })}</Text>
             <View style={styles.offerInputRow}>
               <AppTextInput
                 style={styles.offerInput}
                 value={offerAmount}
                 onChangeText={setOfferAmount}
-                placeholder="Votre offre"
+                placeholder={t('listing.offerModal.placeholder')}
 
                 keyboardType="numeric"
                 autoFocus
@@ -1298,7 +1302,7 @@ export function ListingScreen({ navigation, route }: Props) {
               onPress={sendOffer}
               disabled={!offerAmount.trim()}
             >
-              <Text style={styles.offerSendText}>Envoyer l'offre</Text>
+              <Text style={styles.offerSendText}>{t('listing.offerModal.send')}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -1411,14 +1415,14 @@ export function ListingScreen({ navigation, route }: Props) {
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.offerOverlay}>
             <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={() => setShowShipModal(false)} />
             <View style={styles.recapSheet}>
-              <Text style={styles.recapTitle}>Expédier l'article</Text>
+              <Text style={styles.recapTitle}>{t('listing.shipModal.title')}</Text>
 
               {/* Adresse de livraison */}
               {addr ? (
                 <View style={styles.shipAddressBox}>
                   <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.recapAddressLabel}>Adresse de l'acheteur</Text>
+                    <Text style={styles.recapAddressLabel}>{t('listing.shipModal.buyerAddress')}</Text>
                     <Text style={styles.recapAddressText}>{addr}</Text>
                   </View>
                 </View>
@@ -1431,8 +1435,8 @@ export function ListingScreen({ navigation, route }: Props) {
                 <View style={styles.shipStep}>
                   <View style={styles.shipStepNum}><Text style={styles.shipStepNumText}>1</Text></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.shipStepTitle}>Préparer le colis</Text>
-                    <Text style={styles.shipStepDesc}>Emballez soigneusement l'article (papier bulle, boîte adaptée). Protégez les éléments fragiles.</Text>
+                    <Text style={styles.shipStepTitle}>{t('listing.shipModal.step1Title')}</Text>
+                    <Text style={styles.shipStepDesc}>{t('listing.shipModal.step1Desc')}</Text>
                   </View>
                 </View>
 
@@ -1440,17 +1444,17 @@ export function ListingScreen({ navigation, route }: Props) {
                   <View style={styles.shipStepNum}><Text style={styles.shipStepNumText}>2</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.shipStepTitle}>
-                      Créer l'étiquette{carrierLabel ? ` ${carrierLabel}` : ''}
+                      {t('listing.shipModal.step2Title', { carrier: carrierLabel ? ` ${carrierLabel}` : '' })}
                     </Text>
                     <Text style={styles.shipStepDesc}>
                       {carrierUrl
-                        ? `Rendez-vous sur le site du transporteur pour générer votre étiquette.`
-                        : 'Utilisez le site de votre transporteur pour créer l\'étiquette d\'expédition.'}
+                        ? t('listing.shipModal.step2DescWithCarrier')
+                        : t('listing.shipModal.step2DescNoCarrier')}
                     </Text>
                     {carrierUrl ? (
                       <TouchableOpacity onPress={() => Linking.openURL(carrierUrl)} style={styles.shipLinkBtn}>
                         <Ionicons name="open-outline" size={14} color={colors.primary} />
-                        <Text style={styles.shipLinkText}>Ouvrir {carrierLabel}</Text>
+                        <Text style={styles.shipLinkText}>{t('listing.shipModal.openCarrier', { carrier: carrierLabel })}</Text>
                       </TouchableOpacity>
                     ) : null}
                   </View>
@@ -1459,21 +1463,21 @@ export function ListingScreen({ navigation, route }: Props) {
                 <View style={styles.shipStep}>
                   <View style={styles.shipStepNum}><Text style={styles.shipStepNumText}>3</Text></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.shipStepTitle}>Déposer le colis</Text>
-                    <Text style={styles.shipStepDesc}>Apportez le colis étiqueté dans un bureau de poste ou point de dépôt agréé.</Text>
+                    <Text style={styles.shipStepTitle}>{t('listing.shipModal.step3Title')}</Text>
+                    <Text style={styles.shipStepDesc}>{t('listing.shipModal.step3Desc')}</Text>
                   </View>
                 </View>
 
                 <View style={styles.shipStep}>
                   <View style={styles.shipStepNum}><Text style={styles.shipStepNumText}>4</Text></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.shipStepTitle}>Confirmer l'expédition</Text>
-                    <Text style={styles.shipStepDesc}>Entrez le numéro de suivi (optionnel) pour notifier l'acheteur.</Text>
+                    <Text style={styles.shipStepTitle}>{t('listing.shipModal.step4Title')}</Text>
+                    <Text style={styles.shipStepDesc}>{t('listing.shipModal.step4Desc')}</Text>
                     <AppTextInput
                       style={styles.shipTrackingInput}
                       value={shipTrackingInput}
                       onChangeText={setShipTrackingInput}
-                      placeholder="Ex : 6X123456789FR"
+                      placeholder={t('listing.shipModal.trackingPlaceholder')}
                       autoCapitalize="characters"
                     />
                   </View>
@@ -1489,7 +1493,7 @@ export function ListingScreen({ navigation, route }: Props) {
                   ? <ActivityIndicator color={colors.background} size="small" />
                   : <>
                       <Ionicons name="send-outline" size={16} color={colors.background} style={{ marginRight: 8 }} />
-                      <Text style={styles.recapPayText}>Confirmer l'expédition</Text>
+                      <Text style={styles.recapPayText}>{t('listing.shipModal.confirmButton')}</Text>
                     </>
                 }
               </TouchableOpacity>
@@ -1519,22 +1523,22 @@ export function ListingScreen({ navigation, route }: Props) {
           transaction?.shipping_status === 'refunded' ? (
             <View style={[styles.btnSold, { opacity: 0.6 }]}>
               <Ionicons name="shield-checkmark-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
-              <Text style={styles.btnSoldText}>Litige — Remboursé</Text>
+              <Text style={styles.btnSoldText}>{t('listing.actions.disputeRefunded')}</Text>
             </View>
           ) : transaction?.shipping_status === 'delivered' ? (
             <View style={[styles.btnSold, { opacity: 0.6 }]}>
               <Ionicons name="checkmark-circle-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
-              <Text style={styles.btnSoldText}>Livré · Réception confirmée</Text>
+              <Text style={styles.btnSoldText}>{t('listing.actions.deliveredConfirmed')}</Text>
             </View>
           ) : transaction?.shipping_status === 'shipped' ? (
             <View style={[styles.btnSold, { opacity: 0.6 }]}>
               <Ionicons name="checkmark-circle-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
-              <Text style={styles.btnSoldText}>Expédié · En attente de réception</Text>
+              <Text style={styles.btnSoldText}>{t('listing.actions.shippedAwaitingReceipt')}</Text>
             </View>
           ) : transaction?.shipping_status === 'to_hand' ? (
             <View style={[styles.btnSold, { opacity: 0.6 }]}>
               <Ionicons name="people-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
-              <Text style={styles.btnSoldText}>Remise en main propre à convenir</Text>
+              <Text style={styles.btnSoldText}>{t('listing.status.handToConfirm')}</Text>
             </View>
           ) : (
             <TouchableOpacity
@@ -1542,7 +1546,7 @@ export function ListingScreen({ navigation, route }: Props) {
               onPress={() => { setShipTrackingInput(''); setShowShipModal(true); }}
             >
               <Ionicons name="send-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
-              <Text style={styles.btnBuyText}>Expédier l'article</Text>
+              <Text style={styles.btnBuyText}>{t('listing.actions.shipItem')}</Text>
             </TouchableOpacity>
           )
         ) : isOwner ? (
@@ -1552,7 +1556,7 @@ export function ListingScreen({ navigation, route }: Props) {
               onPress={() => (navigation as any).push('EditListing', { id })}
             >
               <Ionicons name="pencil-outline" size={18} color={colors.primary} />
-              <Text style={styles.btnEditText}>Modifier</Text>
+              <Text style={styles.btnEditText}>{t('listing.actions.edit')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btnSold, markingAsSold && { opacity: 0.6 }]}
@@ -1561,7 +1565,7 @@ export function ListingScreen({ navigation, route }: Props) {
             >
               {markingAsSold
                 ? <ActivityIndicator color={colors.background} />
-                : <Text style={styles.btnSoldText}>Marquer comme vendu</Text>
+                : <Text style={styles.btnSoldText}>{t('listing.actions.markAsSold')}</Text>
               }
             </TouchableOpacity>
           </>
@@ -1570,12 +1574,12 @@ export function ListingScreen({ navigation, route }: Props) {
             transaction.shipping_status === 'refunded' ? (
               <View style={[styles.btnSold, { opacity: 0.6 }]}>
                 <Ionicons name="shield-checkmark-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
-                <Text style={styles.btnSoldText}>Remboursé</Text>
+                <Text style={styles.btnSoldText}>{t('listing.status.refunded')}</Text>
               </View>
             ) : transaction.shipping_status === 'delivered' ? (
               <View style={[styles.btnSold, { opacity: 0.6 }]}>
                 <Ionicons name="checkmark-circle-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
-                <Text style={styles.btnSoldText}>Réception confirmée</Text>
+                <Text style={styles.btnSoldText}>{t('listing.actions.receiptConfirmed')}</Text>
               </View>
             ) : transaction.shipping_status === 'shipped' || transaction.shipping_status === 'to_hand' ? (
               <TouchableOpacity
@@ -1588,19 +1592,19 @@ export function ListingScreen({ navigation, route }: Props) {
                   : <>
                       <Ionicons name="checkmark-circle-outline" size={18} color={colors.background} style={{ marginRight: 6 }} />
                       <Text style={styles.btnBuyText}>
-                        {transaction.shipping_status === 'to_hand' ? 'Confirmer la remise' : 'Confirmer la réception'}
+                        {transaction.shipping_status === 'to_hand' ? t('listing.actions.confirmHandoff') : t('listing.actions.confirmReceipt')}
                       </Text>
                     </>
                 }
               </TouchableOpacity>
             ) : (
               <View style={[styles.btnSold, { opacity: 0.6 }]}>
-                <Text style={styles.btnSoldText}>En attente d'expédition</Text>
+                <Text style={styles.btnSoldText}>{t('listing.status.awaitingShipment')}</Text>
               </View>
             )
           ) : (
             <View style={[styles.btnSold, { opacity: 0.6 }]}>
-              <Text style={styles.btnSoldText}>Article vendu</Text>
+              <Text style={styles.btnSoldText}>{t('listing.actions.itemSold')}</Text>
             </View>
           )
         ) : (
@@ -1622,7 +1626,7 @@ export function ListingScreen({ navigation, route }: Props) {
               onPress={() => { setOfferAmount(''); setShowOfferModal(true); }}
             >
               <Ionicons name="pricetag-outline" size={18} color={colors.primary} style={{ marginRight: 6 }} />
-              <Text style={styles.btnContactText}>Offre</Text>
+              <Text style={styles.btnContactText}>{t('listing.actions.offer')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btnBuy, buying && { opacity: 0.6 }]}
@@ -1631,7 +1635,7 @@ export function ListingScreen({ navigation, route }: Props) {
             >
               {buying
                 ? <ActivityIndicator color={colors.background} size="small" />
-                : <Text style={styles.btnBuyText}>Acheter · {grandTotal.toFixed(2)} €</Text>
+                : <Text style={styles.btnBuyText}>{t('listing.actions.buy', { total: grandTotal.toFixed(2) })}</Text>
               }
             </TouchableOpacity>
           </>

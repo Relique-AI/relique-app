@@ -31,7 +31,7 @@ const PAGE_SIZE = 20;
 
 export function BrowseListingsScreen({ navigation, route }: Props) {
   const { category } = route.params;
-  const { user } = useAuth();
+  const { user, country } = useAuth();
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +50,7 @@ export function BrowseListingsScreen({ navigation, route }: Props) {
       loadListings(true, searchQuery);
     }, searchQuery ? 350 : 0);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, country]);
 
   const loadFavorites = async () => {
     if (!user) return;
@@ -70,6 +70,7 @@ export function BrowseListingsScreen({ navigation, route }: Props) {
       .from('listings')
       .select('*')
       .eq('status', 'active')
+      .eq('country', country)
       .ilike('category', `%${category}%`);
     if (s.trim()) {
       dbQuery = dbQuery.ilike('name', `%${s.trim()}%`);
