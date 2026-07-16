@@ -40,6 +40,13 @@ const CONDITION_COLORS: Record<AnalysisResult['condition'], string> = {
   'À restaurer': '#E08766',
 };
 
+const CONDITION_LABEL_KEYS: Record<AnalysisResult['condition'], string> = {
+  Excellent: 'condition.excellent',
+  Bon: 'condition.good',
+  Correct: 'condition.fair',
+  'À restaurer': 'condition.needsRestoration',
+};
+
 function Chip({ label }: { label: string }) {
   return (
     <View style={chipStyles.container}>
@@ -290,7 +297,7 @@ export function ResultScreen({ navigation, route }: Props) {
               ]}
             >
               <Text style={[styles.conditionText, { color: conditionColor }]}>
-                {analysis.condition}
+                {t(CONDITION_LABEL_KEYS[analysis.condition] ?? analysis.condition)}
               </Text>
             </View>
             <Text style={styles.conditionNote}>{analysis.conditionNote}</Text>

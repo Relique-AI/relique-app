@@ -14,6 +14,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { AppTextInput } from '../components/AppTextInput';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
@@ -39,21 +40,33 @@ const CONDITIONS: AnalysisResult['condition'][] = [
   'Excellent', 'Bon', 'Correct', 'À restaurer',
 ];
 
-const CATEGORIES = [
-  'Mobilier', 'Arts décoratifs', 'Bijoux', 'Argenterie',
-  'Céramique & Porcelaine', 'Horlogerie', 'Tableaux & Gravures',
-  'Livres & BD', 'Jouets & Jeux', 'Vintage & Mode',
-  'Appareils photo', 'Vinyles & Musique',
-  'Informatique & Électronique', 'Téléphones & Tablettes',
-  'Consoles & Jeux vidéo', 'Électroménager', 'Sport & Loisirs',
-  'Instruments de musique', 'Véhicules & Accessoires', 'Divers',
-];
+const CONDITION_LABEL_KEYS: Record<AnalysisResult['condition'], string> = {
+  Excellent: 'condition.excellent',
+  Bon: 'condition.good',
+  Correct: 'condition.fair',
+  'À restaurer': 'condition.needsRestoration',
+};
 
-const SHIPPING_OPTIONS = [
-  { id: 'hand',       label: 'Remise en main propre' },
-  { id: 'colissimo',  label: 'Colissimo' },
-  { id: 'chronopost', label: 'Chronopost' },
-];
+// Doit rester synchronisé avec VALID_CATEGORIES dans supabase/functions/analyze-object/index.ts
+const CATEGORIES_BY_LANG: Record<'fr' | 'en', string[]> = {
+  fr: [
+    'Mobilier', 'Arts décoratifs', 'Bijoux', 'Argenterie',
+    'Céramique & Porcelaine', 'Horlogerie', 'Tableaux & Gravures',
+    'Livres & BD', 'Jouets & Jeux', 'Vintage & Mode',
+    'Appareils photo', 'Vinyles & Musique',
+    'Informatique & Électronique', 'Téléphones & Tablettes',
+    'Consoles & Jeux vidéo', 'Électroménager', 'Sport & Loisirs',
+    'Instruments de musique', 'Véhicules & Accessoires', 'Divers',
+  ],
+  en: [
+    'Furniture', 'Decorative Arts', 'Jewelry', 'Silverware',
+    'Ceramics & Porcelain', 'Watches & Clocks', 'Paintings & Prints',
+    'Books & Comics', 'Toys & Games', 'Vintage & Fashion', 'Cameras',
+    'Vinyl & Music', 'Computers & Electronics', 'Phones & Tablets',
+    'Consoles & Video Games', 'Appliances', 'Sports & Outdoors',
+    'Musical Instruments', 'Vehicles & Accessories', 'Other',
+  ],
+};
 
 const PARCEL_SIZES = PARCEL_SIZES_DATA;
 
@@ -70,6 +83,7 @@ async function uploadPhoto(
   photoUri: string,
   userId: string,
   token: string,
+  lang: 'fr' | 'en',
 ): Promise<string> {
   const compressed = await compressPhoto(photoUri);
   const fileName = `${userId}/${Date.now()}.jpg`;
@@ -93,7 +107,7 @@ async function uploadPhoto(
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`Upload échoué : ${body}`);
+    throw new Error(`${lang === 'en' ? 'Upload failed' : 'Upload échoué'} : ${body}`);
   }
 
   const { data } = supabase.storage.from('listing-images').getPublicUrl(fileName);
@@ -101,11 +115,20 @@ async function uploadPhoto(
 }
 
 export function SellScreen({ navigation, route }: Props) {
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const { analysis, photos: initialPhotos, preUploadedPhotoUrls, recognitionSessionId } = route.params;
-  const { user, session } = useAuth();
+  const { user, session, country } = useAuth();
   const posthog = usePostHog();
   const { promptContext, isDenied, promptIfNeeded, onAccept, onDismiss } = useNotificationPermission();
+
+  const lang = i18n.language === 'en' ? 'en' : 'fr';
+  const CATEGORIES = CATEGORIES_BY_LANG[lang];
+  const SHIPPING_OPTIONS = [
+    { id: 'hand', label: t('payment.shipping.hand') },
+    { id: 'colissimo', label: 'Colissimo' },
+    { id: 'chronopost', label: 'Chronopost' },
+  ];
 
   const isPreUploaded = !!(preUploadedPhotoUrls?.length);
   const [photos, setPhotos] = useState<CapturedPhoto[]>(
@@ -144,7 +167,7 @@ export function SellScreen({ navigation, route }: Props) {
     locationSearchTimeout.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&limit=6&addressdetails=1&countrycodes=fr`,
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&limit=6&addressdetails=1&countrycodes=${country.toLowerCase()}`,
           { headers: { 'User-Agent': 'Pepite-App/1.0' } },
         );
         const json = await res.json();
@@ -180,13 +203,13 @@ export function SellScreen({ navigation, route }: Props) {
 
   const deletePhoto = () => {
     if (photos.length <= 1) {
-      Alert.alert('Photo requise', 'Vous devez conserver au moins une photo.');
+      Alert.alert(t('review.deletePhotoRequiredAlert.title'), t('review.deletePhotoRequiredAlert.message'));
       return;
     }
-    Alert.alert('Supprimer cette photo ?', '', [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(t('review.deletePhotoConfirmAlert.title'), '', [
+      { text: t('review.deletePhotoConfirmAlert.cancel'), style: 'cancel' },
       {
-        text: 'Supprimer',
+        text: t('review.deletePhotoConfirmAlert.confirm'),
         style: 'destructive',
         onPress: () => {
           setPhotos((prev) => {
@@ -201,12 +224,12 @@ export function SellScreen({ navigation, route }: Props) {
 
   const handlePublish = async () => {
     if (!name.trim()) {
-      Alert.alert('Champ requis', 'Veuillez saisir un nom pour l\'objet.');
+      Alert.alert(t('sell.requiredFieldAlert.title'), t('sell.requiredFieldAlert.message'));
       return;
     }
     const priceNum = parseFloat(price.replace(',', '.'));
     if (isNaN(priceNum) || priceNum <= 0) {
-      Alert.alert('Prix invalide', 'Veuillez saisir un prix valide.');
+      Alert.alert(t('sell.invalidPriceAlert.title'), t('sell.invalidPriceAlert.message'));
       return;
     }
     doPublish(priceNum);
@@ -225,7 +248,7 @@ export function SellScreen({ navigation, route }: Props) {
         .single();
       const imageUrls = isPreUploaded
         ? photos.map(p => p.uri)
-        : await Promise.all(photos.map(p => uploadPhoto(p.uri, user.id, session.access_token)));
+        : await Promise.all(photos.map(p => uploadPhoto(p.uri, user.id, session.access_token, lang)));
 
       const { error } = await supabase.from('listings').insert({
         seller_id: user.id,
@@ -272,7 +295,7 @@ export function SellScreen({ navigation, route }: Props) {
         err instanceof Error
           ? err.message
           : (err as any)?.message ?? JSON.stringify(err);
-      Alert.alert('Erreur', msg);
+      Alert.alert(t('common.error'), msg);
     } finally {
       setLoading(false);
     }
@@ -289,7 +312,7 @@ export function SellScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Mettre en vente</Text>
+          <Text style={styles.headerTitle}>{t('sell.title')}</Text>
           <View style={{ width: 48 }} />
         </View>
 
@@ -326,7 +349,7 @@ export function SellScreen({ navigation, route }: Props) {
 
           {/* Nom */}
           <View style={styles.field}>
-            <Text style={styles.label}>Nom de l'objet</Text>
+            <Text style={styles.label}>{t('sell.itemName')}</Text>
             <AppTextInput
               style={styles.input}
               value={name}
@@ -337,7 +360,7 @@ export function SellScreen({ navigation, route }: Props) {
 
           {/* Catégorie */}
           <View style={styles.field}>
-            <Text style={styles.label}>Catégorie</Text>
+            <Text style={styles.label}>{t('sell.category')}</Text>
             <View style={styles.categoryGrid}>
               {CATEGORIES.map((cat) => (
                 <TouchableOpacity
@@ -356,7 +379,7 @@ export function SellScreen({ navigation, route }: Props) {
 
           {/* État */}
           <View style={styles.field}>
-            <Text style={styles.label}>État</Text>
+            <Text style={styles.label}>{t('sell.condition')}</Text>
             <View style={styles.conditionRow}>
               {CONDITIONS.map((c) => (
                 <TouchableOpacity
@@ -365,7 +388,7 @@ export function SellScreen({ navigation, route }: Props) {
                   onPress={() => setCondition(c)}
                 >
                   <Text style={[styles.conditionChipText, condition === c && styles.conditionChipTextActive]}>
-                    {c}
+                    {t(CONDITION_LABEL_KEYS[c])}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -374,7 +397,7 @@ export function SellScreen({ navigation, route }: Props) {
 
           {/* Description */}
           <View style={styles.field} onLayout={(e) => setDescriptionY(e.nativeEvent.layout.y)}>
-            <Text style={styles.label}>Description</Text>
+            <Text style={styles.label}>{t('sell.description')}</Text>
             <AppTextInput
               style={[styles.input, styles.inputMulti]}
               value={description}
@@ -394,7 +417,7 @@ export function SellScreen({ navigation, route }: Props) {
                 onPress={() => setTipsOpen((o) => !o)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.tipsAccordionTitle}>Conseils pour mieux vendre</Text>
+                <Text style={styles.tipsAccordionTitle}>{t('sell.sellingTips')}</Text>
                 <Ionicons
                   name={tipsOpen ? 'chevron-up' : 'chevron-down'}
                   size={18}
@@ -416,9 +439,9 @@ export function SellScreen({ navigation, route }: Props) {
 
           {/* Prix */}
           <View style={styles.field}>
-            <Text style={styles.label}>Prix de vente (€)</Text>
+            <Text style={styles.label}>{t('sell.salePrice')}</Text>
             <Text style={styles.priceGuide}>
-              Estimation IA : {analysis.priceMin} € — {analysis.priceMax} €
+              {t('sell.aiEstimate', { min: analysis.priceMin, max: analysis.priceMax })}
             </Text>
             <AppTextInput
               style={styles.input}
@@ -431,8 +454,8 @@ export function SellScreen({ navigation, route }: Props) {
 
           {/* Livraison */}
           <View style={styles.field}>
-            <Text style={styles.label}>Modes de livraison</Text>
-            <Text style={styles.shippingSubtitle}>Sélectionnez les options que vous proposez à l'acheteur</Text>
+            <Text style={styles.label}>{t('sell.shippingMethods')}</Text>
+            <Text style={styles.shippingSubtitle}>{t('sell.shippingMethodsSubtitle')}</Text>
             {SHIPPING_OPTIONS.map((opt) => (
               <TouchableOpacity
                 key={opt.id}
@@ -455,8 +478,8 @@ export function SellScreen({ navigation, route }: Props) {
           {/* Format du colis */}
           {hasPostal && (
             <View style={styles.field}>
-              <Text style={styles.label}>Format du colis</Text>
-              <Text style={styles.shippingSubtitle}>Détermine le tarif de livraison affiché à l'acheteur</Text>
+              <Text style={styles.label}>{t('sell.parcelSize')}</Text>
+              <Text style={styles.shippingSubtitle}>{t('sell.parcelSizeSubtitle')}</Text>
               {PARCEL_SIZES.map((size) => (
                 <TouchableOpacity
                   key={size.id}
@@ -471,9 +494,9 @@ export function SellScreen({ navigation, route }: Props) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.shippingLabel, parcelSize === size.id && styles.shippingLabelActive]}>
-                      {size.label}
+                      {t(`sell.parcelSizes.${size.id}.label`)}
                     </Text>
-                    <Text style={styles.shippingDetail}>{size.detail}</Text>
+                    <Text style={styles.shippingDetail}>{t(`sell.parcelSizes.${size.id}.detail`)}</Text>
                   </View>
                 </TouchableOpacity>
               ))}
@@ -482,13 +505,13 @@ export function SellScreen({ navigation, route }: Props) {
 
           {/* Localisation */}
           <View style={styles.field}>
-            <Text style={styles.label}>Localisation</Text>
+            <Text style={styles.label}>{t('sell.location')}</Text>
             <View style={{ zIndex: 100 }}>
               <AppTextInput
                 style={styles.input}
                 value={location}
                 onChangeText={handleLocationChange}
-                placeholder="Ex : Paris, Lyon..."
+                placeholder={t('sell.locationPlaceholder')}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 onFocus={() => locationSuggestions.length > 0 && setShowSuggestions(true)}
               />
@@ -522,7 +545,7 @@ export function SellScreen({ navigation, route }: Props) {
               {loading ? (
                 <ActivityIndicator color={colors.background} />
               ) : (
-                <Text style={styles.ctaText}>Publier l'annonce</Text>
+                <Text style={styles.ctaText}>{t('sell.publish')}</Text>
               )}
             </TouchableOpacity>
           </View>

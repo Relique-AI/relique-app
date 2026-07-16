@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { fonts } from '../theme';
 import { AnalysisResult } from '../types';
 
@@ -9,17 +10,25 @@ const COLORS: Record<AnalysisResult['condition'], string> = {
   'À restaurer': '#E08766',
 };
 
+const LABEL_KEYS: Record<AnalysisResult['condition'], string> = {
+  Excellent: 'condition.excellent',
+  Bon: 'condition.good',
+  Correct: 'condition.fair',
+  'À restaurer': 'condition.needsRestoration',
+};
+
 interface Props {
   condition: AnalysisResult['condition'];
   size?: 'sm' | 'md';
 }
 
 export function ConditionBadge({ condition, size = 'md' }: Props) {
+  const { t } = useTranslation();
   const color = COLORS[condition] ?? '#888';
   return (
     <View style={[styles.badge, { backgroundColor: color + '22' }, size === 'sm' && styles.sm]}>
       <Text style={[styles.text, { color }, size === 'sm' && styles.textSm]}>
-        {condition}
+        {LABEL_KEYS[condition] ? t(LABEL_KEYS[condition]) : condition}
       </Text>
     </View>
   );

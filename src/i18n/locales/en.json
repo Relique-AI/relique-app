@@ -8,7 +8,7 @@
     "delete": "Delete"
   },
   "home": {
-    "brand": "Pépite",
+    "brand": "Estimit",
     "tagline": "Your things are worth more\nthan you think.",
     "steps": {
       "scan": "Scan",
@@ -50,9 +50,9 @@
     }
   },
   "loading": {
-    "brand": "✦ Pépite",
+    "brand": "✦ Estimit",
     "messages": [
-      "Pépite is analyzing your item...",
+      "Estimit is analyzing your item...",
       "Identifying the era and origin...",
       "Estimating market value...",
       "Writing the item's story..."
@@ -71,7 +71,7 @@
       "cancel": "Cancel",
       "signup": "Sign up",
       "saveMessage": "Create a free account to save your estimates.",
-      "sellMessage": "Create a free account to list items on Pépite."
+      "sellMessage": "Create a free account to list items on Estimit."
     },
     "uploadFailed": "Photo upload failed",
     "saveSuccessAlert": {
@@ -136,7 +136,7 @@
       "title": "Report sent",
       "message": "Thanks, our team will review this listing."
     },
-    "shareLinkPrefix": "See this listing on Pépite: {{link}}",
+    "shareLinkPrefix": "See this listing on Estimit: {{link}}",
     "shipping": {
       "hand": "Hand delivery"
     },
@@ -144,7 +144,7 @@
     "paymentError": "Payment error",
     "sellerNotConfiguredAlert": {
       "title": "Purchase temporarily unavailable",
-      "message": "This seller hasn't enabled payments on Pépite yet. You can send them a message to let them know or arrange something.",
+      "message": "This seller hasn't enabled payments on Estimit yet. You can send them a message to let them know or arrange something.",
       "sendMessage": "Send a message"
     },
     "offerSendError": "Couldn't send the offer.",
@@ -187,8 +187,8 @@
     "shippingLine": {
       "oversized": "Oversized shipping · fees to arrange with the buyer",
       "fromCost": "From €{{cost}} shipping · Total from €{{total}} (fees included)",
-      "free": "Free shipping · Total €{{total}} (Pépite fees included)",
-      "handOnly": "Hand delivery · Total €{{total}} (Pépite fees included)"
+      "free": "Free shipping · Total €{{total}} (Estimit fees included)",
+      "handOnly": "Hand delivery · Total €{{total}} (Estimit fees included)"
     },
     "offerModal": {
       "title": "Make an offer",
@@ -248,7 +248,7 @@
     "recapTitle": "Summary",
     "deliveryMethod": "Shipping ({{method}})",
     "tbd": "To arrange",
-    "serviceFee": "Pépite service fee (8%)",
+    "serviceFee": "Estimit service fee (8%)",
     "referralDiscount_one": "✦ Referral discount −50% ({{count}} credit remaining)",
     "referralDiscount_other": "✦ Referral discount −50% ({{count}} credits remaining)",
     "total": "Total",
@@ -295,7 +295,7 @@
     "continueWithGoogle": "Continue with Google",
     "guestLink": "Explore without an account →",
     "resetLinkSent": "A reset link has been sent to your email.",
-    "welcome": "Welcome to Pépite!{{referralMsg}}",
+    "welcome": "Welcome to Estimit!{{referralMsg}}",
     "referralSuccess": " You were referred by {{referrer}} — your referrer has been notified. You get 3 purchases at −50% fees!",
     "errors": {
       "emailRequired": "Please enter your email.",
@@ -439,7 +439,7 @@
     "moderation": "Moderation",
     "moderationSubtitle": "Handle reports",
     "contactUs": "Contact us",
-    "contactUsSubtitle": "Open a conversation with the Pépite team",
+    "contactUsSubtitle": "Open a conversation with the Estimit team",
     "legalMentions": "Terms & legal notices",
     "privacyPolicy": "Privacy policy",
     "deleteAccount": "Delete my account",
@@ -451,12 +451,50 @@
     "deleteAccountError": "Couldn't delete the account.",
     "unavailable": "Unavailable",
     "supportUnavailable": "Support isn't available right now.",
-    "supportChatName": "Pépite Support",
-    "version": "Pépite v{{version}}"
+    "supportChatName": "Estimit Support",
+    "version": "Estimit v{{version}}"
   },
   "apiErrors": {
     "unauthorized": "Unauthorized",
     "transaction_not_found": "Transaction not found",
     "invalid_body": "Invalid request body"
+  },
+  "condition": {
+    "excellent": "Excellent",
+    "good": "Good",
+    "fair": "Fair",
+    "needsRestoration": "Needs restoration"
+  },
+  "sell": {
+    "title": "List for sale",
+    "itemName": "Item name",
+    "category": "Category",
+    "condition": "Condition",
+    "description": "Description",
+    "sellingTips": "Tips to sell faster",
+    "salePrice": "Sale price (€)",
+    "aiEstimate": "AI estimate: €{{min}} — €{{max}}",
+    "shippingMethods": "Shipping methods",
+    "shippingMethodsSubtitle": "Select the options you offer the buyer",
+    "parcelSize": "Parcel size",
+    "parcelSizeSubtitle": "Determines the shipping cost shown to the buyer",
+    "parcelSizes": {
+      "xs": { "label": "Small", "detail": "Up to 1 kg · jewelry, accessories" },
+      "s": { "label": "Medium", "detail": "Up to 3 kg · clothing, books" },
+      "m": { "label": "Large", "detail": "Up to 5 kg · decorative items" },
+      "l": { "label": "Extra large", "detail": "Up to 10 kg · light furniture" },
+      "xl": { "label": "Oversized", "detail": "Over 10 kg · fees to arrange with the buyer" }
+    },
+    "location": "Location",
+    "locationPlaceholder": "E.g.: New York, Chicago...",
+    "publish": "Publish listing",
+    "requiredFieldAlert": {
+      "title": "Required field",
+      "message": "Please enter a name for the item."
+    },
+    "invalidPriceAlert": {
+      "title": "Invalid price",
+      "message": "Please enter a valid price."
+    }
   }
 }

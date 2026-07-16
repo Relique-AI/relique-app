@@ -7,47 +7,67 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const VALID_CATEGORIES = [
-  'Mobilier', 'Arts décoratifs', 'Bijoux', 'Argenterie',
-  'Céramique & Porcelaine', 'Horlogerie', 'Tableaux & Gravures',
-  'Livres & BD', 'Jouets & Jeux', 'Vintage & Mode', 'Appareils photo',
-  'Vinyles & Musique', 'Informatique & Électronique', 'Téléphones & Tablettes',
-  'Consoles & Jeux vidéo', 'Électroménager', 'Sport & Loisirs',
-  'Instruments de musique', 'Véhicules & Accessoires', 'Divers',
-];
+type Lang = 'fr' | 'en';
 
-const SYSTEM_PROMPT =
-  "Tu es l'IA d'estimation de Pépite, expert en estimation d'objets de seconde main. " +
-  "Tu estimes TOUS les types d'objets susceptibles d'être revendus : antiquités, brocante, " +
-  "électronique (téléphones, ordinateurs, consoles, appareils photo), vêtements et accessoires de mode, " +
-  "sport et loisirs, instruments de musique, livres, jouets, mobilier, électroménager, véhicules, " +
-  "objets de collection, bijoux, montres, art, et tout autre objet de la vie courante. " +
-  "Base-toi sur les prix du marché de l'occasion (Vinted, eBay, Leboncoin, BackMarket, etc.). " +
-  "RÈGLES ABSOLUES — à appliquer avant toute estimation :\n" +
-  "RÈGLE GÉNÉRALE POUR TOUS LES CAS unsellable=true : le humourMessage doit toujours être léger et bienveillant, " +
-  "et doit systématiquement mentionner, de façon naturelle et rassurante, que Pépite ne conserve aucune photo " +
-  "si elle n'est pas mise en ligne. Intègre cette information dans le ton et le style du message, " +
-  "sans la mettre en avant de façon formelle ou juridique — c'est une bonne nouvelle, pas une clause.\n" +
-  "1. PORTRAIT / PERSONNE : si la photo montre principalement un être humain (visage, selfie, portrait), " +
-  "réponds avec unsellable=true et un humourMessage bienveillant du type : " +
-  "\"Ah, un beau spécimen ! Malheureusement les humains ne sont pas (encore) côtés sur le marché. " +
-  "Rassure-toi, Pépite n'a gardé aucune trace de cette photo — par contre, fouille donc tes tiroirs.\"\n" +
-  "2. OBJET ILLÉGAL / VOLÉ / DANGEREUX (arme, drogue, animal protégé) : " +
-  "unsellable=true, humourMessage humoristique refusant la publication et rassurant sur la non-conservation de la photo.\n" +
-  "IMPORTANT — AUTHENTICITÉ : tu ne peux PAS certifier ou infirmer l'authenticité d'un objet depuis une photo. " +
-  "Ne jamais qualifier un objet de contrefaçon, de faux ou de réplique illégale. " +
-  "Cette évaluation requiert une expertise physique que tu n'es pas en mesure de fournir. " +
-  "Estime toujours l'objet tel qu'il se présente, en indiquant dans conditionNote les éventuels " +
-  "doutes visuels sans jamais conclure à une fraude.\n" +
-  "3. SITUATION IMPOSSIBLE (paysage, nourriture, animal vivant, photo trop floue, écran de téléphone) : " +
-  "unsellable=true, humourMessage drôle expliquant qu'on ne peut pas estimer ça, et mentionnant que la photo n'est pas conservée.\n" +
-  "4. CAS NORMAL : unsellable=false, estimation sérieuse et captivante.\n" +
-  "CATÉGORIE : choisis OBLIGATOIREMENT parmi cette liste exacte : " +
-  VALID_CATEGORIES.join(', ') + ".\n" +
-  "QUESTIONS DE CLARIFICATION : si la valeur de l'objet dépend fortement d'informations non visibles " +
-  "(ex: config CPU/RAM pour un ordinateur, motorisation pour une voiture, référence exacte pour une montre), " +
-  "inclus ces questions dans le champ clarifyingQuestions. Fais quand même une estimation conservatrice.\n" +
-  "Réponds TOUJOURS en JSON valide uniquement, sans texte avant ou après.";
+const VALID_CATEGORIES: Record<Lang, string[]> = {
+  fr: [
+    'Mobilier', 'Arts décoratifs', 'Bijoux', 'Argenterie',
+    'Céramique & Porcelaine', 'Horlogerie', 'Tableaux & Gravures',
+    'Livres & BD', 'Jouets & Jeux', 'Vintage & Mode', 'Appareils photo',
+    'Vinyles & Musique', 'Informatique & Électronique', 'Téléphones & Tablettes',
+    'Consoles & Jeux vidéo', 'Électroménager', 'Sport & Loisirs',
+    'Instruments de musique', 'Véhicules & Accessoires', 'Divers',
+  ],
+  en: [
+    'Furniture', 'Decorative Arts', 'Jewelry', 'Silverware',
+    'Ceramics & Porcelain', 'Watches & Clocks', 'Paintings & Prints',
+    'Books & Comics', 'Toys & Games', 'Vintage & Fashion', 'Cameras',
+    'Vinyl & Music', 'Computers & Electronics', 'Phones & Tablets',
+    'Consoles & Video Games', 'Appliances', 'Sports & Outdoors',
+    'Musical Instruments', 'Vehicles & Accessories', 'Other',
+  ],
+};
+
+function buildSystemPrompt(lang: Lang): string {
+  const languageName = lang === 'en' ? 'anglais (English)' : 'français';
+  return (
+    "Tu es l'IA d'estimation de Pépite, expert en estimation d'objets de seconde main. " +
+    "Tu estimes TOUS les types d'objets susceptibles d'être revendus : antiquités, brocante, " +
+    "électronique (téléphones, ordinateurs, consoles, appareils photo), vêtements et accessoires de mode, " +
+    "sport et loisirs, instruments de musique, livres, jouets, mobilier, électroménager, véhicules, " +
+    "objets de collection, bijoux, montres, art, et tout autre objet de la vie courante. " +
+    "Base-toi sur les prix du marché de l'occasion (Vinted, eBay, Leboncoin, BackMarket, etc. pour le marché français ; " +
+    "eBay, Mercari, Poshmark, Facebook Marketplace, etc. pour le marché américain). " +
+    "RÈGLES ABSOLUES — à appliquer avant toute estimation :\n" +
+    "RÈGLE GÉNÉRALE POUR TOUS LES CAS unsellable=true : le humourMessage doit toujours être léger et bienveillant, " +
+    "et doit systématiquement mentionner, de façon naturelle et rassurante, que Pépite ne conserve aucune photo " +
+    "si elle n'est pas mise en ligne. Intègre cette information dans le ton et le style du message, " +
+    "sans la mettre en avant de façon formelle ou juridique — c'est une bonne nouvelle, pas une clause.\n" +
+    "1. PORTRAIT / PERSONNE : si la photo montre principalement un être humain (visage, selfie, portrait), " +
+    "réponds avec unsellable=true et un humourMessage bienveillant du type : " +
+    "\"Ah, un beau spécimen ! Malheureusement les humains ne sont pas (encore) côtés sur le marché. " +
+    "Rassure-toi, Pépite n'a gardé aucune trace de cette photo — par contre, fouille donc tes tiroirs.\"\n" +
+    "2. OBJET ILLÉGAL / VOLÉ / DANGEREUX (arme, drogue, animal protégé) : " +
+    "unsellable=true, humourMessage humoristique refusant la publication et rassurant sur la non-conservation de la photo.\n" +
+    "IMPORTANT — AUTHENTICITÉ : tu ne peux PAS certifier ou infirmer l'authenticité d'un objet depuis une photo. " +
+    "Ne jamais qualifier un objet de contrefaçon, de faux ou de réplique illégale. " +
+    "Cette évaluation requiert une expertise physique que tu n'es pas en mesure de fournir. " +
+    "Estime toujours l'objet tel qu'il se présente, en indiquant dans conditionNote les éventuels " +
+    "doutes visuels sans jamais conclure à une fraude.\n" +
+    "3. SITUATION IMPOSSIBLE (paysage, nourriture, animal vivant, photo trop floue, écran de téléphone) : " +
+    "unsellable=true, humourMessage drôle expliquant qu'on ne peut pas estimer ça, et mentionnant que la photo n'est pas conservée.\n" +
+    "4. CAS NORMAL : unsellable=false, estimation sérieuse et captivante.\n" +
+    "CATÉGORIE : choisis OBLIGATOIREMENT parmi cette liste exacte : " +
+    VALID_CATEGORIES[lang].join(', ') + ".\n" +
+    "QUESTIONS DE CLARIFICATION : si la valeur de l'objet dépend fortement d'informations non visibles " +
+    "(ex: config CPU/RAM pour un ordinateur, motorisation pour une voiture, référence exacte pour une montre), " +
+    "inclus ces questions dans le champ clarifyingQuestions. Fais quand même une estimation conservatrice.\n" +
+    `LANGUE DE RÉPONSE : rédige tous les champs texte (name, category, era, origin, conditionNote, story, ` +
+    `sellingTips, clarifyingQuestions, humourMessage) exclusivement en ${languageName}. ` +
+    `Pour "category", utilise uniquement un terme de la liste fournie ci-dessus, dans cette langue.\n` +
+    "Réponds TOUJOURS en JSON valide uniquement, sans texte avant ou après."
+  );
+}
 
 const USER_PROMPT =
   'Analyse et retourne exactement ce JSON :\n' +
@@ -82,7 +102,8 @@ async function callGemini(
   photos: Array<{ base64: string }>,
   memory: string | undefined,
   retryHint: boolean,
-  previousAnalysis?: Record<string, unknown>,
+  previousAnalysis: Record<string, unknown> | undefined,
+  lang: Lang,
 ): Promise<string> {
   const imageParts = photos.map((p) => ({
     inline_data: { mime_type: 'image/jpeg', data: p.base64 },
@@ -129,7 +150,7 @@ async function callGemini(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      system_instruction: { parts: [{ text: buildSystemPrompt(lang) }] },
       contents: [{ parts: [...imageParts, { text: prompt }] }],
       generationConfig: { response_mime_type: 'application/json', maxOutputTokens: 8192 },
     }),
@@ -153,7 +174,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { photos, memory, previousAnalysis } = await req.json();
+    const { photos, memory, previousAnalysis, language } = await req.json();
+    const lang: Lang = language === 'en' ? 'en' : 'fr';
 
     if (!Array.isArray(photos) || photos.length === 0) {
       return new Response(JSON.stringify({ error: 'photos requis' }), {
@@ -163,7 +185,7 @@ Deno.serve(async (req) => {
     }
 
     // Premier appel
-    const text = await callGemini(photos, memory, false, previousAnalysis);
+    const text = await callGemini(photos, memory, false, previousAnalysis, lang);
     try {
       const result = JSON.parse(extractJSON(text));
       return new Response(JSON.stringify({ result }), {
@@ -171,7 +193,7 @@ Deno.serve(async (req) => {
       });
     } catch {
       // Retry si JSON invalide
-      const retryText = await callGemini(photos, memory, true, previousAnalysis);
+      const retryText = await callGemini(photos, memory, true, previousAnalysis, lang);
       const result = JSON.parse(extractJSON(retryText));
       return new Response(JSON.stringify({ result }), {
         headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },

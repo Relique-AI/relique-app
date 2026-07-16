@@ -1,4 +1,5 @@
 import { AnalysisResult, CapturedPhoto } from '../types';
+import i18n from '../i18n';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -21,6 +22,7 @@ export async function analyzeObject(
       photos: photos.map((p) => ({ base64: p.base64 })),
       memory,
       previousAnalysis,
+      language: i18n.language,
     }),
     signal,
   });

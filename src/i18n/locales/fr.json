@@ -458,5 +458,43 @@
     "unauthorized": "Non autorisé",
     "transaction_not_found": "Transaction introuvable",
     "invalid_body": "Corps de requête invalide"
+  },
+  "condition": {
+    "excellent": "Excellent",
+    "good": "Bon",
+    "fair": "Correct",
+    "needsRestoration": "À restaurer"
+  },
+  "sell": {
+    "title": "Mettre en vente",
+    "itemName": "Nom de l'objet",
+    "category": "Catégorie",
+    "condition": "État",
+    "description": "Description",
+    "sellingTips": "Conseils pour mieux vendre",
+    "salePrice": "Prix de vente (€)",
+    "aiEstimate": "Estimation IA : {{min}} € — {{max}} €",
+    "shippingMethods": "Modes de livraison",
+    "shippingMethodsSubtitle": "Sélectionnez les options que vous proposez à l'acheteur",
+    "parcelSize": "Format du colis",
+    "parcelSizeSubtitle": "Détermine le tarif de livraison affiché à l'acheteur",
+    "parcelSizes": {
+      "xs": { "label": "Petit", "detail": "Jusqu'à 1 kg · bijoux, accessoires" },
+      "s": { "label": "Moyen", "detail": "Jusqu'à 3 kg · vêtements, livres" },
+      "m": { "label": "Grand", "detail": "Jusqu'à 5 kg · objets décoratifs" },
+      "l": { "label": "Très grand", "detail": "Jusqu'à 10 kg · mobilier léger" },
+      "xl": { "label": "Hors gabarit", "detail": "Plus de 10 kg · frais à convenir avec l'acheteur" }
+    },
+    "location": "Localisation",
+    "locationPlaceholder": "Ex : Paris, Lyon...",
+    "publish": "Publier l'annonce",
+    "requiredFieldAlert": {
+      "title": "Champ requis",
+      "message": "Veuillez saisir un nom pour l'objet."
+    },
+    "invalidPriceAlert": {
+      "title": "Prix invalide",
+      "message": "Veuillez saisir un prix valide."
+    }
   }
 }

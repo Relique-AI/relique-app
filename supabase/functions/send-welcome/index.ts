@@ -1,18 +1,22 @@
 function renderEmail(displayName: string, lang: 'fr' | 'en') {
   const copy = lang === 'en'
     ? {
+      wordmark: '✦ Estimit',
       tagline: 'Your things are worth more than you think.',
-      title: 'Welcome to Pépite ✦',
+      title: 'Welcome to Estimit ✦',
       p1: 'Your account is active. You can now scan your items, list them for sale, and discover other members’ finds.',
       p2: 'Happy treasure hunting!',
-      cta: 'Open Pépite',
+      cta: 'Open Estimit',
+      copyright: '© 2025 Estimit',
     }
     : {
+      wordmark: '✦ Pépite',
       tagline: 'Tes objets valent plus que tu ne crois.',
       title: 'Bienvenue sur Pépite ✦',
       p1: 'Ton compte est actif. Tu peux dès maintenant scanner tes objets, les mettre en vente et découvrir les pépites des autres membres.',
       p2: 'Bonne chasse aux trésors !',
       cta: 'Ouvrir Pépite',
+      copyright: '© 2025 Pépite',
     };
 
   return `<!DOCTYPE html>
@@ -28,7 +32,7 @@ function renderEmail(displayName: string, lang: 'fr' | 'en') {
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#0B0907;border-radius:16px;overflow:hidden;">
           <tr>
             <td align="center" style="padding:40px 40px 28px;">
-              <p style="margin:0;font-size:30px;font-weight:700;color:#F5B82E;">✦ Pépite</p>
+              <p style="margin:0;font-size:30px;font-weight:700;color:#F5B82E;">${copy.wordmark}</p>
               <p style="margin:8px 0 0;font-size:13px;color:#888;font-style:italic;">${copy.tagline}</p>
             </td>
           </tr>
@@ -50,7 +54,7 @@ function renderEmail(displayName: string, lang: 'fr' | 'en') {
           <tr>
             <td style="padding:0 40px 32px;">
               <div style="height:1px;background-color:rgba(255,255,255,0.08);margin-bottom:20px;"></div>
-              <p style="margin:0;font-size:12px;color:#555;text-align:center;">© 2025 Pépite · <a href="https://pepite-app.com" style="color:#555;text-decoration:none;">pepite-app.com</a></p>
+              <p style="margin:0;font-size:12px;color:#555;text-align:center;">${copy.copyright} · <a href="https://pepite-app.com" style="color:#555;text-decoration:none;">pepite-app.com</a></p>
             </td>
           </tr>
         </table>
@@ -80,7 +84,7 @@ Deno.serve(async (req) => {
 
     const lang: 'fr' | 'en' = language === 'en' ? 'en' : 'fr';
     const displayName = username || (lang === 'en' ? 'you' : 'toi');
-    const subject = lang === 'en' ? 'Welcome to Pépite ✦' : 'Bienvenue sur Pépite ✦';
+    const subject = lang === 'en' ? 'Welcome to Estimit ✦' : 'Bienvenue sur Pépite ✦';
     const html = renderEmail(displayName, lang);
 
     const res = await fetch('https://api.resend.com/emails', {
@@ -90,7 +94,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Pépite <hello@pepite-app.com>',
+        from: lang === 'en' ? 'Estimit <hello@pepite-app.com>' : 'Pépite <hello@pepite-app.com>',
         to: [email],
         subject,
         html,
