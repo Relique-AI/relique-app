@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
@@ -268,22 +269,23 @@ function ProfileNavigator() {
 // ─── Guest gate screen ───────────────────────────────────────────────────────
 
 function GuestGateScreen() {
+  const { t } = useTranslation();
   const { exitGuestMode } = useAuth();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 }}>
       <Text style={{ fontSize: 48, color: colors.primary }}>✦</Text>
       <Text style={{ fontFamily: fonts.serif, fontSize: 26, color: colors.textPrimary, textAlign: 'center' }}>
-        Connexion requise
+        {t('nav.guestGate.title')}
       </Text>
       <Text style={{ fontFamily: fonts.body, fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 23 }}>
-        Créez un compte gratuit pour vendre vos objets, discuter avec les vendeurs et accéder à toutes les fonctionnalités.
+        {t('nav.guestGate.message')}
       </Text>
       <TouchableOpacity
         style={{ backgroundColor: colors.primary, borderRadius: 50, paddingVertical: 16, paddingHorizontal: 40, marginTop: 8 }}
         onPress={exitGuestMode}
         activeOpacity={0.85}
       >
-        <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background }}>Se connecter / Créer un compte</Text>
+        <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.background }}>{t('nav.guestGate.cta')}</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -293,6 +295,7 @@ function GuestGateScreen() {
 
 const Tab = createBottomTabNavigator<TabParamList>();
 function MainTabs() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { isGuest, user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -372,18 +375,18 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Scanner" component={ScannerNavigator} />
-      <Tab.Screen name="Parcourir" component={BrowseNavigator} />
-      <Tab.Screen name="Marché" component={MarketNavigator} />
+      <Tab.Screen name="Scanner" component={ScannerNavigator} options={{ tabBarLabel: t('nav.scanner') }} />
+      <Tab.Screen name="Parcourir" component={BrowseNavigator} options={{ tabBarLabel: t('nav.browse') }} />
+      <Tab.Screen name="Marché" component={MarketNavigator} options={{ tabBarLabel: t('nav.market') }} />
       <Tab.Screen
         name="Messages"
         component={isGuest ? GuestGateScreen : MessagesNavigator}
-        options={{ tabBarBadge: !isGuest && unreadCount > 0 ? unreadCount : undefined }}
+        options={{ tabBarLabel: t('nav.messages'), tabBarBadge: !isGuest && unreadCount > 0 ? unreadCount : undefined }}
       />
       <Tab.Screen
         name="Profil"
         component={isGuest ? GuestGateScreen : ProfileNavigator}
-        options={{ tabBarBadge: !isGuest && questionBadge > 0 ? questionBadge : undefined }}
+        options={{ tabBarLabel: t('nav.profile'), tabBarBadge: !isGuest && questionBadge > 0 ? questionBadge : undefined }}
         listeners={{ focus: () => fetchQuestionBadge() }}
       />
     </Tab.Navigator>

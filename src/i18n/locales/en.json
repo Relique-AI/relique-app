@@ -496,5 +496,17 @@
       "title": "Invalid price",
       "message": "Please enter a valid price."
     }
+  },
+  "nav": {
+    "scanner": "Scan",
+    "browse": "Browse",
+    "market": "Market",
+    "messages": "Messages",
+    "profile": "Profile",
+    "guestGate": {
+      "title": "Sign-in required",
+      "message": "Create a free account to sell your items, chat with sellers, and access all features.",
+      "cta": "Log in / Create an account"
+    }
   }
 }

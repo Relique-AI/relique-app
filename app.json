@@ -50,7 +50,7 @@
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 41
+      "versionCode": 42
     },
     "androidStatusBar": {
       "barStyle": "light-content",

@@ -496,5 +496,17 @@
       "title": "Prix invalide",
       "message": "Veuillez saisir un prix valide."
     }
+  },
+  "nav": {
+    "scanner": "Scanner",
+    "browse": "Parcourir",
+    "market": "Marché",
+    "messages": "Messages",
+    "profile": "Profil",
+    "guestGate": {
+      "title": "Connexion requise",
+      "message": "Créez un compte gratuit pour vendre vos objets, discuter avec les vendeurs et accéder à toutes les fonctionnalités.",
+      "cta": "Se connecter / Créer un compte"
+    }
   }
 }
